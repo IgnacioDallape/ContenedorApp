@@ -1,0 +1,1832 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Container Loader</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600&family=DM+Mono:wght@300;400;500&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root {
+  --c1: #8D7966;
+  --c2: #A8A39D;
+  --c3: #D8C8B8;
+  --c4: #E2DDD9;
+  --c5: #F8F1E9;
+  --bg: #F8F1E9;
+  --surface: #ffffff;
+  --surface2: #F2EBE1;
+  --border: #E2DDD9;
+  --border2: #D8C8B8;
+  --text: #3a3028;
+  --text2: #6b6259;
+  --muted: #A8A39D;
+  --accent: #8D7966;
+  --accent2: #6b5d4f;
+  --danger: #b85c5c;
+  --success: #6b8c6b;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; overflow-x: hidden; }
+
+header {
+  background: var(--c1); padding: 0 40px; height: 64px;
+  display: flex; align-items: center; justify-content: space-between;
+  position: sticky; top: 0; z-index: 200;
+  box-shadow: 0 2px 20px rgba(141,121,102,0.25);
+}
+.header-brand { display: flex; align-items: baseline; gap: 12px; }
+.header-brand h1 { font-family: 'Cormorant Garamond', serif; font-size: 26px; font-weight: 500; color: var(--c5); letter-spacing: 2px; }
+.header-brand span { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--c3); letter-spacing: 2px; text-transform: uppercase; }
+.header-nav { display: flex; gap: 4px; }
+.nav-btn {
+  padding: 8px 20px; border-radius: 4px; border: 1px solid transparent;
+  background: transparent; color: var(--c4); font-family: 'Jost', sans-serif;
+  font-size: 13px; font-weight: 400; letter-spacing: 1px; cursor: pointer;
+  transition: all 0.2s; text-transform: uppercase;
+}
+.nav-btn:hover { background: rgba(248,241,233,0.1); color: var(--c5); }
+.nav-btn.active { background: var(--c5); color: var(--c1); font-weight: 600; }
+
+.page { display: none; }
+.page.active { display: block; }
+
+.stats-strip {
+  background: var(--c1); padding: 0 40px 20px;
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px;
+  border-bottom: 3px solid var(--c3);
+}
+.stat-item { padding-top: 16px; }
+.stat-label { font-family: 'DM Mono', monospace; font-size: 9px; color: var(--c3); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 4px; }
+.stat-value { font-family: 'Cormorant Garamond', serif; font-size: 32px; font-weight: 400; color: var(--c5); line-height: 1; }
+.stat-sub { font-size: 11px; color: var(--c2); margin-top: 2px; }
+
+.layout { display: grid; grid-template-columns: 360px 1fr; min-height: calc(100vh - 64px); }
+
+.sidebar {
+  background: var(--surface); border-right: 1px solid var(--border);
+  padding: 28px 24px; overflow-y: auto;
+  max-height: calc(100vh - 64px); position: sticky; top: 64px;
+}
+.sidebar-title {
+  font-family: 'Cormorant Garamond', serif; font-size: 20px; font-weight: 500;
+  color: var(--accent); letter-spacing: 1px; margin-bottom: 22px;
+  padding-bottom: 12px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+}
+
+.form-group { margin-bottom: 16px; }
+label { display: block; font-family: 'DM Mono', monospace; font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 6px; }
+input[type="text"], input[type="number"], input[type="url"], select {
+  width: 100%; background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 4px; color: var(--text); padding: 9px 12px;
+  font-family: 'Jost', sans-serif; font-size: 14px;
+  transition: border-color 0.2s, box-shadow 0.2s; outline: none; -webkit-appearance: none;
+}
+input:focus, select:focus { border-color: var(--c1); box-shadow: 0 0 0 3px rgba(141,121,102,0.12); }
+select option { background: var(--surface); }
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+
+.type-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 18px; }
+.type-tab {
+  padding: 10px; border-radius: 4px; border: 1.5px solid var(--border);
+  background: transparent; color: var(--muted); font-family: 'DM Mono', monospace;
+  font-size: 11px; cursor: pointer; text-align: center;
+  letter-spacing: 1px; text-transform: uppercase; transition: all 0.2s;
+}
+.type-tab.active-box { border-color: var(--c1); color: var(--c1); background: rgba(141,121,102,0.08); }
+.type-tab.active-pallet { border-color: var(--c1); color: var(--c1); background: rgba(141,121,102,0.08); }
+
+.slider-wrap { display: flex; align-items: center; gap: 10px; }
+input[type="range"] { flex: 1; height: 4px; padding: 0; accent-color: var(--c1); background: transparent; cursor: pointer; }
+.slider-val { font-family: 'DM Mono', monospace; font-size: 13px; color: var(--c1); width: 52px; text-align: right; }
+
+.btn-primary {
+  width: 100%; padding: 12px; border-radius: 4px; border: none;
+  background: var(--c1); color: var(--c5); font-family: 'Jost', sans-serif;
+  font-size: 13px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase;
+  cursor: pointer; transition: all 0.2s;
+}
+.btn-primary:hover { background: var(--accent2); transform: translateY(-1px); box-shadow: 0 4px 16px rgba(141,121,102,0.3); }
+.btn-primary:active { transform: translateY(0); }
+
+.btn-secondary {
+  padding: 8px 16px; border-radius: 4px; border: 1px solid var(--border2);
+  background: transparent; color: var(--text2); font-family: 'Jost', sans-serif;
+  font-size: 12px; font-weight: 500; letter-spacing: 1px; text-transform: uppercase;
+  cursor: pointer; transition: all 0.2s;
+}
+.btn-secondary:hover { border-color: var(--c1); color: var(--c1); }
+
+.divider { border: none; border-top: 1px solid var(--border); margin: 20px 0; }
+
+.queue-item {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 6px; padding: 12px; margin-bottom: 8px;
+  display: flex; align-items: flex-start; gap: 10px; transition: border-color 0.2s;
+}
+.queue-item:hover { border-color: var(--c2); }
+.queue-dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 5px; flex-shrink: 0; }
+.queue-info { flex: 1; }
+.queue-name { font-size: 13px; font-weight: 600; margin-bottom: 2px; color: var(--text); }
+.queue-meta { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--muted); line-height: 1.7; }
+.queue-price { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--c1); margin-top: 2px; }
+.btn-remove { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 18px; line-height: 1; padding: 0 2px; transition: color 0.2s; }
+.btn-remove:hover { color: var(--danger); }
+
+.main { padding: 32px 36px; background: var(--bg); }
+
+.section { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 24px; margin-bottom: 24px; }
+.section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; padding-bottom: 14px; border-bottom: 1px solid var(--border); }
+.section-title { font-family: 'Cormorant Garamond', serif; font-size: 18px; font-weight: 500; color: var(--accent); letter-spacing: 1px; }
+
+.progress-row { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; }
+.progress-label { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--muted); letter-spacing: 1.5px; text-transform: uppercase; white-space: nowrap; width: 120px; }
+.progress-bar { flex: 1; height: 6px; background: var(--surface2); border-radius: 99px; overflow: hidden; }
+.progress-fill { height: 100%; border-radius: 99px; transition: width 0.6s cubic-bezier(.4,0,.2,1); background: linear-gradient(90deg, var(--c3), var(--c1)); }
+.progress-pct { font-family: 'DM Mono', monospace; font-size: 13px; color: var(--c1); width: 50px; text-align: right; }
+
+.canvas-wrap { background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; margin-bottom: 16px; }
+canvas { display: block; width: 100%; height: auto; }
+
+.legend { display: flex; flex-wrap: wrap; gap: 12px; }
+.legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text2); }
+.legend-dot { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
+
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th { font-family: 'DM Mono', monospace; font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--muted); text-align: left; padding: 8px 12px; border-bottom: 2px solid var(--border); }
+td { padding: 11px 12px; border-bottom: 1px solid var(--border); vertical-align: middle; color: var(--text); }
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: var(--surface2); }
+.td-mono { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--text2); }
+.td-price { font-family: 'DM Mono', monospace; color: var(--c1); font-weight: 500; }
+.td-pct { font-family: 'Cormorant Garamond', serif; font-size: 20px; font-weight: 500; }
+.total-row td { background: var(--surface2) !important; font-weight: 600; color: var(--accent); font-family: 'Cormorant Garamond', serif; font-size: 17px; border-top: 2px solid var(--border2); }
+
+.warning-bar { background: rgba(184,92,92,0.08); border: 1px solid rgba(184,92,92,0.25); border-radius: 6px; padding: 10px 14px; font-size: 12px; color: var(--danger); margin-bottom: 16px; display: none; }
+.empty-state { text-align: center; padding: 48px 20px; color: var(--muted); }
+.empty-icon { font-size: 40px; margin-bottom: 10px; }
+.empty-text { font-size: 14px; line-height: 1.6; color: var(--muted); }
+
+/* CATALOG */
+.catalog-main { padding: 32px 36px; background: var(--bg); }
+.catalog-toolbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
+.catalog-toolbar h2 { font-family: 'Cormorant Garamond', serif; font-size: 28px; font-weight: 400; color: var(--text); letter-spacing: 1px; }
+
+.catalog-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 20px; padding-bottom: 80px; }
+
+.cat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; transition: all 0.2s; cursor: pointer; position: relative; }
+.cat-card:hover { border-color: var(--c1); box-shadow: 0 8px 32px rgba(141,121,102,0.15); transform: translateY(-2px); }
+.cat-card.selected { border-color: var(--c1); box-shadow: 0 0 0 2px var(--c1); }
+.cat-card-check { position: absolute; top: 10px; right: 10px; width: 24px; height: 24px; border-radius: 50%; background: var(--c1); color: var(--c5); display: flex; align-items: center; justify-content: center; font-size: 13px; opacity: 0; transition: opacity 0.2s; pointer-events: none; }
+.cat-card.selected .cat-card-check { opacity: 1; }
+
+.cat-img { width: 100%; height: 160px; object-fit: contain; display: block; background: var(--c5); padding: 8px; }
+.cat-img-placeholder { width: 100%; height: 160px; background: var(--c4); display: flex; align-items: center; justify-content: center; font-size: 40px; }
+.cat-body { padding: 14px; }
+.cat-name { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+.cat-meta { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--muted); line-height: 1.7; }
+.cat-price { font-family: 'DM Mono', monospace; font-size: 13px; color: var(--c1); margin-top: 6px; font-weight: 500; }
+.cat-link { font-size: 11px; color: var(--c2); text-decoration: none; word-break: break-all; display: block; margin-top: 4px; }
+.cat-link:hover { color: var(--c1); }
+.cat-footer { padding: 10px 14px; border-top: 1px solid var(--border); display: flex; gap: 6px; align-items: center; }
+.cat-actions { display: flex; gap: 6px; margin-left: auto; }
+.btn-icon { background: none; border: 1px solid var(--border); border-radius: 4px; padding: 5px 10px; color: var(--text2); cursor: pointer; font-size: 12px; transition: all 0.2s; font-family: 'Jost', sans-serif; }
+.btn-icon:hover { border-color: var(--c1); color: var(--c1); }
+.btn-icon.danger:hover { border-color: var(--danger); color: var(--danger); }
+.btn-icon.sel-active { background: var(--c1); color: var(--c5); border-color: var(--c1); }
+
+/* ADD TO CONTAINER BAR */
+.atc-bar {
+  background: var(--c1); padding: 14px 36px;
+  display: flex; align-items: center; gap: 16px;
+  position: fixed; bottom: 0; left: 0; right: 0; z-index: 100;
+  border-top: 2px solid var(--c3);
+  transform: translateY(100%); transition: transform 0.3s cubic-bezier(.4,0,.2,1);
+}
+.atc-bar.visible { transform: translateY(0); }
+.atc-label { font-family: 'Cormorant Garamond', serif; font-size: 18px; color: var(--c5); flex: 1; }
+.atc-label strong { font-size: 22px; }
+
+/* MODAL */
+.modal-overlay { position: fixed; inset: 0; background: rgba(58,48,40,0.45); backdrop-filter: blur(4px); z-index: 500; display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity 0.25s; }
+.modal-overlay.open { opacity: 1; pointer-events: all; }
+.modal { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 32px; width: 480px; max-width: 95vw; max-height: 90vh; overflow-y: auto; transform: translateY(20px); transition: transform 0.25s; }
+.modal-overlay.open .modal { transform: translateY(0); }
+.modal-title { font-family: 'Cormorant Garamond', serif; font-size: 22px; font-weight: 500; color: var(--accent); margin-bottom: 22px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+.modal-footer { display: flex; gap: 10px; justify-content: flex-end; margin-top: 22px; padding-top: 16px; border-top: 1px solid var(--border); }
+
+.img-preview-wrap { width: 100%; height: 120px; border: 1px solid var(--border); border-radius: 4px; overflow: hidden; margin-top: 6px; display: flex; align-items: center; justify-content: center; background: var(--surface2); font-size: 30px; }
+.img-preview-wrap img { width: 100%; height: 100%; object-fit: cover; }
+
+/* TOAST */
+.toast { position: fixed; bottom: 80px; right: 28px; background: var(--surface); border: 1px solid var(--border2); box-shadow: 0 8px 32px rgba(141,121,102,0.2); border-radius: 6px; padding: 12px 20px; font-size: 13px; color: var(--text); z-index: 999; transform: translateY(80px); opacity: 0; transition: all 0.3s cubic-bezier(.4,0,.2,1); pointer-events: none; max-width: 300px; }
+.toast.show { transform: translateY(0); opacity: 1; }
+.toast.error { border-color: var(--danger); color: var(--danger); }
+.toast.success { border-color: var(--success); }
+
+/* CAPACITY ALERT MODAL */
+.cap-overlay { position:fixed; inset:0; background:rgba(58,48,40,0.55); backdrop-filter:blur(6px); z-index:600; display:flex; align-items:center; justify-content:center; opacity:0; pointer-events:none; transition:opacity 0.25s; }
+.cap-overlay.open { opacity:1; pointer-events:all; }
+.cap-modal { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:36px; width:440px; max-width:94vw; transform:translateY(24px); transition:transform 0.25s; text-align:center; }
+.cap-overlay.open .cap-modal { transform:translateY(0); }
+.cap-icon { font-size:48px; margin-bottom:14px; }
+.cap-title { font-family:'Cormorant Garamond',serif; font-size:24px; font-weight:500; color:var(--danger); margin-bottom:10px; }
+.cap-body { font-size:14px; color:var(--text2); line-height:1.7; margin-bottom:8px; }
+.cap-stats { background:rgba(184,92,92,0.07); border:1px solid rgba(184,92,92,0.2); border-radius:8px; padding:14px 18px; margin:16px 0; text-align:left; }
+.cap-stat-row { display:flex; justify-content:space-between; font-family:'DM Mono',monospace; font-size:11px; padding:3px 0; }
+.cap-stat-row span:last-child { color:var(--danger); font-weight:600; }
+.cap-footer { display:flex; gap:10px; justify-content:center; margin-top:20px; }
+
+.container-selector {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 6px; padding: 6px; margin-bottom: 16px;
+}
+.container-selector-label {
+  font-family: 'DM Mono', monospace; font-size: 10px; color: var(--muted);
+  letter-spacing: 1.5px; text-transform: uppercase; white-space: nowrap; padding: 0 6px;
+}
+.cont-type-btn {
+  flex: 1; padding: 8px 4px; border-radius: 4px; border: 1.5px solid transparent;
+  background: transparent; color: var(--muted); font-family: 'DM Mono', monospace;
+  font-size: 10px; cursor: pointer; text-align: center;
+  letter-spacing: 0.5px; transition: all 0.2s; line-height: 1.4;
+}
+.cont-type-btn:hover { color: var(--c1); }
+.cont-type-btn.active {
+  border-color: var(--c1); color: var(--c1); background: rgba(141,121,102,0.1);
+  font-weight: 600;
+}
+.cont-type-btn span { display: block; font-size: 13px; margin-bottom: 2px; }
+
+.reorder-btn {
+  width: 100%; padding: 10px; border-radius: 4px; border: 1.5px solid var(--c1);
+  background: transparent; color: var(--c1); font-family: 'Jost', sans-serif;
+  font-size: 12px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase;
+  cursor: pointer; transition: all 0.2s; margin-bottom: 10px;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+}
+.reorder-btn:hover { background: var(--c1); color: var(--c5); transform: translateY(-1px); box-shadow: 0 4px 16px rgba(141,121,102,0.25); }
+.reorder-btn:active { transform: translateY(0); }
+.reorder-btn .spin { display: inline-block; }
+.reorder-btn.working .spin { animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+@media (max-width: 900px) {
+  .layout { grid-template-columns: 1fr; }
+  .sidebar { position: static; max-height: none; }
+  .stats-strip { grid-template-columns: 1fr 1fr; }
+  .catalog-grid { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); }
+}
+
+/* ── LOGIN PAGE ── */
+#loginPage {
+  position: fixed; inset: 0; z-index: 9999;
+  background: var(--bg);
+  display: flex; align-items: center; justify-content: center;
+  transition: opacity 0.5s ease;
+}
+#loginPage.hidden { opacity: 0; pointer-events: none; }
+
+.login-container {
+  display: flex; width: 860px; max-width: 97vw;
+  min-height: 520px; border-radius: 16px; overflow: hidden;
+  box-shadow: 0 32px 80px rgba(141,121,102,0.22), 0 2px 8px rgba(141,121,102,0.1);
+  border: 1px solid var(--border2);
+}
+
+.login-panel {
+  flex: 1; background: var(--c1);
+  display: flex; flex-direction: column; justify-content: center;
+  padding: 52px 44px;
+  position: relative; overflow: hidden;
+}
+.login-panel::before {
+  content: ''; position: absolute; top: -80px; right: -80px;
+  width: 280px; height: 280px; border-radius: 50%;
+  background: rgba(248,241,233,0.08);
+}
+.login-panel::after {
+  content: ''; position: absolute; bottom: -60px; left: -40px;
+  width: 200px; height: 200px; border-radius: 50%;
+  background: rgba(248,241,233,0.06);
+}
+.login-brand { position: relative; z-index: 1; }
+.login-brand h1 {
+  font-family: 'Cormorant Garamond', serif; font-size: 36px;
+  font-weight: 500; color: var(--c5); letter-spacing: 3px; margin-bottom: 6px;
+}
+.login-brand p {
+  font-family: 'DM Mono', monospace; font-size: 11px;
+  color: var(--c3); letter-spacing: 2px; text-transform: uppercase;
+}
+.login-icon {
+  font-size: 72px; margin-bottom: 28px; position: relative; z-index: 1;
+}
+.login-tagline {
+  position: relative; z-index: 1; margin-top: 32px;
+  font-size: 13px; color: var(--c3); line-height: 1.7;
+  font-family: 'Jost', sans-serif; font-weight: 300;
+}
+
+.login-form-panel {
+  width: 380px; background: var(--surface);
+  display: flex; flex-direction: column; justify-content: center;
+  padding: 52px 44px;
+}
+.login-form-title {
+  font-family: 'Cormorant Garamond', serif; font-size: 26px;
+  font-weight: 500; color: var(--accent); margin-bottom: 6px; letter-spacing: 1px;
+}
+.login-form-sub {
+  font-family: 'DM Mono', monospace; font-size: 10px;
+  color: var(--muted); letter-spacing: 2px; text-transform: uppercase;
+  margin-bottom: 36px;
+}
+.login-field { margin-bottom: 20px; }
+.login-field label {
+  display: block; font-family: 'DM Mono', monospace; font-size: 10px;
+  color: var(--muted); text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 8px;
+}
+.login-field input {
+  width: 100%; background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 6px; color: var(--text); padding: 11px 14px;
+  font-family: 'Jost', sans-serif; font-size: 14px;
+  transition: border-color 0.2s, box-shadow 0.2s; outline: none;
+}
+.login-field input:focus {
+  border-color: var(--c1); box-shadow: 0 0 0 3px rgba(141,121,102,0.13);
+}
+.login-btn {
+  width: 100%; padding: 13px; border-radius: 6px; border: none;
+  background: var(--c1); color: var(--c5); font-family: 'Jost', sans-serif;
+  font-size: 13px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase;
+  cursor: pointer; transition: all 0.2s; margin-top: 8px;
+}
+.login-btn:hover { background: var(--accent2); transform: translateY(-1px); box-shadow: 0 6px 20px rgba(141,121,102,0.3); }
+.login-btn:active { transform: translateY(0); }
+
+.login-error {
+  background: rgba(184,92,92,0.08); border: 1px solid rgba(184,92,92,0.3);
+  border-radius: 6px; padding: 10px 14px; font-size: 12px;
+  color: var(--danger); margin-top: 14px; display: none; text-align: center;
+}
+.login-error.visible { display: block; }
+
+.login-shake { animation: loginShake 0.4s cubic-bezier(.36,.07,.19,.97); }
+@keyframes loginShake {
+  10%, 90% { transform: translateX(-3px); }
+  20%, 80% { transform: translateX(4px); }
+  30%, 50%, 70% { transform: translateX(-5px); }
+  40%, 60% { transform: translateX(5px); }
+}
+
+.login-link {
+  background: none; border: none; color: var(--c1); font-family: 'Jost', sans-serif;
+  font-size: 12px; cursor: pointer; text-decoration: underline; padding: 0;
+  display: block; text-align: center; margin-top: 12px; transition: color 0.2s;
+}
+.login-link:hover { color: var(--accent2); }
+.login-links-row { display: flex; justify-content: space-between; margin-top: 10px; }
+.login-links-row .login-link { margin-top: 0; }
+
+.login-success {
+  background: rgba(107,140,107,0.1); border: 1px solid rgba(107,140,107,0.35);
+  border-radius: 6px; padding: 10px 14px; font-size: 12px;
+  color: var(--success); margin-top: 14px; display: none; text-align: center; line-height: 1.6;
+}
+.login-success.visible { display: block; }
+
+.auth-panel { display: none; flex-direction: column; justify-content: center; height: 100%; }
+.auth-panel.active { display: flex; }
+
+.logout-btn {
+  padding: 7px 16px; border-radius: 4px; border: 1px solid rgba(248,241,233,0.3);
+  background: transparent; color: var(--c4); font-family: 'Jost', sans-serif;
+  font-size: 12px; font-weight: 400; letter-spacing: 1px; cursor: pointer;
+  transition: all 0.2s; text-transform: uppercase; margin-left: 12px;
+}
+.logout-btn:hover { background: rgba(184,92,92,0.2); border-color: rgba(184,92,92,0.5); color: #f5c5c5; }
+
+.header-user {
+  font-family: 'DM Mono', monospace; font-size: 11px; color: var(--c3);
+  letter-spacing: 1px; display: flex; align-items: center; gap: 8px;
+}
+.header-user-dot { width: 7px; height: 7px; border-radius: 50%; background: #8fcf8f; flex-shrink: 0; }
+
+@media (max-width: 700px) {
+  .login-panel { display: none; }
+  .login-form-panel { width: 100%; padding: 40px 28px; }
+}
+</style>
+</head>
+<body>
+
+<!-- ════════════ LOGIN PAGE ════════════ -->
+<div id="loginPage">
+  <div class="login-container">
+    <div class="login-panel">
+      <div class="login-brand">
+        <div class="login-icon">🚢</div>
+        <h1>Container Loader</h1>
+        <p>Sistema de gestión de carga</p>
+      </div>
+      <div class="login-tagline">
+        Optimizá la distribución de tu mercadería en contenedores de 20', 40' y 40' HC con visualización 3D en tiempo real.
+      </div>
+    </div>
+
+    <div class="login-form-panel">
+
+      <!-- ── SIGN IN ── -->
+      <div class="auth-panel active" id="panelLogin">
+        <div class="login-form-title">Bienvenido</div>
+        <div class="login-form-sub">Ingresá tus credenciales</div>
+        <div class="login-field">
+          <label>E-mail</label>
+          <input type="email" id="loginEmail" placeholder="correo@ejemplo.com" autocomplete="email" onkeydown="if(event.key==='Enter')doLogin()">
+        </div>
+        <div class="login-field">
+          <label>Contraseña</label>
+          <input type="password" id="loginPass" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
+        </div>
+        <button class="login-btn" id="loginBtn" onclick="doLogin()">Ingresar →</button>
+        <div class="login-error" id="loginError"></div>
+        <div class="login-links-row" style="margin-top:16px">
+          <button class="login-link" onclick="switchPanel('panelForgot')">¿Olvidaste tu contraseña?</button>
+          <button class="login-link" onclick="switchPanel('panelRegister')">Registrarse</button>
+        </div>
+      </div>
+
+      <!-- ── REGISTER ── -->
+      <div class="auth-panel" id="panelRegister">
+        <div class="login-form-title">Nueva cuenta</div>
+        <div class="login-form-sub">Completá los datos</div>
+        <div class="login-field">
+          <label>E-mail</label>
+          <input type="email" id="regEmail" placeholder="correo@ejemplo.com" onkeydown="if(event.key==='Enter')doRegister()">
+        </div>
+        <div class="login-field">
+          <label>Contraseña</label>
+          <input type="password" id="regPass" placeholder="Mínimo 6 caracteres" onkeydown="if(event.key==='Enter')doRegister()">
+        </div>
+        <div class="login-field">
+          <label>Confirmar contraseña</label>
+          <input type="password" id="regPass2" placeholder="Repetí la contraseña" onkeydown="if(event.key==='Enter')doRegister()">
+        </div>
+        <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:16px">
+          <input type="checkbox" id="regConsent" style="margin-top:3px;width:auto;flex-shrink:0">
+          <label for="regConsent" style="font-size:11px;color:var(--muted);text-transform:none;letter-spacing:0;line-height:1.5;cursor:pointer">
+            Acepto el tratamiento de mis datos personales conforme a la <strong>Ley 25.326</strong> de Protección de Datos Personales de Argentina. Los datos se usan únicamente para autenticación y no se comparten con terceros.
+          </label>
+        </div>
+        <button class="login-btn" id="regBtn" onclick="doRegister()">Crear cuenta →</button>
+        <div class="login-error" id="registerError"></div>
+        <div class="login-success" id="registerSuccess"></div>
+        <button class="login-link" onclick="switchPanel('panelLogin')" style="margin-top:12px">← Volver al login</button>
+      </div>
+
+      <!-- ── FORGOT PASSWORD ── -->
+      <div class="auth-panel" id="panelForgot">
+        <div class="login-form-title">Recuperar acceso</div>
+        <div class="login-form-sub">Te enviamos un link por mail</div>
+        <div class="login-field">
+          <label>E-mail registrado</label>
+          <input type="email" id="forgotEmail" placeholder="correo@ejemplo.com" onkeydown="if(event.key==='Enter')doForgot()">
+        </div>
+        <button class="login-btn" id="forgotBtn" onclick="doForgot()">Enviar link →</button>
+        <div class="login-error" id="forgotError"></div>
+        <div class="login-success" id="forgotSuccess"></div>
+        <button class="login-link" onclick="switchPanel('panelLogin')" style="margin-top:16px">← Volver al login</button>
+      </div>
+
+      <!-- ── RESET PASSWORD (after clicking email link) ── -->
+      <div class="auth-panel" id="panelReset">
+        <div class="login-form-title">Nueva contraseña</div>
+        <div class="login-form-sub">Elegí tu nueva contraseña</div>
+        <div class="login-field">
+          <label>Nueva contraseña</label>
+          <input type="password" id="resetPass" placeholder="Mínimo 6 caracteres" onkeydown="if(event.key==='Enter')doReset()">
+        </div>
+        <div class="login-field">
+          <label>Confirmar contraseña</label>
+          <input type="password" id="resetPass2" placeholder="Repetí la contraseña" onkeydown="if(event.key==='Enter')doReset()">
+        </div>
+        <button class="login-btn" id="resetBtn" onclick="doReset()">Guardar contraseña →</button>
+        <div class="login-error" id="resetError"></div>
+        <div class="login-success" id="resetSuccess"></div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<header>
+  <div class="header-brand">
+    <h1>Container Loader</h1>
+    <span id="headerContLabel">20' Dry · 33.2 m³</span>
+  </div>
+  <nav class="header-nav">
+    <button class="nav-btn active" onclick="showPage('loader')" id="navLoader">Carga</button>
+    <button class="nav-btn" onclick="showPage('catalog')" id="navCatalog">Catálogo</button>
+    <div class="header-user" id="headerUser" style="margin-left:16px">
+      <div class="header-user-dot"></div>
+      <span id="headerUserName">—</span>
+    </div>
+    <button class="logout-btn" onclick="doLogout()" title="Cerrar sesión">⏻ Salir</button>
+  </nav>
+</header>
+
+<!-- ════════════ LOADER PAGE ════════════ -->
+<div class="page active" id="pageLoader">
+  <div class="stats-strip">
+    <div class="stat-item"><div class="stat-label">Volumen Usado</div><div class="stat-value" id="statVol">0.00</div><div class="stat-sub" id="statVolSub">m³ de 33.20 disponibles</div></div>
+    <div class="stat-item"><div class="stat-label">Ocupación</div><div class="stat-value" id="statPct">0%</div><div class="stat-sub" id="statPctSub">del contenedor 20'</div></div>
+    <div class="stat-item"><div class="stat-label">Unidades Totales</div><div class="stat-value" id="statUnits">0</div><div class="stat-sub">cajas / pallets</div></div>
+    <div class="stat-item"><div class="stat-label">Valor Total USD</div><div class="stat-value" id="statValue" style="font-size:24px">$0.00</div><div class="stat-sub">mercadería</div></div>
+  </div>
+
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="sidebar-title">
+        Agregar Producto
+        <button class="btn-secondary" onclick="showPage('catalog')" style="font-size:11px">Catálogo →</button>
+      </div>
+
+      <div class="form-group">
+        <label>Nombre del producto</label>
+        <input type="text" id="prodName" placeholder="Ej: Zapatillas Running">
+      </div>
+
+      <div class="form-group">
+        <label>Tipo de unidad</label>
+        <div class="type-tabs">
+          <button class="type-tab active-box" id="tabBox" onclick="setType('box')">📦 Caja</button>
+          <button class="type-tab" id="tabPallet" onclick="setType('pallet')">🟫 Pallet</button>
+        </div>
+      </div>
+
+      <div id="boxSection">
+        <div class="form-group">
+          <label>Dimensiones de la caja (cm)</label>
+          <div class="row3">
+            <div><label style="font-size:10px">Largo</label><input type="number" id="boxL" placeholder="60" min="1"></div>
+            <div><label style="font-size:10px">Ancho</label><input type="number" id="boxW" placeholder="40" min="1"></div>
+            <div><label style="font-size:10px">Alto</label><input type="number" id="boxH" placeholder="30" min="1"></div>
+          </div>
+        </div>
+      </div>
+
+      <div id="palletSection" style="display:none">
+        <div class="form-group">
+          <label>Tipo de pallet</label>
+          <select id="palletType">
+            <option value="euro">Euro Pallet — 120×80 cm</option>
+            <option value="eua">Pallet EUA — 120×100 cm</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Altura con carga (cm)</label>
+          <div class="slider-wrap">
+            <input type="range" id="palletHeight" min="30" max="220" value="120" oninput="document.getElementById('palletHeightVal').textContent=this.value+' cm'">
+            <span class="slider-val" id="palletHeightVal">120 cm</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="row2">
+        <div class="form-group"><label>Cantidad</label><input type="number" id="qty" placeholder="10" min="1"></div>
+        <div class="form-group"><label>USD / unidad</label><input type="number" id="unitPrice" placeholder="0.00" min="0" step="0.01"></div>
+      </div>
+
+      <button class="btn-primary" onclick="addProductManual()">+ Agregar al Contenedor</button>
+
+      <hr class="divider">
+      <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin-bottom:14px;">Productos cargados</div>
+      <div id="productList">
+        <div class="empty-state"><div class="empty-icon">📦</div><div class="empty-text">Sin productos aún.</div></div>
+      </div>
+    </aside>
+
+    <main class="main">
+      <div class="warning-bar" id="warningBar">⚠️ La carga supera la capacidad del contenedor. Reducí las cantidades o eliminá productos.</div>
+
+      <div class="section">
+        <div class="section-header">
+          <div class="section-title" id="sectionTitle3D">Visualización del Contenedor 20'</div>
+          <span style="font-family:'DM Mono',monospace;font-size:10px;color:var(--muted)" id="contDimsLabel">5.90 × 2.35 × 2.39 m</span>
+        </div>
+
+        <!-- Container type selector -->
+        <div class="container-selector">
+          <span class="container-selector-label">Contenedor</span>
+          <button class="cont-type-btn active" id="btnCont20" onclick="setContainerType('20ft')">
+            <span>📦</span>20' Dry<br><small style="font-size:9px;opacity:0.7">5.9×2.35×2.39m</small>
+          </button>
+          <button class="cont-type-btn" id="btnCont40" onclick="setContainerType('40ft')">
+            <span>📦</span>40' Dry<br><small style="font-size:9px;opacity:0.7">12.0×2.35×2.39m</small>
+          </button>
+          <button class="cont-type-btn" id="btnCont40hc" onclick="setContainerType('40hc')">
+            <span>📦</span>40' HC<br><small style="font-size:9px;opacity:0.7">12.0×2.35×2.69m</small>
+          </button>
+        </div>
+
+        <!-- Reorder button -->
+        <button class="reorder-btn" id="reorderBtn" onclick="reorderCargo()">
+          <span class="spin">⟳</span> Reordenar Carga Optimizada
+        </button>
+        <div class="progress-row">
+          <span class="progress-label">Volumen</span>
+          <div class="progress-bar"><div class="progress-fill" id="fillVol" style="width:0%"></div></div>
+          <span class="progress-pct" id="pctVol">0%</span>
+        </div>
+        <div class="canvas-wrap" id="canvasWrap" style="position:relative;height:380px;overflow:hidden;border-radius:6px;">
+          <div id="threeContainer" style="width:100%;height:100%;"></div>
+          <div id="tooltip3d" style="
+            position:absolute;pointer-events:none;display:none;
+            background:rgba(58,48,40,0.92);color:#F8F1E9;
+            font-family:'Jost',sans-serif;font-size:12px;line-height:1.6;
+            padding:8px 12px;border-radius:6px;max-width:200px;
+            box-shadow:0 4px 16px rgba(0,0,0,0.25);z-index:50;
+          "></div>
+          <div style="position:absolute;bottom:8px;left:50%;transform:translateX(-50%);
+            font-family:'DM Mono',monospace;font-size:9px;color:rgba(141,121,102,0.6);
+            letter-spacing:1px;pointer-events:none;">
+            🖱 ARRASTRAR · SCROLL ZOOM · CLICK DERECHO PANEO
+          </div>
+        </div>
+        <div class="legend" id="legend"></div>
+      </div>
+
+      <div class="section">
+        <div class="section-header"><div class="section-title">Desglose de Carga</div></div>
+        <div style="overflow-x:auto">
+          <table>
+            <thead><tr><th>Producto</th><th>Tipo</th><th>Dims (cm)</th><th>Cant.</th><th>Volumen</th><th>% Cont.</th><th>Precio/u</th><th>Subtotal</th><th></th></tr></thead>
+            <tbody id="tableBody"><tr><td colspan="9"><div class="empty-state"><div class="empty-icon">📋</div><div class="empty-text">Agregá productos para ver el desglose</div></div></td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- ════════════ CATALOG PAGE ════════════ -->
+<div class="page" id="pageCatalog">
+  <div class="catalog-main">
+    <div class="catalog-toolbar">
+      <h2>Catálogo de Productos</h2>
+      <button class="btn-primary" style="width:auto;padding:10px 24px" onclick="openModal()">+ Nuevo Producto</button>
+    </div>
+    <div class="catalog-grid" id="catalogGrid">
+      <div class="empty-state" style="grid-column:1/-1">
+        <div class="empty-icon">🗂️</div>
+        <div class="empty-text">Tu catálogo está vacío.<br>Guardá productos con imagen y link para agregarlos rápidamente al contenedor.</div>
+      </div>
+    </div>
+  </div>
+  <div class="atc-bar" id="atcBar">
+    <div class="atc-label"><strong id="atcCount">0</strong> producto(s) listo(s) para agregar</div>
+    <button class="btn-secondary" style="border-color:rgba(248,241,233,0.3);color:var(--c5)" onclick="clearCatalogSelection()">Limpiar</button>
+    <button class="btn-primary" style="width:auto;padding:10px 28px;background:var(--c5);color:var(--c1)" onclick="addSelectedToContainer()">Agregar al Contenedor →</button>
+  </div>
+</div>
+
+<!-- ════════════ MODAL ════════════ -->
+<div class="modal-overlay" id="modalOverlay" onclick="handleModalClick(event)">
+  <div class="modal">
+    <div class="modal-title" id="modalTitle">Nuevo Producto</div>
+    <input type="hidden" id="editId">
+
+    <div class="form-group">
+      <label>Nombre del producto *</label>
+      <input type="text" id="mName" placeholder="Ej: Zapatillas Running Pro">
+    </div>
+    <div class="form-group">
+      <label>Imagen (URL)</label>
+      <input type="url" id="mImgUrl" placeholder="https://..." oninput="previewImg()">
+      <div class="img-preview-wrap" id="imgPreview"><span>🖼️</span></div>
+    </div>
+    <div class="form-group">
+      <label>Link del producto / proveedor</label>
+      <input type="url" id="mLink" placeholder="https://...">
+    </div>
+    <div class="form-group">
+      <label>Tipo de unidad</label>
+      <div class="type-tabs">
+        <button class="type-tab active-box" id="mTabBox" onclick="setModalType('box')">📦 Caja</button>
+        <button class="type-tab" id="mTabPallet" onclick="setModalType('pallet')">🟫 Pallet</button>
+      </div>
+    </div>
+    <div id="mBoxSection">
+      <div class="form-group">
+        <label>Dimensiones de la caja (cm)</label>
+        <div class="row3">
+          <div><label style="font-size:10px">Largo</label><input type="number" id="mBoxL" placeholder="60" min="1"></div>
+          <div><label style="font-size:10px">Ancho</label><input type="number" id="mBoxW" placeholder="40" min="1"></div>
+          <div><label style="font-size:10px">Alto</label><input type="number" id="mBoxH" placeholder="30" min="1"></div>
+        </div>
+      </div>
+    </div>
+    <div id="mPalletSection" style="display:none">
+      <div class="form-group">
+        <label>Tipo de pallet</label>
+        <select id="mPalletType">
+          <option value="euro">Euro Pallet — 120×80 cm</option>
+          <option value="eua">Pallet EUA — 120×100 cm</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Altura predeterminada con carga (cm)</label>
+        <div class="slider-wrap">
+          <input type="range" id="mPalletH" min="30" max="220" value="120" oninput="document.getElementById('mPalletHVal').textContent=this.value+' cm'">
+          <span class="slider-val" id="mPalletHVal">120 cm</span>
+        </div>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Precio por unidad (USD)</label>
+      <input type="number" id="mPrice" placeholder="0.00" min="0" step="0.01">
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeModal()">Cancelar</button>
+      <button class="btn-primary" style="width:auto;padding:10px 28px" onclick="saveProduct()">Guardar Producto</button>
+    </div>
+  </div>
+</div>
+
+<div class="cap-overlay" id="capOverlay">
+  <div class="cap-modal">
+    <div class="cap-icon">⚠️</div>
+    <div class="cap-title">Capacidad Excedida</div>
+    <div class="cap-body" id="capBody">Este producto no entra en el espacio disponible del contenedor.</div>
+    <div class="cap-stats" id="capStats"></div>
+    <div class="cap-footer">
+      <button class="btn-secondary" onclick="closeCapAlert()">Cancelar</button>
+      <button class="btn-primary" style="width:auto;padding:10px 24px;background:var(--danger)" onclick="forceAddProduct()">Agregar igual →</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── CONTAINER TYPES ──
+const CONTAINER_TYPES = {
+  '20ft': { L:590, W:235, H:239, vol:(590*235*239)/1e6, label:"20'", fullLabel:"20' Dry", dims:"5.90 × 2.35 × 2.39 m" },
+  '40ft': { L:1200, W:235, H:239, vol:(1200*235*239)/1e6, label:"40'", fullLabel:"40' Dry", dims:"12.00 × 2.35 × 2.39 m" },
+  '40hc': { L:1200, W:235, H:269, vol:(1200*235*269)/1e6, label:"40' HC", fullLabel:"40' High Cube", dims:"12.00 × 2.35 × 2.69 m" },
+};
+let currentContainerType = '20ft';
+let CONTAINER_VOL = CONTAINER_TYPES['20ft'].vol;
+let CONT_L = 590, CONT_W = 235, CONT_H = 239;
+
+function setContainerType(type) {
+  currentContainerType = type;
+  const ct = CONTAINER_TYPES[type];
+  CONTAINER_VOL = ct.vol;
+  CONT_L = ct.L; CONT_W = ct.W; CONT_H = ct.H;
+  // Update grid constants
+  _GRID_COLS = Math.ceil(CONT_L / GRID_RES);
+  _GRID_ROWS = Math.ceil(CONT_W / GRID_RES);
+  // Update UI
+  ['20ft','40ft','40hc'].forEach(k => {
+    document.getElementById('btnCont'+k.replace('ft','').replace('hc','hc')).classList.toggle('active', k===type);
+  });
+  document.getElementById('btnCont20').classList.toggle('active', type==='20ft');
+  document.getElementById('btnCont40').classList.toggle('active', type==='40ft');
+  document.getElementById('btnCont40hc').classList.toggle('active', type==='40hc');
+  document.getElementById('headerContLabel').textContent = ct.fullLabel + ' · ' + ct.vol.toFixed(1) + ' m³';
+  document.getElementById('sectionTitle3D').textContent = 'Visualización del Contenedor ' + ct.label;
+  document.getElementById('contDimsLabel').textContent = ct.dims;
+  // Update 3D camera for larger containers
+  if (_three) {
+    const camDist = type === '20ft' ? 1100 : 1800;
+    _three.camera.position.set(ct.L*0.8, ct.H*2.2, ct.W*2.5);
+    _three.controls.target.set(ct.L/2, ct.H*0.4, ct.W/2);
+    _three.controls.maxDistance = camDist * 1.5;
+    _three.controls.update();
+  }
+  renderLoader();
+}
+
+const PALLET_SIZES = { euro:{L:120,W:80}, eua:{L:120,W:100} };
+const COLORS = ['#8D7966','#A8906b','#6b7d9b','#9b7966','#6b8c6b','#b8906b','#7d6b9b','#6b9b8b','#9b8b6b','#8b6b6b'];
+
+let loadedProducts = [];
+let catalog = JSON.parse(localStorage.getItem('cl_catalog') || '[]');
+let selectedCatalogItems = {};
+let currentType = 'box';
+let modalType = 'box';
+let editingId = null;
+
+function showPage(p) {
+  document.getElementById('pageLoader').classList.toggle('active', p==='loader');
+  document.getElementById('pageCatalog').classList.toggle('active', p==='catalog');
+  document.getElementById('navLoader').classList.toggle('active', p==='loader');
+  document.getElementById('navCatalog').classList.toggle('active', p==='catalog');
+  if (p==='catalog') renderCatalog();
+}
+
+function setType(t) {
+  currentType = t;
+  document.getElementById('boxSection').style.display = t==='box'?'':'none';
+  document.getElementById('palletSection').style.display = t==='pallet'?'':'none';
+  document.getElementById('tabBox').className = 'type-tab '+(t==='box'?'active-box':'');
+  document.getElementById('tabPallet').className = 'type-tab '+(t==='pallet'?'active-pallet':'');
+}
+
+// ── PRECISE HEIGHTMAP PACKING ENGINE ──
+const GRID_RES = 5; // 5cm cells
+let _GRID_COLS = Math.ceil(590 / GRID_RES);
+let _GRID_ROWS = Math.ceil(235 / GRID_RES);
+
+function makeHeightMap() {
+  return new Float32Array(_GRID_COLS * _GRID_ROWS);
+}
+function hmIdx(gx, gz) { return gz * _GRID_COLS + gx; }
+
+function hmGetMax(hm, px, pz, dX, dZ) {
+  const gx0 = Math.max(0, Math.floor(px / GRID_RES));
+  const gz0 = Math.max(0, Math.floor(pz / GRID_RES));
+  const gx1 = Math.min(_GRID_COLS, Math.ceil((px + dX) / GRID_RES));
+  const gz1 = Math.min(_GRID_ROWS, Math.ceil((pz + dZ) / GRID_RES));
+  let max = 0;
+  for (let gz = gz0; gz < gz1; gz++)
+    for (let gx = gx0; gx < gx1; gx++)
+      max = Math.max(max, hm[hmIdx(gx, gz)]);
+  return max;
+}
+
+function hmSet(hm, px, pz, dX, dZ, h) {
+  const gx0 = Math.max(0, Math.floor(px / GRID_RES));
+  const gz0 = Math.max(0, Math.floor(pz / GRID_RES));
+  const gx1 = Math.min(_GRID_COLS, Math.ceil((px + dX) / GRID_RES));
+  const gz1 = Math.min(_GRID_ROWS, Math.ceil((pz + dZ) / GRID_RES));
+  for (let gz = gz0; gz < gz1; gz++)
+    for (let gx = gx0; gx < gx1; gx++)
+      hm[hmIdx(gx, gz)] = h;
+}
+
+// ── OPTIMIZED PACKING ENGINE ──
+// Strategy:
+//   1. Sort pallets largest-footprint first → pack them in rows along the floor
+//   2. Boxes can go ANYWHERE (on floor, on top of pallets, stacked)
+//      using a best-fit lowest-height scan
+//   3. Pallets MUST sit on the floor (y=0) but do NOT need empty floor — they just need
+//      the floor height = 0 in their footprint
+function runPacking(products) {
+  const hm = makeHeightMap(); // global height map — floor at 0
+  const packed = [];
+  const placed = {};
+
+  const pallets = [...products.filter(p => p.type === 'pallet')]
+    .sort((a,b) => (b.dims.L*b.dims.W) - (a.dims.L*a.dims.W)); // biggest first
+  const boxes = [...products.filter(p => p.type === 'box')]
+    .sort((a,b) => (b.dims.L*b.dims.W*b.dims.H) - (a.dims.L*a.dims.W*a.dims.H)); // biggest first
+
+  // Place pallets: must be on floor (y=0). Scan left→right, front→back.
+  // Try both orientations.
+  for (const p of pallets) {
+    placed[p.id] = 0;
+    let remaining = p.qty;
+    const orientations = [
+      { dX: p.dims.L, dZ: p.dims.W },
+      { dX: p.dims.W, dZ: p.dims.L }, // rotated 90°
+    ];
+
+    for (let pz = 0; pz < CONT_W && remaining > 0; pz += GRID_RES) {
+      for (let px = 0; px < CONT_L && remaining > 0; px += GRID_RES) {
+        for (const ori of orientations) {
+          if (px + ori.dX > CONT_L + 0.5) continue;
+          if (pz + ori.dZ > CONT_W + 0.5) continue;
+          // Check entire footprint is at floor level
+          const floorH = hmGetMax(hm, px, pz, ori.dX, ori.dZ);
+          if (floorH > 0.5) continue; // not at floor
+          if (ori.dX > CONT_H - 0.5) continue; // too tall... shouldn't happen but safety
+          if (p.dims.H > CONT_H - 0.5) continue;
+          // Place pallet
+          hmSet(hm, px, pz, ori.dX, ori.dZ, p.dims.H);
+          packed.push({
+            x: px, y: 0, z: pz,
+            dX: ori.dX, dY: p.dims.H, dZ: ori.dZ,
+            color: p.color, name: p.name, type: 'pallet',
+            pct: ((p.vol * p.qty) / CONTAINER_VOL * 100).toFixed(1),
+            dims: `${p.dims.L}×${p.dims.W}×${p.dims.H} cm`
+          });
+          placed[p.id]++;
+          remaining--;
+          break; // placed, move to next slot
+        }
+      }
+    }
+  }
+
+  // Place boxes: find best-fit lowest-available position, any height
+  for (const p of boxes) {
+    placed[p.id] = 0;
+    for (let i = 0; i < p.qty; i++) {
+      let bestPx = -1, bestPz = -1, bestH = Infinity;
+      const orientations = [
+        { dX: p.dims.L, dZ: p.dims.W },
+        { dX: p.dims.W, dZ: p.dims.L },
+      ];
+      let bestOri = orientations[0];
+
+      for (let pz = 0; pz < CONT_W; pz += GRID_RES) {
+        for (let px = 0; px < CONT_L; px += GRID_RES) {
+          for (const ori of orientations) {
+            if (px + ori.dX > CONT_L + 0.5) continue;
+            if (pz + ori.dZ > CONT_W + 0.5) continue;
+            const h = hmGetMax(hm, px, pz, ori.dX, ori.dZ);
+            if (h + p.dims.H > CONT_H + 0.5) continue;
+            if (h < bestH) {
+              bestH = h; bestPx = px; bestPz = pz; bestOri = ori;
+            }
+          }
+        }
+      }
+      if (bestPx === -1) break;
+      hmSet(hm, bestPx, bestPz, bestOri.dX, bestOri.dZ, bestH + p.dims.H);
+      packed.push({
+        x: bestPx, y: bestH, z: bestPz,
+        dX: bestOri.dX, dY: p.dims.H, dZ: bestOri.dZ,
+        color: p.color, name: p.name, type: 'box',
+        pct: ((p.vol * p.qty) / CONTAINER_VOL * 100).toFixed(1),
+        dims: `${p.dims.L}×${p.dims.W}×${p.dims.H} cm`
+      });
+      placed[p.id]++;
+    }
+  }
+
+  return { packed, placed, hm };
+}
+
+// ── REORDER CARGO ── 
+// Re-packs everything using optimized order: largest pallets first, then smallest boxes last
+function reorderCargo() {
+  if (!loadedProducts.length) return showToast('No hay productos para reordenar','');
+  const btn = document.getElementById('reorderBtn');
+  btn.classList.add('working');
+  btn.textContent = '⟳ Reordenando...';
+  setTimeout(() => {
+    // Sort: pallets by footprint desc, boxes by volume desc
+    loadedProducts.sort((a, b) => {
+      if (a.type !== b.type) return a.type === 'pallet' ? -1 : 1;
+      const volA = a.dims.L * a.dims.W * a.dims.H;
+      const volB = b.dims.L * b.dims.W * b.dims.H;
+      return volB - volA;
+    });
+    renderLoader();
+    btn.classList.remove('working');
+    btn.innerHTML = '<span class="spin">⟳</span> Reordenar Carga Optimizada';
+    showToast('✓ Carga reordenada de manera óptima','success');
+  }, 80);
+}
+
+// ── CAPACITY CHECK before adding ──
+let _pendingProduct = null;
+
+function checkCapacityAndAdd(productData) {
+  // Simulate packing WITH the new product
+  const vol = (productData.dims.L * productData.dims.W * productData.dims.H) / 1e6;
+  const newProd = {
+    id: 'preview', name: productData.name, type: productData.type,
+    dims: productData.dims, qty: productData.qty, price: productData.price,
+    vol, color: COLORS[loadedProducts.length % COLORS.length], imgUrl: productData.imgUrl || null
+  };
+
+  const testList = [...loadedProducts, newProd];
+  const { placed } = runPacking(testList);
+  const placedQty = placed['preview'] || 0;
+
+  const currentVol = loadedProducts.reduce((s,p) => s + p.vol * p.qty, 0);
+  const addedVol = vol * productData.qty;
+  const totalVol = currentVol + addedVol;
+  const remainingVol = CONTAINER_VOL - currentVol;
+
+  if (placedQty < productData.qty || totalVol > CONTAINER_VOL) {
+    // Show alert
+    _pendingProduct = productData;
+    const overVol = Math.max(0, totalVol - CONTAINER_VOL);
+    const fitPct = (remainingVol / CONTAINER_VOL * 100).toFixed(1);
+    const neededVol = addedVol;
+
+    document.getElementById('capBody').innerHTML =
+      placedQty === 0
+        ? `<b>${productData.qty} ${productData.type === 'box' ? 'cajas' : 'pallets'} de "${productData.name}"</b> no caben en el espacio disponible del contenedor.`
+        : `Solo <b>${placedQty} de ${productData.qty}</b> unidades de "<b>${productData.name}</b>" caben físicamente. El resto (${productData.qty - placedQty} unidades) no tiene espacio.`;
+
+    document.getElementById('capStats').innerHTML = `
+      <div class="cap-stat-row"><span>Volumen disponible</span><span>${remainingVol.toFixed(3)} m³ (${fitPct}%)</span></div>
+      <div class="cap-stat-row"><span>Volumen del producto</span><span>${neededVol.toFixed(3)} m³</span></div>
+      <div class="cap-stat-row"><span>Exceso</span><span>+${overVol.toFixed(3)} m³</span></div>
+      ${placedQty > 0 && placedQty < productData.qty ? `<div class="cap-stat-row"><span>Unidades que sí caben</span><span style="color:var(--success)">${placedQty}</span></div>` : ''}
+    `;
+    document.getElementById('capOverlay').classList.add('open');
+    return;
+  }
+
+  // All fits — add directly
+  doAddProduct(productData);
+}
+
+function closeCapAlert() {
+  document.getElementById('capOverlay').classList.remove('open');
+  _pendingProduct = null;
+}
+
+function forceAddProduct() {
+  if (_pendingProduct) doAddProduct(_pendingProduct);
+  closeCapAlert();
+}
+
+function doAddProduct(p) {
+  loadedProducts.push({
+    id: Date.now()+Math.random(), name:p.name, type:p.type,
+    dims:p.dims, qty:p.qty, price:p.price,
+    vol:(p.dims.L*p.dims.W*p.dims.H)/1e6,
+    color:COLORS[loadedProducts.length%COLORS.length],
+    imgUrl:p.imgUrl||null,
+  });
+  renderLoader();
+}
+
+function addProductManual() {
+  const name = document.getElementById('prodName').value.trim();
+  const qty = parseInt(document.getElementById('qty').value);
+  const price = parseFloat(document.getElementById('unitPrice').value)||0;
+  if (!name) return showToast('Ingresá el nombre del producto','error');
+  if (!qty||qty<1) return showToast('Ingresá una cantidad válida','error');
+  let dims;
+  if (currentType==='box') {
+    const L=parseFloat(document.getElementById('boxL').value);
+    const W=parseFloat(document.getElementById('boxW').value);
+    const H=parseFloat(document.getElementById('boxH').value);
+    if (!L||!W||!H) return showToast('Ingresá las dimensiones','error');
+    dims={L,W,H};
+  } else {
+    const sz=PALLET_SIZES[document.getElementById('palletType').value];
+    dims={L:sz.L,W:sz.W,H:parseFloat(document.getElementById('palletHeight').value)};
+  }
+  checkCapacityAndAdd({name, type:currentType, dims, qty, price});
+  // Clear form
+  document.getElementById('prodName').value='';
+  document.getElementById('qty').value='';
+  document.getElementById('unitPrice').value='';
+  ['boxL','boxW','boxH'].forEach(id=>document.getElementById(id).value='');
+}
+
+function removeProduct(id) {
+  loadedProducts = loadedProducts.filter(p=>p.id!==id);
+  renderLoader();
+}
+
+function renderLoader() {
+  const totalVol = loadedProducts.reduce((s,p)=>s+p.vol*p.qty,0);
+  const totalUnits = loadedProducts.reduce((s,p)=>s+p.qty,0);
+  const totalValue = loadedProducts.reduce((s,p)=>s+p.price*p.qty,0);
+  const pct = totalVol/CONTAINER_VOL*100;
+  const over = totalVol>CONTAINER_VOL;
+
+  document.getElementById('statVol').textContent = totalVol.toFixed(2);
+  document.getElementById('statPct').textContent = pct.toFixed(1)+'%';
+  document.getElementById('statUnits').textContent = totalUnits;
+  document.getElementById('statValue').textContent = '$'+fmt(totalValue);
+  const ct = CONTAINER_TYPES[currentContainerType];
+  document.getElementById('statVolSub').textContent = 'm³ de ' + ct.vol.toFixed(2) + ' disponibles';
+  document.getElementById('statPctSub').textContent = 'del contenedor ' + ct.label;
+
+  const fill = document.getElementById('fillVol');
+  fill.style.width = Math.min(pct,100)+'%';
+  fill.style.background = over ? 'linear-gradient(90deg,var(--c3),var(--danger))' : 'linear-gradient(90deg,var(--c3),var(--c1))';
+  document.getElementById('pctVol').textContent = pct.toFixed(1)+'%';
+  document.getElementById('pctVol').style.color = over?'var(--danger)':'var(--c1)';
+  document.getElementById('warningBar').style.display = over?'':'none';
+
+  const list = document.getElementById('productList');
+  list.innerHTML = loadedProducts.length===0
+    ? `<div class="empty-state"><div class="empty-icon">📦</div><div class="empty-text">Sin productos aún.</div></div>`
+    : loadedProducts.map(p=>`
+        <div class="queue-item">
+          ${p.imgUrl?`<img src="${p.imgUrl}" style="width:40px;height:40px;object-fit:cover;border-radius:4px;flex-shrink:0" onerror="this.style.display='none'">`:`<div class="queue-dot" style="background:${p.color}"></div>`}
+          <div class="queue-info">
+            <div class="queue-name">${p.name}</div>
+            <div class="queue-meta">${p.dims.L}×${p.dims.W}×${p.dims.H} cm · ${p.qty} ${p.type==='box'?'cajas':'pallets'}<br>${(p.vol*p.qty).toFixed(3)} m³ · ${((p.vol*p.qty)/CONTAINER_VOL*100).toFixed(1)}%</div>
+            <div class="queue-price">$${fmt(p.price*p.qty)}</div>
+          </div>
+          <button class="btn-remove" onclick="removeProduct(${p.id})">×</button>
+        </div>`).join('');
+
+  const tbody = document.getElementById('tableBody');
+  tbody.innerHTML = loadedProducts.length===0
+    ? `<tr><td colspan="9"><div class="empty-state"><div class="empty-icon">📋</div><div class="empty-text">Agregá productos para ver el desglose</div></div></td></tr>`
+    : loadedProducts.map(p=>{
+        const vt=p.vol*p.qty;
+        return `<tr>
+          <td><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${p.color};margin-right:8px;vertical-align:middle"></span>${p.name}</td>
+          <td>${p.type==='box'?'📦 Caja':'🟫 Pallet'}</td>
+          <td class="td-mono">${p.dims.L}×${p.dims.W}×${p.dims.H}</td>
+          <td class="td-mono">${p.qty}</td>
+          <td class="td-mono">${vt.toFixed(3)} m³</td>
+          <td class="td-pct" style="color:${p.color}">${(vt/CONTAINER_VOL*100).toFixed(1)}%</td>
+          <td class="td-price">$${p.price.toFixed(2)}</td>
+          <td class="td-price">$${fmt(p.price*p.qty)}</td>
+          <td><button class="btn-remove" onclick="removeProduct(${p.id})">×</button></td>
+        </tr>`;
+      }).join('')
+    + `<tr class="total-row"><td colspan="4">TOTAL</td><td>${totalVol.toFixed(3)} m³</td><td>${pct.toFixed(1)}%</td><td>—</td><td>$${fmt(totalValue)}</td><td></td></tr>`;
+
+  document.getElementById('legend').innerHTML = loadedProducts.map(p=>
+    `<div class="legend-item"><div class="legend-dot" style="background:${p.color}"></div><span>${p.name}</span></div>`
+  ).join('') + (loadedProducts.length?`<div class="legend-item"><div class="legend-dot" style="background:var(--c4);border:1px solid var(--border2)"></div><span>Libre</span></div>`:'');
+
+  drawContainer();
+}
+
+// ══════════════════════════════════════════════
+// THREE.JS 3D CONTAINER VIEWER
+// ══════════════════════════════════════════════
+
+// Inject Three.js + OrbitControls from CDN
+(function loadThree() {
+  const s1 = document.createElement('script');
+  s1.src = 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js';
+  s1.onload = () => {
+    // Inline minimal OrbitControls (r128 compatible)
+    injectOrbitControls();
+    initThreeScene();
+  };
+  document.head.appendChild(s1);
+})();
+
+function injectOrbitControls() {
+  // Minimal OrbitControls implementation
+  THREE.OrbitControls = function(camera, domElement) {
+    this.camera = camera;
+    this.domElement = domElement;
+    this.target = new THREE.Vector3();
+    this.enableDamping = true;
+    this.dampingFactor = 0.08;
+    this.enableZoom = true;
+    this.enablePan = true;
+    this.minDistance = 100;
+    this.maxDistance = 2000;
+    this.maxPolarAngle = Math.PI * 0.85;
+
+    let _spherical = new THREE.Spherical();
+    let _sphericalDelta = new THREE.Spherical();
+    let _scale = 1;
+    let _panOffset = new THREE.Vector3();
+    let _rotateStart = new THREE.Vector2();
+    let _rotateEnd = new THREE.Vector2();
+    let _rotateDelta = new THREE.Vector2();
+    let _panStart = new THREE.Vector2();
+    let _panEnd = new THREE.Vector2();
+    let _panDelta = new THREE.Vector2();
+    let _state = -1;
+    const STATE = { NONE:-1, ROTATE:0, DOLLY:1, PAN:2 };
+
+    // init spherical from camera
+    const offset = new THREE.Vector3();
+    offset.copy(camera.position).sub(this.target);
+    _spherical.setFromVector3(offset);
+
+    const self = this;
+
+    function rotateLeft(a) { _sphericalDelta.theta -= a; }
+    function rotateUp(a) { _sphericalDelta.phi -= a; }
+
+    function panLeft(dist, mat) {
+      const v = new THREE.Vector3().setFromMatrixColumn(mat, 0);
+      v.multiplyScalar(-dist);
+      _panOffset.add(v);
+    }
+    function panUp(dist, mat) {
+      const v = new THREE.Vector3().setFromMatrixColumn(mat, 1);
+      v.multiplyScalar(dist);
+      _panOffset.add(v);
+    }
+    function pan(dx, dy) {
+      const el = domElement;
+      const pos = camera.position;
+      let targetDist = pos.clone().sub(self.target).length();
+      targetDist *= Math.tan((camera.fov / 2) * Math.PI / 180);
+      panLeft(2 * dx * targetDist / el.clientHeight, camera.matrix);
+      panUp(2 * dy * targetDist / el.clientHeight, camera.matrix);
+    }
+
+    domElement.addEventListener('contextmenu', e => e.preventDefault());
+
+    domElement.addEventListener('mousedown', e => {
+      if (e.button === 0) { _state = STATE.ROTATE; _rotateStart.set(e.clientX, e.clientY); }
+      else if (e.button === 2) { _state = STATE.PAN; _panStart.set(e.clientX, e.clientY); }
+    });
+    domElement.addEventListener('mousemove', e => {
+      if (_state === STATE.ROTATE) {
+        _rotateEnd.set(e.clientX, e.clientY);
+        _rotateDelta.subVectors(_rotateEnd, _rotateStart).multiplyScalar(0.0018);
+        rotateLeft(_rotateDelta.x);
+        rotateUp(_rotateDelta.y);
+        _rotateStart.copy(_rotateEnd);
+      } else if (_state === STATE.PAN) {
+        _panEnd.set(e.clientX, e.clientY);
+        _panDelta.subVectors(_panEnd, _panStart);
+        pan(_panDelta.x, _panDelta.y);
+        _panStart.copy(_panEnd);
+      }
+    });
+    domElement.addEventListener('mouseup', () => { _state = STATE.NONE; });
+    domElement.addEventListener('wheel', e => {
+      e.preventDefault();
+      _scale *= e.deltaY > 0 ? 1.06 : 0.945;
+    }, { passive: false });
+
+    // Touch
+    let _touches = [];
+    let _prevTouchDist = 0;
+    domElement.addEventListener('touchstart', e => {
+      _touches = Array.from(e.touches);
+      if (_touches.length === 1) { _state = STATE.ROTATE; _rotateStart.set(_touches[0].clientX, _touches[0].clientY); }
+      else if (_touches.length === 2) { _state = STATE.DOLLY; _prevTouchDist = Math.hypot(_touches[0].clientX-_touches[1].clientX, _touches[0].clientY-_touches[1].clientY); }
+    }, { passive: true });
+    domElement.addEventListener('touchmove', e => {
+      _touches = Array.from(e.touches);
+      if (_state === STATE.ROTATE && _touches.length === 1) {
+        _rotateEnd.set(_touches[0].clientX, _touches[0].clientY);
+        _rotateDelta.subVectors(_rotateEnd, _rotateStart).multiplyScalar(0.0018);
+        rotateLeft(_rotateDelta.x); rotateUp(_rotateDelta.y);
+        _rotateStart.copy(_rotateEnd);
+      } else if (_state === STATE.DOLLY && _touches.length === 2) {
+        const d = Math.hypot(_touches[0].clientX-_touches[1].clientX, _touches[0].clientY-_touches[1].clientY);
+        _scale *= _prevTouchDist / d; _prevTouchDist = d;
+      }
+    }, { passive: true });
+    domElement.addEventListener('touchend', () => { _state = STATE.NONE; });
+
+    this.update = function() {
+      const offset2 = new THREE.Vector3();
+      const quat = new THREE.Quaternion().setFromUnitVectors(camera.up, new THREE.Vector3(0,1,0));
+      const quatInv = quat.clone().invert();
+
+      offset2.copy(camera.position).sub(self.target);
+      offset2.applyQuaternion(quat);
+      _spherical.setFromVector3(offset2);
+
+      _spherical.theta += _sphericalDelta.theta;
+      _spherical.phi   += _sphericalDelta.phi;
+      _spherical.phi = Math.max(0.05, Math.min(self.maxPolarAngle, _spherical.phi));
+      _spherical.radius *= _scale;
+      _spherical.radius = Math.max(self.minDistance, Math.min(self.maxDistance, _spherical.radius));
+
+      self.target.add(_panOffset);
+      offset2.setFromSpherical(_spherical);
+      offset2.applyQuaternion(quatInv);
+      camera.position.copy(self.target).add(offset2);
+      camera.lookAt(self.target);
+
+      if (self.enableDamping) {
+        _sphericalDelta.theta *= (1 - self.dampingFactor);
+        _sphericalDelta.phi   *= (1 - self.dampingFactor);
+        _panOffset.multiplyScalar(1 - self.dampingFactor);
+      } else {
+        _sphericalDelta.set(0,0,0); _panOffset.set(0,0,0);
+      }
+      _scale = 1;
+    };
+
+    this.dispose = function() {};
+  };
+}
+
+// Global Three.js state
+let _three = null;
+
+function initThreeScene() {
+  const wrap = document.getElementById('threeContainer');
+  if (!wrap || _three) return;
+
+  const W = wrap.clientWidth || 700;
+  const H = wrap.clientHeight || 380;
+
+  // Renderer
+  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  renderer.setPixelRatio(window.devicePixelRatio);
+  renderer.setSize(W, H);
+  renderer.shadowMap.enabled = true;
+  renderer.setClearColor(0xF2EBE1, 1);
+  wrap.appendChild(renderer.domElement);
+
+  // Scene
+  const scene = new THREE.Scene();
+  scene.fog = new THREE.Fog(0xF2EBE1, 1800, 3000);
+
+  // Camera — positioned to see container from front-right-above
+  const camera = new THREE.PerspectiveCamera(38, W / H, 1, 8000);
+  camera.position.set(CONT_L*0.8, CONT_H*2.2, CONT_W*2.5);
+  camera.lookAt(CONT_L/2, CONT_H*0.4, CONT_W/2);
+
+  // Lights
+  scene.add(new THREE.AmbientLight(0xfff8f0, 0.7));
+  const sun = new THREE.DirectionalLight(0xfff5e0, 1.0);
+  sun.position.set(400, 800, 400);
+  sun.castShadow = true;
+  scene.add(sun);
+  const fill = new THREE.DirectionalLight(0xe0eeff, 0.35);
+  fill.position.set(-400, 200, -300);
+  scene.add(fill);
+
+  // Controls
+  const controls = new THREE.OrbitControls(camera, renderer.domElement);
+  controls.target.set(CONT_L/2, CONT_H*0.35, CONT_W/2);
+  controls.minDistance = 150;
+  controls.maxDistance = 3500;
+  controls.maxPolarAngle = Math.PI * 0.82;
+  controls.update();
+
+  // Container group
+  const containerGroup = new THREE.Group();
+  scene.add(containerGroup);
+
+  // Raycaster for hover
+  const raycaster = new THREE.Raycaster();
+  const mouse = new THREE.Vector2();
+  const tooltip = document.getElementById('tooltip3d');
+  let hoveredMesh = null;
+
+  renderer.domElement.addEventListener('mousemove', e => {
+    const rect = renderer.domElement.getBoundingClientRect();
+    mouse.x =  ((e.clientX - rect.left) / rect.width)  * 2 - 1;
+    mouse.y = -((e.clientY - rect.top)  / rect.height) * 2 + 1;
+
+    raycaster.setFromCamera(mouse, camera);
+    const hits = raycaster.intersectObjects(containerGroup.children, true);
+    const hit = hits.find(h => h.object.userData && h.object.userData.label);
+
+    if (hit) {
+      const ud = hit.object.userData;
+      tooltip.style.display = 'block';
+      tooltip.style.left = (e.clientX - rect.left + 14) + 'px';
+      tooltip.style.top  = (e.clientY - rect.top  - 10) + 'px';
+      tooltip.innerHTML = `
+        <div style="font-weight:600;font-size:13px;margin-bottom:4px">${ud.label}</div>
+        <div style="opacity:0.75;font-size:11px">${ud.type === 'pallet' ? '🟫 Pallet' : '📦 Caja'}</div>
+        <div style="opacity:0.75;font-size:11px">${ud.dims}</div>
+        ${ud.pct ? `<div style="margin-top:4px;color:#c8b89a;font-size:11px">${ud.pct}% del contenedor</div>` : ''}
+      `;
+      if (hoveredMesh !== hit.object) {
+        if (hoveredMesh) hoveredMesh.material.emissive && (hoveredMesh.material.emissive.setHex(0x000000));
+        hoveredMesh = hit.object;
+        if (hoveredMesh.material.emissive) hoveredMesh.material.emissive.setHex(0x222211);
+      }
+    } else {
+      tooltip.style.display = 'none';
+      if (hoveredMesh) {
+        if (hoveredMesh.material.emissive) hoveredMesh.material.emissive.setHex(0x000000);
+        hoveredMesh = null;
+      }
+    }
+  });
+  renderer.domElement.addEventListener('mouseleave', () => {
+    tooltip.style.display = 'none';
+  });
+
+  // Animation loop
+  function animate() {
+    requestAnimationFrame(animate);
+    controls.update();
+    renderer.render(scene, camera);
+  }
+  animate();
+
+  // Resize handler
+  const ro = new ResizeObserver(() => {
+    const nW = wrap.clientWidth;
+    const nH = wrap.clientHeight;
+    renderer.setSize(nW, nH);
+    camera.aspect = nW / nH;
+    camera.updateProjectionMatrix();
+  });
+  ro.observe(wrap);
+
+  _three = { scene, camera, renderer, controls, containerGroup };
+  drawContainer();
+}
+
+function drawContainer() {
+  if (!_three) return; // Three.js not ready yet
+
+  const { scene, containerGroup } = _three;
+
+  // Clear previous boxes
+  while (containerGroup.children.length) {
+    const c = containerGroup.children[0];
+    c.geometry && c.geometry.dispose();
+    c.material && c.material.dispose();
+    containerGroup.remove(c);
+  }
+
+  // Container dims in cm (used as scene units)
+  const CL = CONT_L, CW = CONT_W, CH = CONT_H;
+
+  // ── Draw container shell (wireframe + transparent faces) ──
+  const wallMat = new THREE.MeshBasicMaterial({
+    color: 0x8D7966, transparent: true, opacity: 0.07, side: THREE.BackSide
+  });
+  const wallGeo = new THREE.BoxGeometry(CL, CH, CW);
+  const wallMesh = new THREE.Mesh(wallGeo, wallMat);
+  wallMesh.position.set(CL/2, CH/2, CW/2);
+  containerGroup.add(wallMesh);
+
+  // Wireframe edges
+  const edgeGeo = new THREE.EdgesGeometry(wallGeo);
+  const edgeMat = new THREE.LineBasicMaterial({ color: 0x8D7966, opacity: 0.5, transparent: true });
+  const edges = new THREE.LineSegments(edgeGeo, edgeMat);
+  edges.position.copy(wallMesh.position);
+  containerGroup.add(edges);
+
+  // Floor grid
+  const gridHelper = new THREE.GridHelper(Math.max(CL, CW), 10, 0xD8C8B8, 0xE2DDD9);
+  gridHelper.position.set(CL/2, 0, CW/2);
+  containerGroup.add(gridHelper);
+
+  // ── Use shared precision packing engine ──
+  const { packed } = runPacking(loadedProducts);
+
+  // ── Draw packed boxes as 3D meshes ──
+  // Cache materials by color
+  const matCache = {};
+  function getMat(hex) {
+    if (!matCache[hex]) {
+      const c = parseInt(hex.replace('#',''), 16);
+      matCache[hex] = new THREE.MeshLambertMaterial({ color: c });
+    }
+    return matCache[hex];
+  }
+  function getEdgeMat(hex) {
+    const c = parseInt(hex.replace('#',''), 16);
+    const col = new THREE.Color(c);
+    col.multiplyScalar(0.6);
+    return new THREE.LineBasicMaterial({ color: col, transparent: true, opacity: 0.5 });
+  }
+
+  for (const b of packed) {
+    const gap = 0.8; // small gap between boxes for visibility
+    const geo = new THREE.BoxGeometry(b.dX - gap, b.dY - gap, b.dZ - gap);
+    const mat = getMat(b.color).clone();
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.set(b.x + b.dX/2, b.y + b.dY/2, b.z + b.dZ/2);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    mesh.userData = { label: b.name, type: b.type, dims: b.dims, pct: b.pct };
+    containerGroup.add(mesh);
+
+    // Edge lines for each box
+    const eg = new THREE.EdgesGeometry(geo);
+    const em = new THREE.LineBasicMaterial({ color: 0x3a3028, transparent: true, opacity: 0.18 });
+    const el = new THREE.LineSegments(eg, em);
+    el.position.copy(mesh.position);
+    containerGroup.add(el);
+  }
+
+  // ── Dimension labels as sprites ──
+  function makeLabel(text, pos) {
+    const canvas = document.createElement('canvas');
+    canvas.width = 256; canvas.height = 64;
+    const ctx = canvas.getContext('2d');
+    ctx.font = 'bold 28px Jost, sans-serif';
+    ctx.fillStyle = '#8D7966';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(text, 128, 32);
+    const tex = new THREE.CanvasTexture(canvas);
+    const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, opacity: 0.85 });
+    const sprite = new THREE.Sprite(mat);
+    sprite.scale.set(80, 20, 1);
+    sprite.position.set(...pos);
+    containerGroup.add(sprite);
+  }
+
+  makeLabel((CL/100).toFixed(2)+' m', [CL/2, -18, -30]);
+  makeLabel((CW/100).toFixed(2)+' m', [-40, -18, CW/2]);
+  makeLabel((CH/100).toFixed(2)+' m', [-50, CH/2, -20]);
+
+  // % occupancy label
+  const pct = loadedProducts.reduce((s,p)=>s+p.vol*p.qty,0)/CONTAINER_VOL*100;
+  document.getElementById('pctVol') && (document.getElementById('pctVol').textContent = pct.toFixed(1)+'%');
+}
+
+renderLoader();
+
+// ResizeObserver on the 3D wrap
+const _cw = document.getElementById('canvasWrap');
+if (_cw) {
+  new ResizeObserver(() => {
+    if (_three) {
+      const w = _cw.clientWidth, h = _cw.clientHeight;
+      _three.renderer.setSize(w, h);
+      _three.camera.aspect = w / h;
+      _three.camera.updateProjectionMatrix();
+    }
+  }).observe(_cw);
+}
+
+// ── CATALOG ──
+function saveCatalog() { localStorage.setItem('cl_catalog',JSON.stringify(catalog)); }
+
+function renderCatalog() {
+  const grid = document.getElementById('catalogGrid');
+  if (!catalog.length) {
+    grid.innerHTML=`<div class="empty-state" style="grid-column:1/-1"><div class="empty-icon">🗂️</div><div class="empty-text">Tu catálogo está vacío.<br>Guardá productos con imagen y link para agregarlos rápidamente al contenedor.</div></div>`;
+    updateAtcBar(); return;
+  }
+  grid.innerHTML = catalog.map(p=>{
+    const sel = selectedCatalogItems[p.id]!==undefined;
+    const qty = selectedCatalogItems[p.id]||1;
+    const imgHtml = p.imgUrl
+      ? `<img class="cat-img" src="${p.imgUrl}" alt="${p.name}" onerror="this.outerHTML='<div class=cat-img-placeholder>📦</div>'">`
+      : `<div class="cat-img-placeholder">📦</div>`;
+    return `<div class="cat-card ${sel?'selected':''}" id="card_${p.id}">
+      <div class="cat-card-check">✓</div>
+      ${imgHtml}
+      <div class="cat-body">
+        <div class="cat-name">${p.name}</div>
+        <div class="cat-meta">${p.type==='box'?`📦 ${p.dims.L}×${p.dims.W}×${p.dims.H} cm`:`🟫 ${p.dims.L}×${p.dims.W}×${p.dims.H} cm`}</div>
+        ${p.link?`<a class="cat-link" href="${p.link}" target="_blank" onclick="event.stopPropagation()">🔗 ${shortenUrl(p.link)}</a>`:''}
+        <div class="cat-price">$${p.price.toFixed(2)} / ${p.type==='box'?'caja':'pallet'}</div>
+      </div>
+      <div class="cat-footer">
+        <label style="font-size:10px;margin:0;white-space:nowrap;color:var(--muted)">Cant.</label>
+        <input type="number" min="1" value="${qty}" style="width:60px;padding:5px 7px;font-size:13px"
+          onchange="setCatalogQty(${p.id},this.value)" onclick="event.stopPropagation()">
+        <div class="cat-actions">
+          <button class="btn-icon ${sel?'sel-active':''}" onclick="toggleCatalogItem(${p.id});event.stopPropagation()">
+            ${sel?'✓':'+ Sel.'}
+          </button>
+          <button class="btn-icon" onclick="editCatalogItem(${p.id});event.stopPropagation()" title="Editar">✏️</button>
+          <button class="btn-icon danger" onclick="deleteCatalogItem(${p.id});event.stopPropagation()" title="Eliminar">🗑</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+  updateAtcBar();
+}
+
+function toggleCatalogItem(id) {
+  if (selectedCatalogItems[id]!==undefined) delete selectedCatalogItems[id];
+  else {
+    const input = document.querySelector(`#card_${id} input[type="number"]`);
+    selectedCatalogItems[id] = input ? parseInt(input.value)||1 : 1;
+  }
+  renderCatalog();
+}
+
+function setCatalogQty(id,val) {
+  if (selectedCatalogItems[id]!==undefined) selectedCatalogItems[id]=Math.max(1,parseInt(val)||1);
+}
+
+function clearCatalogSelection() { selectedCatalogItems={}; renderCatalog(); }
+
+function updateAtcBar() {
+  const n = Object.keys(selectedCatalogItems).length;
+  document.getElementById('atcCount').textContent = n;
+  document.getElementById('atcBar').classList.toggle('visible', n>0);
+}
+
+function addSelectedToContainer() {
+  const ids = Object.keys(selectedCatalogItems);
+  if (!ids.length) return;
+  ids.forEach(id=>{
+    const p = catalog.find(c=>c.id==id); if(!p) return;
+    checkCapacityAndAdd({...p, qty:selectedCatalogItems[id]});
+  });
+  selectedCatalogItems={};
+  showPage('loader');
+}
+
+function deleteCatalogItem(id) {
+  catalog = catalog.filter(c=>c.id!==id);
+  delete selectedCatalogItems[id];
+  saveCatalog(); renderCatalog();
+  showToast('Producto eliminado del catálogo','');
+}
+
+function editCatalogItem(id) {
+  const p = catalog.find(c=>c.id===id); if(!p) return;
+  editingId=id;
+  document.getElementById('editId').value=id;
+  document.getElementById('mName').value=p.name;
+  document.getElementById('mImgUrl').value=p.imgUrl||'';
+  document.getElementById('mLink').value=p.link||'';
+  document.getElementById('mPrice').value=p.price;
+  setModalType(p.type);
+  if(p.type==='box'){document.getElementById('mBoxL').value=p.dims.L;document.getElementById('mBoxW').value=p.dims.W;document.getElementById('mBoxH').value=p.dims.H;}
+  else {document.getElementById('mPalletH').value=p.dims.H;document.getElementById('mPalletHVal').textContent=p.dims.H+' cm';}
+  previewImg();
+  document.getElementById('modalTitle').textContent='Editar Producto';
+  openModal();
+}
+
+function shortenUrl(url) { try{return new URL(url).hostname;}catch{return url.slice(0,28);} }
+
+// ── MODAL ──
+function openModal() { document.getElementById('modalOverlay').classList.add('open'); }
+function closeModal() {
+  document.getElementById('modalOverlay').classList.remove('open');
+  editingId=null;
+  ['editId','mName','mImgUrl','mLink','mPrice','mBoxL','mBoxW','mBoxH'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('imgPreview').innerHTML='<span>🖼️</span>';
+  document.getElementById('modalTitle').textContent='Nuevo Producto';
+  setModalType('box');
+}
+function handleModalClick(e){if(e.target===document.getElementById('modalOverlay'))closeModal();}
+function setModalType(t) {
+  modalType=t;
+  document.getElementById('mBoxSection').style.display=t==='box'?'':'none';
+  document.getElementById('mPalletSection').style.display=t==='pallet'?'':'none';
+  document.getElementById('mTabBox').className='type-tab '+(t==='box'?'active-box':'');
+  document.getElementById('mTabPallet').className='type-tab '+(t==='pallet'?'active-pallet':'');
+}
+function previewImg() {
+  const url=document.getElementById('mImgUrl').value;
+  document.getElementById('imgPreview').innerHTML=url?`<img src="${url}" onerror="this.parentElement.innerHTML='<span>❌</span>'">` :'<span>🖼️</span>';
+}
+function saveProduct() {
+  const name=document.getElementById('mName').value.trim();
+  if(!name) return showToast('Ingresá el nombre','error');
+  const price=parseFloat(document.getElementById('mPrice').value)||0;
+  let dims;
+  if(modalType==='box'){
+    const L=parseFloat(document.getElementById('mBoxL').value);
+    const W=parseFloat(document.getElementById('mBoxW').value);
+    const H=parseFloat(document.getElementById('mBoxH').value);
+    if(!L||!W||!H) return showToast('Ingresá las dimensiones','error');
+    dims={L,W,H};
+  } else {
+    const sz=PALLET_SIZES[document.getElementById('mPalletType').value];
+    dims={L:sz.L,W:sz.W,H:parseFloat(document.getElementById('mPalletH').value)};
+  }
+  const prod={id:editingId||Date.now(),name,type:modalType,dims,price,
+    imgUrl:document.getElementById('mImgUrl').value.trim()||null,
+    link:document.getElementById('mLink').value.trim()||null};
+  if(editingId){const i=catalog.findIndex(c=>c.id===editingId);if(i>=0)catalog[i]=prod;}
+  else catalog.push(prod);
+  saveCatalog(); closeModal(); renderCatalog();
+  showToast(editingId?'Producto actualizado':'Producto guardado en el catálogo','success');
+}
+
+function fmt(n){return n.toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2});}
+let toastTimer;
+function showToast(msg,type=''){
+  const el=document.getElementById('toast');
+  el.textContent=msg; el.className='toast show '+type;
+  clearTimeout(toastTimer); toastTimer=setTimeout(()=>el.classList.remove('show'),3000);
+}
+
+// ── SUPABASE AUTH ──
+const { createClient } = supabase;
+const _sb = createClient(
+  'https://yxfpkxvrzypueusyueuh.supabase.co',
+  'sb_publishable_4Fn3E1cA-quyFvsMHnMfVw_xzrRSbSp'
+);
+
+let currentUser = null;
+
+// Detect password reset redirect from email link
+(async function checkAuthRedirect() {
+  const hash = window.location.hash;
+  if (hash.includes('type=recovery')) {
+    switchPanel('panelReset');
+    showLoginPage();
+  } else {
+    const { data: { session } } = await _sb.auth.getSession();
+    if (session) enterApp(session.user);
+  }
+})();
+
+// Listen for auth state changes
+_sb.auth.onAuthStateChange((event, session) => {
+  if (event === 'SIGNED_IN' && session) enterApp(session.user);
+  if (event === 'SIGNED_OUT') showLoginPage();
+  if (event === 'PASSWORD_RECOVERY') {
+    switchPanel('panelReset');
+    showLoginPage();
+  }
+});
+
+function enterApp(user) {
+  currentUser = user;
+  const label = user.user_metadata?.username || user.email.split('@')[0];
+  document.getElementById('headerUserName').textContent = label;
+  const lp = document.getElementById('loginPage');
+  lp.classList.add('hidden');
+  setTimeout(() => lp.style.display = 'none', 500);
+}
+
+function showLoginPage() {
+  const lp = document.getElementById('loginPage');
+  lp.style.display = 'flex';
+  void lp.offsetWidth;
+  lp.classList.remove('hidden');
+}
+
+function switchPanel(id) {
+  document.querySelectorAll('.auth-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  ['loginError','forgotError','forgotSuccess','registerError','registerSuccess','resetError','resetSuccess']
+    .forEach(i => { const el=document.getElementById(i); if(el){ el.classList.remove('visible'); el.textContent=''; }});
+}
+
+function showErr(id, msg) { const e=document.getElementById(id); e.textContent=msg; e.classList.add('visible'); }
+function showOk(id, msg)  { const e=document.getElementById(id); e.textContent=msg; e.classList.add('visible'); }
+function setLoading(id, on, label) { const b=document.getElementById(id); if(!b)return; b.disabled=on; b.textContent=on?'Cargando…':label; }
+function shakePanel() {
+  const fc=document.querySelector('.login-form-panel');
+  fc.classList.remove('login-shake'); void fc.offsetWidth; fc.classList.add('login-shake');
+}
+
+// ── LOGIN ──
+async function doLogin() {
+  const email = document.getElementById('loginEmail').value.trim();
+  const pass  = document.getElementById('loginPass').value;
+  if (!email || !pass) return showErr('loginError', 'Completá el e-mail y la contraseña.');
+  setLoading('loginBtn', true, 'Ingresar →');
+  const { error } = await _sb.auth.signInWithPassword({ email, password: pass });
+  setLoading('loginBtn', false, 'Ingresar →');
+  if (error) {
+    const msg = error.message.includes('Email not confirmed')
+      ? 'Confirmá tu email antes de ingresar. Revisá tu bandeja.'
+      : error.message.includes('Invalid login')
+      ? 'E-mail o contraseña incorrectos.'
+      : error.message;
+    showErr('loginError', msg); shakePanel();
+    document.getElementById('loginPass').value = '';
+  }
+}
+
+// ── LOGOUT ──
+async function doLogout() {
+  await _sb.auth.signOut();
+  currentUser = null;
+  switchPanel('panelLogin');
+  showLoginPage();
+}
+
+// ── REGISTER ──
+async function doRegister() {
+  const email = document.getElementById('regEmail').value.trim();
+  const pass  = document.getElementById('regPass').value;
+  const pass2 = document.getElementById('regPass2').value;
+  const consent = document.getElementById('regConsent').checked;
+  if (!email || !pass || !pass2) return showErr('registerError', 'Completá todos los campos.');
+  if (!consent) return showErr('registerError', 'Debés aceptar los términos para continuar.');
+  if (pass.length < 6) return showErr('registerError', 'La contraseña debe tener al menos 6 caracteres.');
+  if (pass !== pass2) return showErr('registerError', 'Las contraseñas no coinciden.');
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return showErr('registerError', 'E-mail inválido.');
+  setLoading('regBtn', true, 'Crear cuenta →');
+  const { error } = await _sb.auth.signUp({
+    email, password: pass,
+    options: { emailRedirectTo: 'https://ignaciodallape.github.io/ContenedorApp/' }
+  });
+  setLoading('regBtn', false, 'Crear cuenta →');
+  if (error) { showErr('registerError', error.message); return; }
+  showOk('registerSuccess', '✓ Cuenta creada. Revisá tu mail y hacé clic en el link de confirmación para activarla.');
+  ['regEmail','regPass','regPass2'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('regConsent').checked = false;
+}
+
+// ── FORGOT PASSWORD ──
+async function doForgot() {
+  const email = document.getElementById('forgotEmail').value.trim();
+  if (!email) return showErr('forgotError', 'Ingresá tu e-mail.');
+  setLoading('forgotBtn', true, 'Enviar link →');
+  const { error } = await _sb.auth.resetPasswordForEmail(email, {
+    redirectTo: 'https://ignaciodallape.github.io/ContenedorApp/'
+  });
+  setLoading('forgotBtn', false, 'Enviar link →');
+  if (error) { showErr('forgotError', error.message); return; }
+  showOk('forgotSuccess', `✓ Link enviado a ${email}. Revisá tu bandeja y hacé clic en el enlace para crear una nueva contraseña.`);
+  document.getElementById('forgotEmail').value = '';
+}
+
+// ── RESET PASSWORD ──
+async function doReset() {
+  const pass  = document.getElementById('resetPass').value;
+  const pass2 = document.getElementById('resetPass2').value;
+  if (pass.length < 6) return showErr('resetError', 'La contraseña debe tener al menos 6 caracteres.');
+  if (pass !== pass2)  return showErr('resetError', 'Las contraseñas no coinciden.');
+  setLoading('resetBtn', true, 'Guardar contraseña →');
+  const { error } = await _sb.auth.updateUser({ password: pass });
+  setLoading('resetBtn', false, 'Guardar contraseña →');
+  if (error) { showErr('resetError', error.message); return; }
+  showOk('resetSuccess', '✓ Contraseña actualizada. Ya podés ingresar.');
+  window.location.hash = '';
+  setTimeout(() => { switchPanel('panelLogin'); }, 2000);
+}
+
+renderLoader();
+</script>
+</body>
+</html>
