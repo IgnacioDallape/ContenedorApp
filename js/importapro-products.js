@@ -132,20 +132,19 @@ function renderProducts(){
       : `<div style="padding:11px 14px;background:rgba(26,79,138,0.04);border:1px solid rgba(26,79,138,0.08);border-radius:8px;font-size:12px;color:var(--text-3);font-weight:500">${label} — sin precio</div>`;
 
     return `<div class="product-card" onclick="loadProduct(${i})">
-      <div class="product-card-header">
-        <div style="flex:1;min-width:0">
-          <div class="product-name">${p.nombre}</div>
-          <div class="product-date">${p.date} · ${p.qty} unidades · costo ${ars(p.costoARS)}</div>
-        </div>
-        <span class="badge badge-${topBadge}" style="flex-shrink:0">${bestMargen}%</span>
+      <div style="text-align:center;margin-bottom:18px;position:relative">
+        <div class="product-name" style="font-size:22px;margin-bottom:8px">${p.nombre}</div>
+        <div style="font-size:16px;font-weight:700;color:var(--accent);margin-bottom:6px">${ars(p.costoARS)}</div>
+        <div class="product-date" style="font-size:12px;color:var(--text-3);font-weight:500">${p.date} · ${p.qty} unidades</div>
+        <span class="badge badge-${topBadge}" style="position:absolute;top:0;right:0">${bestMargen}%</span>
       </div>
       <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:14px">
         ${chanRow('Mercado Libre', ml, 'var(--green)')}
         ${chanRow('Tienda propia', tp, 'var(--accent)')}
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;padding-top:12px;border-top:1px solid rgba(26,79,138,0.06);min-width:0">
-        <div class="product-metric" style="min-width:0;overflow:hidden"><div class="pm-label">FOB 1688</div><div class="pm-value">U$S ${p.fob}</div></div>
-        <div class="product-metric" style="min-width:0;overflow:hidden"><div class="pm-label">DI aplicado</div><div class="pm-value">${p.di}%</div></div>
+        <div class="product-metric" style="min-width:0;overflow:hidden;text-align:center"><div class="pm-label">FOB 1688</div><div class="pm-value" style="font-size:16px">U$S ${p.fob}</div></div>
+        <div class="product-metric" style="min-width:0;overflow:hidden;text-align:center"><div class="pm-label">DI aplicado</div><div class="pm-value" style="font-size:16px">${p.di}%</div></div>
       </div>
       <div class="product-actions" onclick="event.stopPropagation()">
         ${p.link1688?`<a href="${p.link1688}" target="_blank" class="btn-outline" style="text-decoration:none">1688 ↗</a>`:''}
