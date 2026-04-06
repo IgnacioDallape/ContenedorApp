@@ -132,7 +132,7 @@ function runPacking(products) {
     // Filter out orientations that exceed container in any axis
     orientations = orientations.filter(o =>
       o.dX > 0 && o.dZ > 0 && o.dY > 0 &&
-      o.dX <= CONT_L + 5 && o.dZ <= CONT_W + 5 && o.dY <= CONT_H + 1.5
+      o.dX <= CONT_L + 5 && o.dZ <= CONT_W + 5 && o.dY <= CONT_H + 0.1
     );
     if (!orientations.length) return false;
 
@@ -147,7 +147,7 @@ function runPacking(products) {
         delete instanceManualPos[u.instanceId];
         if (window._instanceManualPos) delete window._instanceManualPos[u.instanceId];
         // Fall through to auto-placement below
-      } else if (h + ori.dY > CONT_H + 1.5) {
+      } else if (h + ori.dY > CONT_H + 0.1) {
         // Doesn't fit vertically — clear pin and auto-place
         delete instanceManualPos[u.instanceId];
         if (window._instanceManualPos) delete window._instanceManualPos[u.instanceId];
@@ -173,7 +173,7 @@ function runPacking(products) {
           if (px + ori.dX > CONT_L + 5) continue;
           if (pz + ori.dZ > CONT_W + 5) continue;
           const h = hmGetMax(hm, px, pz, ori.dX, ori.dZ);
-          if (h + ori.dY > CONT_H + 1.5) continue;
+          if (h + ori.dY > CONT_H + 0.1) continue;
           // PALLETS NEVER STACK — physical constraint, period
           if (u.type === 'pallet' && h > 1) continue;
           let score;
@@ -281,7 +281,7 @@ function runPacking(products) {
       const u = group[idx];
       const h = hmGetMax(hm, cp.px, cp.pz, cp.ori.dX, cp.ori.dZ);
       if (h > 1) { idx++; continue; }
-      if (h + cp.ori.dY > CONT_H + 1.5) { idx++; continue; }
+      if (h + cp.ori.dY > CONT_H + 0.1) { idx++; continue; }
       hmSet(hm, cp.px, cp.pz, cp.ori.dX, cp.ori.dZ, h + cp.ori.dY);
       packed.push({ x: cp.px, y: h, z: cp.pz, dX: cp.ori.dX, dY: cp.ori.dY, dZ: cp.ori.dZ,
         color: u.color, name: u.name, type: u.type,
@@ -324,4 +324,4 @@ function runPackingCached(products) {
 function invalidatePackingCache() {
   _packingCache = null;
   _packingCacheKey = '';
-} 
+}

@@ -579,7 +579,9 @@ function renderLoader() {
   const totalWeight = loadedProducts.reduce((s,p)=>s+(p.weight||0)*p.qty,0);
   const pct = totalVol/CONTAINER_VOL*100;
   const over = totalVol>CONTAINER_VOL;
-  const weightOver = totalWeight > 20000;
+  const WEIGHT_LIMITS = { '20ft': 28000, '40ft': 26500, '40hc': 26500 };
+  const weightLimit = WEIGHT_LIMITS[currentContainerType] || 28000;
+  const weightOver = totalWeight > weightLimit;
 
   document.getElementById('statVol').textContent = totalVol.toFixed(2);
   document.getElementById('statPct').textContent = pct.toFixed(1)+'%';
@@ -598,7 +600,7 @@ function renderLoader() {
     weightEl.textContent = totalWeight.toFixed(0);
   }
   weightEl.style.color = weightOver ? 'var(--danger)' : 'var(--c5)';
-  weightSubEl.textContent = weightOver ? '⚠ Supera límite ~20.000 kg' : (totalWeight > 0 ? `kg · ${(totalWeight/1000).toFixed(2)} t` : 'kg · límite ~20.000 kg');
+  weightSubEl.textContent = weightOver ? `⚠ Supera límite ${(weightLimit/1000).toFixed(0)}.000 kg` : (totalWeight > 0 ? `kg · ${(totalWeight/1000).toFixed(2)} t` : `kg · límite ~${(weightLimit/1000).toFixed(0)}.000 kg`);
   weightSubEl.style.color = weightOver ? 'var(--danger)' : '';
 
   // Weight progress bar
@@ -607,7 +609,7 @@ function renderLoader() {
   const pctWeightEl = document.getElementById('pctWeight');
   if (totalWeight > 0) {
     weightBarRow.style.display = '';
-    const weightPct = Math.min(totalWeight / 20000 * 100, 100);
+    const weightPct = Math.min(totalWeight / weightLimit * 100, 100);
     fillWeight.style.width = weightPct + '%';
     fillWeight.style.background = weightOver
       ? 'linear-gradient(90deg,#d8a8a8,var(--danger))'
