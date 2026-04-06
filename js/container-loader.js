@@ -387,6 +387,9 @@ function checkCapacityAndAdd(productData) {
   // Test packing: put new product in the list, let BFD sort determine order naturally
   // The sort inside runPacking will place it optimally relative to existing products
   const testList = [...loadedProducts, newProd];
+  // Timeout guard: si hay demasiadas unidades, limitar el test
+  const totalUnitsTest = testList.reduce((s,p) => s + p.qty, 0);
+  if (totalUnitsTest > 800) return showToast('Demasiadas unidades en el contenedor. Dividí la carga en más contenedores.', 'error');
   const { placed } = runPacking(testList);
   const placedQty = placed['preview'] || 0;
   const physicallyExceeds = placedQty < productData.qty;
@@ -478,6 +481,7 @@ function addProductManual() {
   const price = parseFloat(document.getElementById('unitPrice').value)||0;
   if (!name) return showToast('Ingresá el nombre del producto','error');
   if (!qty||qty<1) return showToast('Ingresá una cantidad válida','error');
+  if (qty > 500) return showToast('Máximo 500 unidades por producto','error');
   let dims;
   if (currentType==='box') {
     const L=parseFloat(document.getElementById('boxL').value);
