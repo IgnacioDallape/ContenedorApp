@@ -693,7 +693,10 @@
 
           <!-- Productos -->
           <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);letter-spacing:2px;text-transform:uppercase">Productos a cargar</div>
-          <button class="btn-primary" onclick="pb_openProductForm()" style="font-size:12px">+ Agregar producto</button>
+          <div style="display:flex;gap:8px">
+            <button class="btn-primary" onclick="pb_openProductForm()" style="font-size:12px;flex:1">+ Nueva caja</button>
+            <button onclick="pb_openCatalogPicker()" style="flex:1;padding:10px;font-size:12px;font-family:var(--font);border-radius:var(--radius);border:1.5px solid var(--border);background:transparent;color:var(--c2);cursor:pointer;transition:all 0.2s" onmouseover="this.style.borderColor='var(--c1)';this.style.color='var(--c1)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--c2)'">📋 Del catálogo</button>
+          </div>
           <div id="pbProductList">
             <div class="empty-state"><div class="empty-icon">&#x1F4E6;</div><div class="empty-text">Sin productos aún.</div></div>
           </div>
@@ -1017,4 +1020,5 @@
 <script src="js/pallet-builder.js"></script>
 <script src="js/app.js"></script>
 </body>
+
 </html>

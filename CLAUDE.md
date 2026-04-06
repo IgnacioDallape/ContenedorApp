@@ -66,4 +66,4 @@ contenedorapp/
 - URL: `https://yxfpkxvrzypueusyueuh.supabase.co`
 - Clave pública en `auth.js`
 - Tabla `shipments`: id, user_id, name, containers (jsonb), created_at
-- RLS activo: select, insert, update, delete — solo own rows
+- RLS activo: select, insert, update, delete — solo own rows.

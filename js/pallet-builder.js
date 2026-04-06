@@ -168,14 +168,45 @@ function pb_build() {
     return;
   }
 
+  // Calcular sobrantes
+  const leftover = remaining.filter(p => p.qty > 0);
+
   pb_activeResult = 0;
-  pb_renderResults();
+  pb_renderResults(leftover);
   pb_draw3D(pb_results[0]);
-  showToast('✓ ' + pb_results.length + ' pallet' + (pb_results.length > 1 ? 's' : '') + ' armado' + (pb_results.length > 1 ? 's' : ''), 'success');
+
+  let msg = '✓ ' + pb_results.length + ' pallet' + (pb_results.length > 1 ? 's' : '') + ' armado' + (pb_results.length > 1 ? 's' : '');
+  if (leftover.length) {
+    msg = '⚠ ' + leftover.length + ' producto' + (leftover.length > 1 ? 's' : '') + ' no entraron — revisá el resumen';
+    showToast(msg, 'error');
+  } else {
+    showToast(msg, 'success');
+  }
 }
 
 // ── RENDER RESULTADOS ──
-function pb_renderResults() {
+function pb_renderLeftover(leftover) {
+  if (!leftover || !leftover.length) return '';
+  var rows = leftover.map(function(p) {
+    var prod = pb_products.find(function(x) { return x.id === p.id; });
+    var color = prod ? prod.color : '#999';
+    var name = prod ? prod.name : String(p.id);
+    return '<div style="display:flex;align-items:center;gap:8px;font-size:12px;margin-bottom:4px">'
+      + '<span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:' + color + ';flex-shrink:0"></span>'
+      + '<span>' + name + '</span>'
+      + '<span style="color:var(--danger);font-weight:600;margin-left:auto">' + p.qty + ' cajas sin ubicar</span>'
+      + '</div>';
+  }).join('');
+  return '<div style="background:rgba(184,92,92,0.08);border:1.5px solid rgba(184,92,92,0.35);border-radius:8px;padding:12px 16px;margin-bottom:14px">'
+    + '<div style="font-size:11px;font-weight:700;color:var(--danger);letter-spacing:1px;margin-bottom:8px">NO ENTRARON EN NINGUN PALLET</div>'
+    + rows
+    + '<div style="font-size:10px;color:var(--muted);margin-top:8px">Aumenta la altura maxima o reduce las cantidades</div>'
+    + '</div>';
+}
+
+
+function pb_renderResults(leftover) {
+  leftover = leftover || [];
   const el = document.getElementById('pbResults');
   if (!el) return;
 
@@ -250,6 +281,7 @@ function pb_renderResults() {
       </tr></thead>
       <tbody>${summaryRows}</tbody>
     </table>
+    ${pb_renderLeftover(leftover)}
   `;
 }
 
@@ -348,7 +380,7 @@ function pb_draw3D(result) {
   for (const box of result.boxes) {
     const color = new THREE.Color(box.color);
     const mat = new THREE.MeshLambertMaterial({ color });
-    const geo = new THREE.BoxGeometry(box.dX - 1, box.dY - 1, box.dZ - 1);
+    const geo = new THREE.BoxGeometry(box.dX - 0.3, box.dY - 0.3, box.dZ - 0.3);
     const mesh = new THREE.Mesh(geo, mat);
     mesh.position.set(
       box.x + box.dX / 2,
@@ -358,7 +390,7 @@ function pb_draw3D(result) {
     scene.add(mesh);
 
     // Wireframe
-    const edges = new THREE.EdgesGeometry(new THREE.BoxGeometry(box.dX, box.dY, box.dZ));
+    const edges = new THREE.EdgesGeometry(new THREE.BoxGeometry(box.dX - 0.3, box.dY - 0.3, box.dZ - 0.3));
     const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.15 }));
     line.position.copy(mesh.position);
     scene.add(line);
@@ -399,6 +431,68 @@ function pb_addAllToContainer() {
 }
 
 // ── GESTIÓN DE PRODUCTOS ──
+
+function pb_openCatalogPicker() {
+  const catalog = JSON.parse(localStorage.getItem('cl_catalog') || '[]');
+  if (!catalog.length) return showToast('No tenés productos en el catálogo aún', 'error');
+
+  const existing = document.getElementById('pbCatalogModal');
+  if (existing) existing.remove();
+
+  const rows = catalog.map(p => {
+    const dims = p.dims ? p.dims.L + 'x' + p.dims.W + 'x' + p.dims.H : '—';
+    return '<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);cursor:pointer" onclick="pb_addFromCatalog(' + p.id + ')" onmouseover="this.style.background='var(--c4)'" onmouseout="this.style.background='transparent'">'
+      + (p.imgUrl ? '<img src="' + p.imgUrl + '" style="width:36px;height:36px;object-fit:cover;border-radius:6px;flex-shrink:0">' : '<div style="width:36px;height:36px;background:var(--border);border-radius:6px;flex-shrink:0"></div>')
+      + '<div style="flex:1;min-width:0">'
+      + '<div style="font-size:13px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + p.name + '</div>'
+      + '<div style="font-size:11px;color:var(--muted);font-family:'DM Mono',monospace">' + dims + ' cm · ' + (p.type === 'pallet' ? 'Pallet' : 'Caja') + '</div>'
+      + '</div>'
+      + '<div style="font-size:11px;color:var(--c2);font-family:'DM Mono',monospace;flex-shrink:0">Agregar +</div>'
+      + '</div>';
+  }).join('');
+
+  const modal = document.createElement('div');
+  modal.id = 'pbCatalogModal';
+  modal.className = 'cap-overlay open';
+  modal.style.zIndex = '300';
+  modal.innerHTML = '<div class="cap-modal" style="max-width:480px;width:90vw;max-height:70vh;overflow:hidden;display:flex;flex-direction:column">'
+    + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">'
+    + '<div class="cap-title" style="margin:0">Catálogo de productos</div>'
+    + '<button onclick="document.getElementById('pbCatalogModal').remove()" style="background:none;border:none;font-size:18px;cursor:pointer;color:var(--muted)">×</button>'
+    + '</div>'
+    + '<div style="overflow-y:auto;flex:1">' + rows + '</div>'
+    + '</div>';
+  document.body.appendChild(modal);
+}
+
+function pb_addFromCatalog(id) {
+  const catalog = JSON.parse(localStorage.getItem('cl_catalog') || '[]');
+  const p = catalog.find(x => x.id == id);
+  if (!p || !p.dims) return showToast('Producto sin dimensiones', 'error');
+
+  const existing = pb_products.find(x => x.name === p.name);
+  if (existing) {
+    existing.qty += 1;
+    pb_renderProductList();
+    showToast('+ 1 ' + p.name, 'success');
+    return;
+  }
+
+  pb_products.push({
+    id: Date.now() + Math.random(),
+    name: p.name,
+    dims: { L: p.dims.L, W: p.dims.W, H: p.dims.H },
+    qty: 1,
+    weight: p.weight || 0,
+    mustBeBase: false,
+    color: PB_COLORS[pb_products.length % PB_COLORS.length],
+  });
+  pb_renderProductList();
+  pb_results = [];
+  pb_renderResults();
+  showToast('✓ ' + p.name + ' agregado', 'success');
+}
+
 function pb_openProductForm(editId) {
   pb_editingId = editId || null;
   if (editId) {
