@@ -19,6 +19,7 @@ const PALLET_SIZES = { euro:{L:120,W:80}, eua:{L:120,W:100} };
 const COLORS = ['#8D7966','#A8906b','#6b7d9b','#9b7966','#6b8c6b','#b8906b','#7d6b9b','#6b9b8b','#9b8b6b','#8b6b6b'];
 
 // ── MULTI-CONTAINER / SHIPMENT SYSTEM ──
+let _currentShipmentId = null; // ID del embarque cargado desde Supabase
 let shipmentContainers = [
   { id: 1, type: '20ft', products: [], priorityZones: [null,null,null], instanceManualPos: {}, instanceLockedOri: {} }
 ];
@@ -107,6 +108,16 @@ function renderContainerTabs() {
 
 // ── GUARDAR EMBARQUE EN SUPABASE ──
 function saveShipment() {
+  // Si hay un embarque activo cargado, ofrecer sobreescribir directamente
+  if (_currentShipmentId) {
+    document.getElementById('overwriteShipmentId').value = _currentShipmentId;
+    // Buscar el nombre del embarque actual
+    _sb.from('shipments').select('name').eq('id', _currentShipmentId).single().then(({ data }) => {
+      document.getElementById('overwriteShipmentName').textContent = data ? data.name : 'este embarque';
+      document.getElementById('overwriteShipmentModal').classList.add('open');
+    });
+    return;
+  }
   document.getElementById('saveShipmentName').value = '';
   document.getElementById('saveShipmentModal').classList.add('open');
   setTimeout(() => document.getElementById('saveShipmentName').focus(), 80);
@@ -118,13 +129,13 @@ async function confirmSaveShipment() {
   const name = document.getElementById('saveShipmentName').value.trim();
   if (!name) { document.getElementById('saveShipmentName').focus(); return; }
 
-  // Verificar si ya existe un embarque con ese nombre
-  const { data: existing } = await _sb
+  // Verificar si ya existe un embarque con ese nombre (case-insensitive)
+  const { data: existingList } = await _sb
     .from('shipments')
     .select('id, name')
     .eq('user_id', session.user.id)
-    .eq('name', name)
-    .maybeSingle();
+    .ilike('name', name);
+  const existing = existingList && existingList.length > 0 ? existingList[0] : null;
 
   if (existing) {
     // Guardar ID para sobreescribir y mostrar modal de confirmacion
@@ -168,6 +179,7 @@ async function doSaveShipment(session, name, overwriteId) {
 
   if (btn) { btn.textContent = 'Guardar embarque'; btn.disabled = false; }
   if (error) { console.error(error); return showToast('Error al guardar: ' + error.message, 'error'); }
+  if (!overwriteId) _currentShipmentId = null;
   showToast((overwriteId ? 'Embarque actualizado: ' : 'Embarque guardado: ') + '"' + name + '"', 'success');
 }
 
@@ -202,7 +214,7 @@ async function loadShipmentsList() {
       </div>
       <div style="display:flex;gap:6px">
         <button onclick="loadShipment('${s.id}')" style="padding:7px 14px;font-size:11px;font-family:'DM Mono',monospace;border-radius:6px;border:1.5px solid var(--c1);color:var(--c1);background:transparent;cursor:pointer">Cargar →</button>
-        <button onclick="deleteShipment('${s.id}')" style="padding:7px 10px;font-size:11px;border-radius:6px;border:1px solid var(--border);color:var(--muted);background:transparent;cursor:pointer">🗑</button>
+        <button onclick="deleteShipment('${s.id}')" style="padding:7px 14px;font-size:11px;font-family:'DM Mono',monospace;border-radius:6px;border:1px solid rgba(184,92,92,0.35);color:var(--danger);background:transparent;cursor:pointer;letter-spacing:0.3px;transition:all 0.15s" onmouseover="this.style.background='rgba(184,92,92,0.08)'" onmouseout="this.style.background='transparent'">Eliminar</button>
       </div>
     </div>`;
   }).join('');
@@ -214,6 +226,7 @@ async function loadShipment(id) {
   const { data, error } = await _sb.from('shipments').select('*').eq('id', id).single();
   if (error || !data) return showToast('Error al cargar embarque', 'error');
 
+  _currentShipmentId = data.id;
   shipmentContainers = data.containers;
   activeContainerIdx = 0;
   const first = shipmentContainers[0];
