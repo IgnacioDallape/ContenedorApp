@@ -1,4 +1,9 @@
 // ── CONTAINER TYPES ──
+// Utilidad de formato numérico (fallback si catalog.js no cargó aún)
+if (typeof fmt === 'undefined') {
+  window.fmt = n => n.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
 const CONTAINER_TYPES = {
   '20ft': { L:589, W:235, H:239, vol:(589*235*239)/1e6, label:"20'", fullLabel:"20' Dry", dims:"5.89 × 2.35 × 2.39 m" },
   '40ft': { L:1200, W:235, H:239, vol:(1200*235*239)/1e6, label:"40'", fullLabel:"40' Dry", dims:"12.00 × 2.35 × 2.39 m" },
