@@ -401,9 +401,6 @@ function pb_addAllToContainer() {
 // ── GESTIÓN DE PRODUCTOS ──
 function pb_openProductForm(editId) {
   pb_editingId = editId || null;
-  const form = document.getElementById('pbProductForm');
-  if (!form) return;
-
   if (editId) {
     const p = pb_products.find(x => x.id === editId);
     if (!p) return;
