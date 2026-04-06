@@ -107,4 +107,3 @@ async function doReset() {
   window.location.hash = '';
   setTimeout(() => switchPanel('panelLogin'), 2000);
 }
-
