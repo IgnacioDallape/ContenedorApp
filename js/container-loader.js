@@ -158,9 +158,15 @@ async function confirmOverwriteShipment() {
 }
 
 async function doSaveShipment(session, name, overwriteId) {
+  // Sincronizar estado actual del contenedor activo antes de guardar
   const cur = getActiveContainer();
   cur.products = [...loadedProducts];
   cur.type = currentContainerType;
+  cur.priorityZones = [...window._priorityZones];
+  cur.instanceManualPos = {...window._instanceManualPos};
+  cur.instanceLockedOri = {...window._instanceLockedOri};
+
+  const snapshot = JSON.parse(JSON.stringify(shipmentContainers));
 
   const btn = document.getElementById('btnSaveShipment');
   if (btn) { btn.textContent = 'Guardando...'; btn.disabled = true; }
@@ -169,12 +175,12 @@ async function doSaveShipment(session, name, overwriteId) {
   if (overwriteId) {
     ({ error } = await _sb
       .from('shipments')
-      .update({ name, containers: shipmentContainers, created_at: new Date().toISOString() })
+      .update({ name, containers: snapshot })
       .eq('id', overwriteId));
   } else {
     ({ error } = await _sb
       .from('shipments')
-      .insert({ user_id: session.user.id, name, containers: shipmentContainers }));
+      .insert({ user_id: session.user.id, name, containers: snapshot }));
   }
 
   if (btn) { btn.textContent = 'Guardar embarque'; btn.disabled = false; }
