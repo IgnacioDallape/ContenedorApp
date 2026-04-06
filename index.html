@@ -660,6 +660,68 @@
       </div>
     </div>
 
+
+    <!-- ── Pallet Builder ── -->
+    <div class="cl-section" id="section-palletbuilder" style="width:100%;overflow:hidden;display:none">
+      <div style="display:flex;height:calc(100vh - 0px);overflow:hidden">
+
+        <!-- Sidebar izquierdo -->
+        <aside class="sidebar-form" style="width:320px;min-width:280px;overflow-y:auto;border-right:1px solid var(--border);padding:20px;display:flex;flex-direction:column;gap:16px">
+          <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);letter-spacing:2px;text-transform:uppercase">Armador de Pallets</div>
+
+          <!-- Tipo de pallet -->
+          <div>
+            <div style="font-size:11px;color:var(--muted);margin-bottom:8px;font-family:'DM Mono',monospace;letter-spacing:1px;text-transform:uppercase">Tipo de pallet</div>
+            <div style="display:flex;gap:6px">
+              <button id="pbBtnEuro" onclick="pb_setPalletType('euro')" class="cont-type-btn active" style="flex:1;font-size:11px">&#x1F7EB; Euro<br><small style="font-size:9px;opacity:0.7">120×80 cm</small></button>
+              <button id="pbBtnEua"  onclick="pb_setPalletType('eua')"  class="cont-type-btn"        style="flex:1;font-size:11px">&#x1F7EB; EUA<br><small style="font-size:9px;opacity:0.7">120×100 cm</small></button>
+            </div>
+            <div id="pbPalletDims" style="font-size:10px;color:var(--muted);font-family:'DM Mono',monospace;margin-top:6px;text-align:center">120×80 cm</div>
+          </div>
+
+          <!-- Altura máxima -->
+          <div>
+            <div style="font-size:11px;color:var(--muted);margin-bottom:8px;font-family:'DM Mono',monospace;letter-spacing:1px;text-transform:uppercase">Altura máxima</div>
+            <div style="display:flex;align-items:center;gap:10px">
+              <input type="range" min="60" max="220" value="180" oninput="pb_setMaxHeight(this.value)" style="flex:1;accent-color:var(--c1)">
+              <span id="pbMaxHeightVal" style="font-size:12px;font-weight:600;color:var(--c1);min-width:48px">180 cm</span>
+            </div>
+          </div>
+
+          <hr class="divider">
+
+          <!-- Productos -->
+          <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);letter-spacing:2px;text-transform:uppercase">Productos a cargar</div>
+          <button class="btn-primary" onclick="pb_openProductForm()" style="font-size:12px">+ Agregar producto</button>
+          <div id="pbProductList">
+            <div class="empty-state"><div class="empty-icon">&#x1F4E6;</div><div class="empty-text">Sin productos aún.</div></div>
+          </div>
+
+          <hr class="divider">
+          <button class="btn-primary" onclick="pb_build()" style="background:var(--c1);font-size:13px;letter-spacing:1px">&#x1F9F1; Armar pallets</button>
+        </aside>
+
+        <!-- Contenido principal -->
+        <main style="flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:16px">
+
+          <!-- Resultados -->
+          <div id="pbResults">
+            <div class="empty-state"><div class="empty-icon">&#x1F4E6;</div><div class="empty-text">Configurá los productos y presioná "Armar pallets"</div></div>
+          </div>
+
+          <!-- Visualización 3D -->
+          <div class="section">
+            <div class="section-header">
+              <div class="section-title">Visualización 3D del Pallet</div>
+              <span style="font-family:'DM Mono',monospace;font-size:10px;color:var(--muted)">ROTAR · SCROLL ZOOM</span>
+            </div>
+            <div id="pbThreeContainer" style="width:100%;height:420px;border-radius:8px;overflow:hidden;background:var(--surface2);border:1px solid var(--border)"></div>
+          </div>
+
+        </main>
+      </div>
+    </div>
+
   </div><!-- /main -->
 </div><!-- /app-shell -->
 
@@ -745,6 +807,34 @@
 </div>
 
 
+
+<!-- Modal: Producto Pallet Builder -->
+<div id="pbProductModal" class="cap-overlay" style="z-index:210">
+  <div class="cap-modal" style="max-width:460px;width:90vw">
+    <div class="cap-title">Producto para el pallet</div>
+    <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:18px">
+      <div class="form-group" style="margin:0"><label>Nombre del producto</label><input type="text" id="pbProdName" placeholder="Ej: Zapatillas Running"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+        <div class="form-group" style="margin:0"><label style="font-size:10px">Largo (cm)</label><input type="number" id="pbProdL" placeholder="60" min="1"></div>
+        <div class="form-group" style="margin:0"><label style="font-size:10px">Ancho (cm)</label><input type="number" id="pbProdW" placeholder="40" min="1"></div>
+        <div class="form-group" style="margin:0"><label style="font-size:10px">Alto (cm)</label><input type="number" id="pbProdH" placeholder="30" min="1"></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div class="form-group" style="margin:0"><label>Cantidad</label><input type="number" id="pbProdQty" placeholder="10" min="1" max="250"></div>
+        <div class="form-group" style="margin:0"><label>Peso/u (kg) <span style="color:var(--muted);font-size:9px">opcional</span></label><input type="number" id="pbProdWeight" placeholder="0.0" min="0" step="0.1"></div>
+      </div>
+      <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:13px;color:var(--text);padding:10px 14px;border:1.5px solid var(--border);border-radius:8px;transition:border-color 0.15s" onmouseover="this.style.borderColor='var(--c1)'" onmouseout="this.style.borderColor='var(--border)'">
+        <input type="checkbox" id="pbProdBase" style="width:16px;height:16px;accent-color:var(--c1)">
+        <span>&#x2B07; Debe ir en la base (abajo siempre)</span>
+      </label>
+    </div>
+    <div class="cap-footer">
+      <button class="btn-secondary" onclick="document.getElementById('pbProductModal').classList.remove('open')">Cancelar</button>
+      <button class="btn-primary" style="width:auto;padding:10px 28px" onclick="pb_saveProduct()">Guardar &rarr;</button>
+    </div>
+  </div>
+</div>
+
 <!-- Modal: Guardar embarque -->
 <div id="saveShipmentModal" class="cap-overlay" style="z-index:210">
   <div class="cap-modal" style="max-width:420px;width:90vw">
@@ -777,6 +867,34 @@
   </div>
 </div>
 
+
+<!-- Modal: Producto Pallet Builder -->
+<div id="pbProductModal" class="cap-overlay" style="z-index:210">
+  <div class="cap-modal" style="max-width:460px;width:90vw">
+    <div class="cap-title">Producto para el pallet</div>
+    <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:18px">
+      <div class="form-group" style="margin:0"><label>Nombre del producto</label><input type="text" id="pbProdName" placeholder="Ej: Zapatillas Running"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+        <div class="form-group" style="margin:0"><label style="font-size:10px">Largo (cm)</label><input type="number" id="pbProdL" placeholder="60" min="1"></div>
+        <div class="form-group" style="margin:0"><label style="font-size:10px">Ancho (cm)</label><input type="number" id="pbProdW" placeholder="40" min="1"></div>
+        <div class="form-group" style="margin:0"><label style="font-size:10px">Alto (cm)</label><input type="number" id="pbProdH" placeholder="30" min="1"></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div class="form-group" style="margin:0"><label>Cantidad</label><input type="number" id="pbProdQty" placeholder="10" min="1" max="250"></div>
+        <div class="form-group" style="margin:0"><label>Peso/u (kg) <span style="color:var(--muted);font-size:9px">opcional</span></label><input type="number" id="pbProdWeight" placeholder="0.0" min="0" step="0.1"></div>
+      </div>
+      <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:13px;color:var(--text);padding:10px 14px;border:1.5px solid var(--border);border-radius:8px;transition:border-color 0.15s" onmouseover="this.style.borderColor='var(--c1)'" onmouseout="this.style.borderColor='var(--border)'">
+        <input type="checkbox" id="pbProdBase" style="width:16px;height:16px;accent-color:var(--c1)">
+        <span>&#x2B07; Debe ir en la base (abajo siempre)</span>
+      </label>
+    </div>
+    <div class="cap-footer">
+      <button class="btn-secondary" onclick="document.getElementById('pbProductModal').classList.remove('open')">Cancelar</button>
+      <button class="btn-primary" style="width:auto;padding:10px 28px" onclick="pb_saveProduct()">Guardar &rarr;</button>
+    </div>
+  </div>
+</div>
+
 <!-- Modal: Guardar embarque -->
 <div id="saveShipmentModal" class="cap-overlay" style="z-index:210">
   <div class="cap-modal" style="max-width:420px;width:90vw">
@@ -805,6 +923,34 @@
     <div class="cap-footer">
       <button class="btn-secondary" onclick="document.getElementById('deleteShipmentModal').classList.remove('open')">Cancelar</button>
       <button class="btn-primary" style="width:auto;padding:10px 24px;background:var(--danger)" onclick="confirmDeleteShipment()">Eliminar</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- Modal: Producto Pallet Builder -->
+<div id="pbProductModal" class="cap-overlay" style="z-index:210">
+  <div class="cap-modal" style="max-width:460px;width:90vw">
+    <div class="cap-title">Producto para el pallet</div>
+    <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:18px">
+      <div class="form-group" style="margin:0"><label>Nombre del producto</label><input type="text" id="pbProdName" placeholder="Ej: Zapatillas Running"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+        <div class="form-group" style="margin:0"><label style="font-size:10px">Largo (cm)</label><input type="number" id="pbProdL" placeholder="60" min="1"></div>
+        <div class="form-group" style="margin:0"><label style="font-size:10px">Ancho (cm)</label><input type="number" id="pbProdW" placeholder="40" min="1"></div>
+        <div class="form-group" style="margin:0"><label style="font-size:10px">Alto (cm)</label><input type="number" id="pbProdH" placeholder="30" min="1"></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div class="form-group" style="margin:0"><label>Cantidad</label><input type="number" id="pbProdQty" placeholder="10" min="1" max="250"></div>
+        <div class="form-group" style="margin:0"><label>Peso/u (kg) <span style="color:var(--muted);font-size:9px">opcional</span></label><input type="number" id="pbProdWeight" placeholder="0.0" min="0" step="0.1"></div>
+      </div>
+      <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:13px;color:var(--text);padding:10px 14px;border:1.5px solid var(--border);border-radius:8px;transition:border-color 0.15s" onmouseover="this.style.borderColor='var(--c1)'" onmouseout="this.style.borderColor='var(--border)'">
+        <input type="checkbox" id="pbProdBase" style="width:16px;height:16px;accent-color:var(--c1)">
+        <span>&#x2B07; Debe ir en la base (abajo siempre)</span>
+      </label>
+    </div>
+    <div class="cap-footer">
+      <button class="btn-secondary" onclick="document.getElementById('pbProductModal').classList.remove('open')">Cancelar</button>
+      <button class="btn-primary" style="width:auto;padding:10px 28px" onclick="pb_saveProduct()">Guardar &rarr;</button>
     </div>
   </div>
 </div>
@@ -867,6 +1013,7 @@
 <script src="js/three-scene.js"></script>
 <script src="js/three-render.js"></script>
 <script src="js/catalog.js"></script>
+<script src="js/pallet-builder.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>
