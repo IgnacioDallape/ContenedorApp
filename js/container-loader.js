@@ -87,11 +87,11 @@ function renderContainerTabs() {
 
 // ── GUARDAR EMBARQUE EN SUPABASE ──
 async function saveShipment() {
-  if (!window.currentUser) return showToast('Necesitás estar logueado', 'error');
+  const { data: { session } } = await _sb.auth.getSession();
+  if (!session) return showToast('Necesitás estar logueado', 'error');
   const name = prompt('Nombre del embarque (ej: Embarque China Abril 2026):');
   if (!name || !name.trim()) return;
 
-  // Guardar estado actual antes de serializar
   const cur = getActiveContainer();
   cur.products = [...loadedProducts];
   cur.type = currentContainerType;
@@ -102,7 +102,7 @@ async function saveShipment() {
   const { data, error } = await _sb
     .from('shipments')
     .insert({
-      user_id: window.currentUser.id,
+      user_id: session.user.id,
       name: name.trim(),
       containers: shipmentContainers
     })
@@ -119,7 +119,8 @@ async function saveShipment() {
 }
 
 async function loadShipmentsList() {
-  if (!window.currentUser) return;
+  const { data: { session } } = await _sb.auth.getSession();
+  if (!session) return showToast('Necesitás estar logueado', 'error');
   const { data, error } = await _sb
     .from('shipments')
     .select('id, name, created_at, containers')
