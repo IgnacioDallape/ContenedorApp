@@ -86,37 +86,45 @@ function renderContainerTabs() {
 }
 
 // ── GUARDAR EMBARQUE EN SUPABASE ──
-async function saveShipment() {
+function saveShipment() {
+  document.getElementById('saveShipmentName').value = '';
+  document.getElementById('saveShipmentModal').classList.add('open');
+  setTimeout(() => document.getElementById('saveShipmentName').focus(), 80);
+}
+
+async function confirmSaveShipment() {
   const { data: { session } } = await _sb.auth.getSession();
-  if (!session) return showToast('Necesitás estar logueado', 'error');
-  const name = prompt('Nombre del embarque (ej: Embarque China Abril 2026):');
-  if (!name || !name.trim()) return;
+  if (!session) return showToast('Necesitas estar logueado', 'error');
+  const name = document.getElementById('saveShipmentName').value.trim();
+  if (!name) { document.getElementById('saveShipmentName').focus(); return; }
+  document.getElementById('saveShipmentModal').classList.remove('open');
 
   const cur = getActiveContainer();
   cur.products = [...loadedProducts];
   cur.type = currentContainerType;
 
   const btn = document.getElementById('btnSaveShipment');
-  if (btn) { btn.textContent = '⏳ Guardando...'; btn.disabled = true; }
+  if (btn) { btn.textContent = 'Guardando...'; btn.disabled = true; }
 
   const { data, error } = await _sb
     .from('shipments')
     .insert({
       user_id: session.user.id,
-      name: name.trim(),
+      name: name,
       containers: shipmentContainers
     })
     .select()
     .single();
 
-  if (btn) { btn.textContent = '💾 Guardar embarque'; btn.disabled = false; }
+  if (btn) { btn.textContent = 'Guardar embarque'; btn.disabled = false; }
 
   if (error) {
     console.error(error);
     return showToast('Error al guardar: ' + error.message, 'error');
   }
-  showToast('✓ Embarque guardado correctamente', 'success');
+  showToast('Embarque "' + name + '" guardado', 'success');
 }
+
 
 async function loadShipmentsList() {
   const { data: { session } } = await _sb.auth.getSession();
@@ -148,7 +156,7 @@ async function loadShipmentsList() {
       </div>
       <div style="display:flex;gap:6px">
         <button onclick="loadShipment('${s.id}')" style="padding:7px 14px;font-size:11px;font-family:'DM Mono',monospace;border-radius:6px;border:1.5px solid var(--c1);color:var(--c1);background:transparent;cursor:pointer">Cargar →</button>
-        <button onclick="deleteShipment('${s.id}',this)" style="padding:7px 10px;font-size:11px;border-radius:6px;border:1px solid var(--border);color:var(--muted);background:transparent;cursor:pointer">🗑</button>
+        <button onclick="deleteShipment('${s.id}')" style="padding:7px 10px;font-size:11px;border-radius:6px;border:1px solid var(--border);color:var(--muted);background:transparent;cursor:pointer">🗑</button>
       </div>
     </div>`;
   }).join('');
@@ -176,9 +184,14 @@ async function loadShipment(id) {
   showToast('✓ Embarque "' + data.name + '" cargado', 'success');
 }
 
-async function deleteShipment(id, btn) {
-  if (!confirm('¿Eliminar este embarque?')) return;
-  btn.textContent = '...';
+async function deleteShipment(id) {
+  document.getElementById('deleteShipmentId').value = id;
+  document.getElementById('deleteShipmentModal').classList.add('open');
+}
+
+async function confirmDeleteShipment() {
+  const id = document.getElementById('deleteShipmentId').value;
+  document.getElementById('deleteShipmentModal').classList.remove('open');
   const { error } = await _sb.from('shipments').delete().eq('id', id);
   if (error) return showToast('Error al eliminar', 'error');
   showToast('Embarque eliminado', '');

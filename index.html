@@ -744,6 +744,71 @@
   </div>
 </div>
 
+
+<!-- Modal: Guardar embarque -->
+<div id="saveShipmentModal" class="cap-overlay" style="z-index:210">
+  <div class="cap-modal" style="max-width:420px;width:90vw">
+    <div class="cap-icon">&#x1F4BE;</div>
+    <div class="cap-title">Guardar embarque</div>
+    <div style="margin-bottom:18px">
+      <input id="saveShipmentName" type="text" placeholder="Ej: Embarque China Abril 2026"
+        style="width:100%;padding:10px 14px;border:1.5px solid var(--border);border-radius:8px;font-family:var(--font);font-size:14px;background:var(--surface);color:var(--text);box-sizing:border-box;outline:none;transition:border-color 0.15s"
+        onfocus="this.style.borderColor='var(--c1)'" onblur="this.style.borderColor='var(--border)'"
+        onkeydown="if(event.key==='Enter')confirmSaveShipment();if(event.key==='Escape')document.getElementById('saveShipmentModal').classList.remove('open')">
+    </div>
+    <div class="cap-footer">
+      <button class="btn-secondary" onclick="document.getElementById('saveShipmentModal').classList.remove('open')">Cancelar</button>
+      <button class="btn-primary" style="width:auto;padding:10px 28px" onclick="confirmSaveShipment()">Guardar &#x2192;</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Confirmar eliminar embarque -->
+<div id="deleteShipmentModal" class="cap-overlay" style="z-index:210">
+  <input type="hidden" id="deleteShipmentId">
+  <div class="cap-modal" style="max-width:380px;width:90vw">
+    <div class="cap-icon">&#x1F5D1;</div>
+    <div class="cap-title">Eliminar embarque</div>
+    <div class="cap-body">Esta accion no se puede deshacer. El embarque sera eliminado permanentemente.</div>
+    <div class="cap-footer">
+      <button class="btn-secondary" onclick="document.getElementById('deleteShipmentModal').classList.remove('open')">Cancelar</button>
+      <button class="btn-primary" style="width:auto;padding:10px 24px;background:var(--danger)" onclick="confirmDeleteShipment()">Eliminar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Guardar embarque -->
+<div id="saveShipmentModal" class="cap-overlay" style="z-index:210">
+  <div class="cap-modal" style="max-width:420px;width:90vw">
+    <div class="cap-icon">&#x1F4BE;</div>
+    <div class="cap-title">Guardar embarque</div>
+    <div style="margin-bottom:18px">
+      <input id="saveShipmentName" type="text" placeholder="Ej: Embarque China Abril 2026"
+        style="width:100%;padding:10px 14px;border:1.5px solid var(--border);border-radius:8px;font-family:var(--font);font-size:14px;background:var(--surface);color:var(--text);box-sizing:border-box;outline:none;transition:border-color 0.15s"
+        onfocus="this.style.borderColor='var(--c1)'" onblur="this.style.borderColor='var(--border)'"
+        onkeydown="if(event.key==='Enter')confirmSaveShipment();if(event.key==='Escape')document.getElementById('saveShipmentModal').classList.remove('open')">
+    </div>
+    <div class="cap-footer">
+      <button class="btn-secondary" onclick="document.getElementById('saveShipmentModal').classList.remove('open')">Cancelar</button>
+      <button class="btn-primary" style="width:auto;padding:10px 28px" onclick="confirmSaveShipment()">Guardar &rarr;</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Confirmar eliminar embarque -->
+<div id="deleteShipmentModal" class="cap-overlay" style="z-index:210">
+  <input type="hidden" id="deleteShipmentId">
+  <div class="cap-modal" style="max-width:380px;width:90vw">
+    <div class="cap-icon">&#x26A0;&#xFE0F;</div>
+    <div class="cap-title">Eliminar embarque</div>
+    <div class="cap-body">Esta accion no se puede deshacer.</div>
+    <div class="cap-footer">
+      <button class="btn-secondary" onclick="document.getElementById('deleteShipmentModal').classList.remove('open')">Cancelar</button>
+      <button class="btn-primary" style="width:auto;padding:10px 24px;background:var(--danger)" onclick="confirmDeleteShipment()">Eliminar</button>
+    </div>
+  </div>
+</div>
+
 <div id="toast"></div>
 
 <script src="js/auth.js"></script>
