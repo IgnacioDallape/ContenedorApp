@@ -1,0 +1,344 @@
+<div class="page active" id="pageLoader">
+  <div class="stats-strip">
+    <div class="stat-item"><div class="stat-label">Volumen Usado</div><div class="stat-value" id="statVol">0.00</div><div class="stat-sub" id="statVolSub">m³ de 33.20 disponibles</div></div>
+    <div class="stat-item"><div class="stat-label">Ocupación</div><div class="stat-value" id="statPct">0%</div><div class="stat-sub" id="statPctSub">del contenedor 20'</div></div>
+    <div class="stat-item"><div class="stat-label">Unidades Totales</div><div class="stat-value" id="statUnits">0</div><div class="stat-sub">cajas / pallets</div></div>
+    <div class="stat-item"><div class="stat-label">Peso Total</div><div class="stat-value" id="statWeight" style="font-size:24px">0</div><div class="stat-sub" id="statWeightSub">kg · límite ~20.000 kg</div></div>
+    <div class="stat-item"><div class="stat-label">Valor Total USD</div><div class="stat-value" id="statValue" style="font-size:24px">$0.00</div><div class="stat-sub">mercadería</div></div>
+  </div>
+
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="sidebar-title">
+        Agregar Producto
+        <button class="btn-secondary" onclick="showPage('catalog')" style="font-size:11px">Catálogo →</button>
+      </div>
+
+      <div class="form-group">
+        <label>Nombre del producto</label>
+        <input type="text" id="prodName" placeholder="Ej: Zapatillas Running">
+      </div>
+
+      <div class="form-group">
+        <label>Tipo de unidad</label>
+        <div class="type-tabs">
+          <button class="type-tab active-box" id="tabBox" onclick="setType('box')">📦 Caja</button>
+          <button class="type-tab" id="tabPallet" onclick="setType('pallet')">🟫 Pallet</button>
+        </div>
+      </div>
+
+      <div id="boxSection">
+        <div class="form-group">
+          <label>Dimensiones de la caja (cm)</label>
+          <div class="row3">
+            <div><label style="font-size:10px">Largo</label><input type="number" id="boxL" placeholder="60" min="1"></div>
+            <div><label style="font-size:10px">Ancho</label><input type="number" id="boxW" placeholder="40" min="1"></div>
+            <div><label style="font-size:10px">Alto</label><input type="number" id="boxH" placeholder="30" min="1"></div>
+          </div>
+        </div>
+      </div>
+
+      <div id="palletSection" style="display:none">
+        <div class="form-group">
+          <label>Tipo de pallet</label>
+          <select id="palletType">
+            <option value="euro">Euro Pallet — 120×80 cm</option>
+            <option value="eua">Pallet EUA — 120×100 cm</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Altura con carga (cm)</label>
+          <div class="slider-wrap">
+            <input type="range" id="palletHeight" min="30" max="220" value="120" oninput="document.getElementById('palletHeightVal').textContent=this.value+' cm'">
+            <span class="slider-val" id="palletHeightVal">120 cm</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="row2">
+        <div class="form-group"><label>Cantidad</label><input type="number" id="qty" placeholder="10" min="1"></div>
+        <div class="form-group"><label>USD / unidad</label><input type="number" id="unitPrice" placeholder="0.00" min="0" step="0.01"></div>
+      </div>
+      <div class="form-group">
+        <label>Peso por unidad (kg) <span style="color:var(--c2);font-size:9px;letter-spacing:0">opcional</span></label>
+        <input type="number" id="unitWeight" placeholder="0.00" min="0" step="0.1">
+      </div>
+
+      <button class="btn-primary" onclick="addProductManual()">+ Agregar al Contenedor</button>
+
+      <hr class="divider">
+      <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin-bottom:14px;">Productos cargados</div>
+      <div id="productList">
+        <div class="empty-state"><div class="empty-icon">📦</div><div class="empty-text">Sin productos aún.</div></div>
+      </div>
+    </aside>
+
+    <main class="main">
+      <div class="warning-bar" id="warningBar">⚠️ La carga supera la capacidad del contenedor. Reducí las cantidades o eliminá productos.</div>
+
+      <div class="section">
+        <div class="section-header">
+          <div class="section-title" id="sectionTitle3D">Visualización del Contenedor 20'</div>
+          <span style="font-family:'DM Mono',monospace;font-size:10px;color:var(--muted)" id="contDimsLabel">5.90 × 2.35 × 2.39 m</span>
+        </div>
+
+        <!-- Container type selector -->
+        <div class="container-selector">
+          <span class="container-selector-label">Contenedor</span>
+          <button class="cont-type-btn active" id="btnCont20" onclick="setContainerType('20ft')">
+            <span>📦</span>20' Dry<br><small style="font-size:9px;opacity:0.7">5.9×2.35×2.39m</small>
+          </button>
+          <button class="cont-type-btn" id="btnCont40" onclick="setContainerType('40ft')">
+            <span>📦</span>40' Dry<br><small style="font-size:9px;opacity:0.7">12.0×2.35×2.39m</small>
+          </button>
+          <button class="cont-type-btn" id="btnCont40hc" onclick="setContainerType('40hc')">
+            <span>📦</span>40' HC<br><small style="font-size:9px;opacity:0.7">12.0×2.35×2.69m</small>
+          </button>
+        </div>
+
+        <!-- Reorder button -->
+        <button class="reorder-btn" id="reorderBtn" onclick="reorderCargo()">
+          <span class="spin">⟳</span> Reordenar Carga Optimizada
+        </button>
+        <div class="progress-row">
+          <span class="progress-label">Volumen</span>
+          <div class="progress-bar"><div class="progress-fill" id="fillVol" style="width:0%"></div></div>
+          <span class="progress-pct" id="pctVol">0%</span>
+        </div>
+        <div class="progress-row" id="weightBarRow" style="display:none">
+          <span class="progress-label">Peso</span>
+          <div class="progress-bar"><div class="progress-fill" id="fillWeight" style="width:0%;background:linear-gradient(90deg,#b8c8d8,#6b8c9b)"></div></div>
+          <span class="progress-pct" id="pctWeight" style="color:var(--text2);font-size:11px">0 kg</span>
+        </div>
+        <div class="canvas-wrap" id="canvasWrap" style="position:relative;overflow:hidden;border-radius:6px;">
+          <div id="threeContainer" style="width:100%;height:100%;"></div>
+          <div id="tooltip3d" style="
+            position:absolute;pointer-events:none;display:none;
+            background:rgba(58,48,40,0.92);color:#F8F1E9;
+            font-family:'Jost',sans-serif;font-size:12px;line-height:1.6;
+            padding:8px 12px;border-radius:6px;max-width:200px;
+            box-shadow:0 4px 16px rgba(0,0,0,0.25);z-index:50;
+          "></div>
+          <!-- ─── INSPECTOR PANEL ─── -->
+          <div id="inspectorPanel" style="
+            display:none; position:absolute; right:10px; top:44px; z-index:60;
+            width:210px;
+            background:rgba(248,241,233,0.97);
+            border:1.5px solid var(--c1);
+            border-radius:10px;
+            box-shadow:0 10px 36px rgba(141,121,102,0.32);
+            font-family:'DM Mono',monospace;
+            backdrop-filter:blur(10px);
+            overflow:hidden;
+          ">
+            <!-- Header -->
+            <div style="background:var(--c1);padding:8px 12px;display:flex;align-items:center;justify-content:space-between;gap:6px">
+              <div style="display:flex;align-items:center;gap:6px;min-width:0">
+                <span id="inspectorIcon" style="font-size:14px;flex-shrink:0">📦</span>
+                <span id="inspectorTitle" style="font-size:10px;color:var(--c5);letter-spacing:0.5px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
+              </div>
+              <button onclick="closeInspector()" style="background:rgba(248,241,233,0.2);border:none;color:var(--c5);cursor:pointer;font-size:13px;padding:2px 6px;border-radius:4px;line-height:1;flex-shrink:0" title="Cerrar">×</button>
+            </div>
+
+            <!-- Dims info -->
+            <div id="inspectorDims" style="padding:8px 12px 0;font-size:9px;color:var(--muted);letter-spacing:0.5px;border-bottom:1px solid var(--border);padding-bottom:8px"></div>
+
+            <!-- Mode toggle -->
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:8px 12px">
+              <button id="btnModeMove" onclick="setInteractMode('move')"
+                style="padding:5px 8px;font-size:9px;font-family:'DM Mono',monospace;letter-spacing:0.5px;border-radius:4px;cursor:pointer;transition:all 0.15s;border:1.5px solid var(--c1);background:var(--c1);color:var(--c5);font-weight:700">✥ MOVER</button>
+              <button id="btnModeRotate" onclick="setInteractMode('rotate')"
+                style="padding:5px 8px;font-size:9px;font-family:'DM Mono',monospace;letter-spacing:0.5px;border-radius:4px;cursor:pointer;transition:all 0.15s;border:1.5px solid var(--border2);background:transparent;color:var(--text2)">↻ ROTAR</button>
+            </div>
+
+            <!-- MOVE PANEL -->
+            <div id="panelMove" style="padding:0 12px 10px">
+              <div id="moveCoords" style="font-size:10px;color:var(--text2);margin-bottom:8px;font-family:'DM Mono',monospace;background:var(--surface2);padding:5px 8px;border-radius:4px;border:1px solid var(--border);text-align:center">X: — · Z: —</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:3px;width:108px;margin:0 auto 8px">
+                <div></div>
+                <button onclick="nudgeSelected(0,-1)" class="nudge-btn" title="Adelante">▲</button>
+                <div></div>
+                <button onclick="nudgeSelected(-1,0)" class="nudge-btn" title="Izquierda">◀</button>
+                <div style="display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--muted)">✥</div>
+                <button onclick="nudgeSelected(1,0)" class="nudge-btn" title="Derecha">▶</button>
+                <div></div>
+                <button onclick="nudgeSelected(0,1)" class="nudge-btn" title="Atrás">▼</button>
+                <div></div>
+              </div>
+              <div style="display:flex;gap:4px;align-items:center;margin-bottom:6px">
+                <span style="font-size:9px;color:var(--muted)">PASO</span>
+                <select id="nudgeStep" style="flex:1;padding:3px 6px;font-size:10px;font-family:'DM Mono',monospace;background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text)">
+                  <option value="5">5 cm</option>
+                  <option value="10" selected>10 cm</option>
+                  <option value="20">20 cm</option>
+                  <option value="50">50 cm</option>
+                </select>
+              </div>
+              <div style="font-size:9px;color:rgba(141,121,102,0.6);text-align:center;letter-spacing:0.3px">🖱 arrastrá para mover</div>
+            </div>
+
+            <!-- ROTATE PANEL -->
+            <div id="panelRotate" style="display:none;padding:0 12px 10px">
+              <div style="display:flex;flex-direction:column;gap:4px">
+                <button id="btnRotY" onclick="rotateSelected('Y')" class="rot-action-btn">↻ Horizontal (Y)</button>
+                <button id="btnRotX" onclick="rotateSelected('X')" class="rot-action-btn">↻ Frente/atrás (X)</button>
+                <button id="btnRotZ" onclick="rotateSelected('Z')" class="rot-action-btn">↻ Lado a lado (Z)</button>
+                <button onclick="clearRotation()" style="padding:5px 10px;font-size:9px;font-family:'DM Mono',monospace;border:1px solid var(--border);border-radius:4px;background:transparent;color:var(--muted);cursor:pointer;text-align:center;margin-top:2px;transition:all 0.15s"
+                  onmouseover="this.style.color='var(--danger)';this.style.borderColor='var(--danger)'"
+                  onmouseout="this.style.color='var(--muted)';this.style.borderColor='var(--border)'">✕ Restablecer</button>
+              </div>
+            </div>
+
+            <!-- Divider + Delete -->
+            <div style="border-top:1px solid var(--border);padding:8px 12px;display:flex;gap:6px">
+              <button onclick="removeSelectedProduct()" style="flex:1;padding:6px;font-size:9px;font-family:'DM Mono',monospace;letter-spacing:0.5px;border:1px solid rgba(184,92,92,0.4);border-radius:4px;background:rgba(184,92,92,0.06);color:var(--danger);cursor:pointer;transition:all 0.15s"
+                onmouseover="this.style.background='rgba(184,92,92,0.15)'"
+                onmouseout="this.style.background='rgba(184,92,92,0.06)'">🗑 Eliminar</button>
+              <button onclick="duplicateSelectedProduct()" style="flex:1;padding:6px;font-size:9px;font-family:'DM Mono',monospace;letter-spacing:0.5px;border:1px solid var(--border2);border-radius:4px;background:transparent;color:var(--text2);cursor:pointer;transition:all 0.15s"
+                onmouseover="this.style.borderColor='var(--c1)';this.style.color='var(--c1)'"
+                onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--text2)'">⧉ Duplicar</button>
+            </div>
+          </div>
+
+          <!-- Drag overlay hint -->
+          <div id="dragHint" style="
+            display:none;position:absolute;bottom:36px;left:50%;transform:translateX(-50%);
+            background:rgba(141,121,102,0.92);color:var(--c5);
+            font-family:'DM Mono',monospace;font-size:10px;letter-spacing:1px;
+            padding:6px 14px;border-radius:20px;pointer-events:none;
+            box-shadow:0 4px 16px rgba(0,0,0,0.2);white-space:nowrap;
+          ">✥ SOLTÁ para fijar posición</div>
+
+          <div id="hintBar" style="position:absolute;bottom:8px;left:50%;transform:translateX(-50%);font-family:'DM Mono',monospace;font-size:9px;color:rgba(141,121,102,0.6);letter-spacing:1px;pointer-events:none;white-space:nowrap;">
+            🖱 ROTAR · SCROLL ZOOM · CLIC = SELECCIONAR · DOBLE CLIC = FIJAR ZONA
+          </div>
+          <div style="position:absolute;top:10px;left:10px;z-index:10;display:flex;gap:5px;align-items:center;flex-wrap:wrap">
+            <span style="font-family:'DM Mono',monospace;font-size:9px;color:var(--muted);letter-spacing:1px">ZONA:</span>
+            <button id="zoneBtn0" onclick="_selectedZoneSlot=0;updateZoneUI()" style="padding:3px 9px;font-size:11px;font-family:'DM Mono',monospace;border-radius:4px;cursor:pointer;border:1.5px solid #c1704a;color:#c1704a;background:transparent;font-weight:700;outline:2px solid #c1704a;outline-offset:1px">1</button>
+            <button id="zoneBtn1" onclick="_selectedZoneSlot=1;updateZoneUI()" style="padding:3px 9px;font-size:11px;font-family:'DM Mono',monospace;border-radius:4px;cursor:pointer;border:1.5px solid #4a7dc1;color:#4a7dc1;background:transparent">2</button>
+            <button id="zoneBtn2" onclick="_selectedZoneSlot=2;updateZoneUI()" style="padding:3px 9px;font-size:11px;font-family:'DM Mono',monospace;border-radius:4px;cursor:pointer;border:1.5px solid #4ac16b;color:#4ac16b;background:transparent">3</button>
+            <button id="zoneBtnNone" onclick="window._priorityZones=[null,null,null];clearPriorityMarker();updateZoneUI();showToast('Zonas eliminadas — reordenando automáticamente','')" style="padding:3px 9px;font-size:9px;font-family:'DM Mono',monospace;border-radius:4px;cursor:pointer;border:1px solid var(--muted);color:var(--muted);background:transparent;letter-spacing:0.5px">✕ Sin zonas</button>
+          </div>
+          <div style="position:absolute;top:10px;right:10px;z-index:10;display:flex;gap:8px;align-items:center">
+            <span id="priorityHint" style="display:none;font-family:'DM Mono',monospace;font-size:9px;color:var(--c1);letter-spacing:1px;text-transform:uppercase;background:rgba(248,241,233,0.9);padding:4px 8px;border-radius:4px;border:1px solid var(--c1)">● ZONAS ACTIVAS</span>
+            <button id="clearPriorityBtn" style="display:none;padding:4px 10px;font-size:10px;font-family:'DM Mono',monospace;letter-spacing:1px;text-transform:uppercase;background:rgba(141,121,102,0.15);border:1px solid var(--c1);color:var(--c1);border-radius:4px;cursor:pointer" onclick="window._priorityZones=[null,null,null];clearPriorityMarker();updateZoneUI();showToast('Zonas eliminadas','')">✕ Limpiar zonas</button>
+          </div>
+        </div>
+        <div class="legend" id="legend"></div>
+      </div>
+
+      <div class="section">
+        <div class="section-header"><div class="section-title">Desglose de Carga</div></div>
+        <div style="overflow-x:auto">
+          <table>
+            <thead><tr><th>Producto</th><th>Tipo</th><th>Dims (cm)</th><th>Cant.</th><th>Peso/u</th><th>Peso Total</th><th>Volumen</th><th>% Cont.</th><th>Precio/u</th><th>Subtotal</th><th></th></tr></thead>
+            <tbody id="tableBody"><tr><td colspan="11"><div class="empty-state"><div class="empty-icon">📋</div><div class="empty-text">Agregá productos para ver el desglose</div></div></td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- ════════════ CATALOG PAGE ════════════ -->
+<div class="page" id="pageCatalog">
+  <div class="catalog-main">
+    <div class="catalog-toolbar">
+      <h2>Catálogo de Productos</h2>
+      <button class="btn-primary" style="width:auto;padding:10px 24px" onclick="openModal()">+ Nuevo Producto</button>
+    </div>
+    <div class="catalog-grid" id="catalogGrid">
+      <div class="empty-state" style="grid-column:1/-1">
+        <div class="empty-icon">🗂️</div>
+        <div class="empty-text">Tu catálogo está vacío.<br>Guardá productos con imagen y link para agregarlos rápidamente al contenedor.</div>
+      </div>
+    </div>
+  </div>
+  <div class="atc-bar" id="atcBar">
+    <div class="atc-label"><strong id="atcCount">0</strong> producto(s) listo(s) para agregar</div>
+    <button class="btn-secondary" style="border-color:rgba(248,241,233,0.3);color:var(--c5)" onclick="clearCatalogSelection()">Limpiar</button>
+    <button class="btn-primary" style="width:auto;padding:10px 28px;background:var(--c5);color:var(--c1)" onclick="addSelectedToContainer()">Agregar al Contenedor →</button>
+  </div>
+</div>
+
+<!-- ════════════ MODAL ════════════ -->
+<div class="modal-overlay" id="modalOverlay" onclick="handleModalClick(event)">
+  <div class="modal">
+    <div class="modal-title" id="modalTitle">Nuevo Producto</div>
+    <input type="hidden" id="editId">
+
+    <div class="form-group">
+      <label>Nombre del producto *</label>
+      <input type="text" id="mName" placeholder="Ej: Zapatillas Running Pro">
+    </div>
+    <div class="form-group">
+      <label>Imagen (URL)</label>
+      <input type="url" id="mImgUrl" placeholder="https://..." oninput="previewImg()">
+      <div class="img-preview-wrap" id="imgPreview"><span>🖼️</span></div>
+    </div>
+    <div class="form-group">
+      <label>Link del producto / proveedor</label>
+      <input type="url" id="mLink" placeholder="https://...">
+    </div>
+    <div class="form-group">
+      <label>Tipo de unidad</label>
+      <div class="type-tabs">
+        <button class="type-tab active-box" id="mTabBox" onclick="setModalType('box')">📦 Caja</button>
+        <button class="type-tab" id="mTabPallet" onclick="setModalType('pallet')">🟫 Pallet</button>
+      </div>
+    </div>
+    <div id="mBoxSection">
+      <div class="form-group">
+        <label>Dimensiones de la caja (cm)</label>
+        <div class="row3">
+          <div><label style="font-size:10px">Largo</label><input type="number" id="mBoxL" placeholder="60" min="1"></div>
+          <div><label style="font-size:10px">Ancho</label><input type="number" id="mBoxW" placeholder="40" min="1"></div>
+          <div><label style="font-size:10px">Alto</label><input type="number" id="mBoxH" placeholder="30" min="1"></div>
+        </div>
+      </div>
+    </div>
+    <div id="mPalletSection" style="display:none">
+      <div class="form-group">
+        <label>Tipo de pallet</label>
+        <select id="mPalletType">
+          <option value="euro">Euro Pallet — 120×80 cm</option>
+          <option value="eua">Pallet EUA — 120×100 cm</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Altura predeterminada con carga (cm)</label>
+        <div class="slider-wrap">
+          <input type="range" id="mPalletH" min="30" max="220" value="120" oninput="document.getElementById('mPalletHVal').textContent=this.value+' cm'">
+          <span class="slider-val" id="mPalletHVal">120 cm</span>
+        </div>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Precio por unidad (USD)</label>
+      <input type="number" id="mPrice" placeholder="0.00" min="0" step="0.01">
+    </div>
+    <div class="form-group">
+      <label>Peso por unidad (kg) <span style="color:var(--c2);font-size:9px;letter-spacing:0">opcional</span></label>
+      <input type="number" id="mWeight" placeholder="0.00" min="0" step="0.1">
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeModal()">Cancelar</button>
+      <button class="btn-primary" style="width:auto;padding:10px 28px" onclick="saveProduct()">Guardar Producto</button>
+    </div>
+  </div>
+</div>
+
+<div class="cap-overlay" id="capOverlay">
+  <div class="cap-modal">
+    <div class="cap-icon">⚠️</div>
+    <div class="cap-title">Capacidad Excedida</div>
+    <div class="cap-body" id="capBody">Este producto no entra en el espacio disponible del contenedor.</div>
+    <div class="cap-stats" id="capStats"></div>
+    <div class="cap-footer">
+      <button class="btn-secondary" onclick="closeCapAlert()">Cancelar</button>
+      <button class="btn-primary" style="width:auto;padding:10px 24px;background:var(--danger)" onclick="forceAddProduct()">Agregar igual →</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>

@@ -1,0 +1,23 @@
+{
+  "name": "contenedorapp",
+  "version": "1.0.0",
+  "description": "",
+  "homepage": "https://github.com/IgnacioDallape/ContenedorApp#readme",
+  "bugs": {
+    "url": "https://github.com/IgnacioDallape/ContenedorApp/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/IgnacioDallape/ContenedorApp.git"
+  },
+  "license": "ISC",
+  "author": "Ignacio Dallape",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.82.0"
+  }
+}

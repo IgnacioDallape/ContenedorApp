@@ -1,0 +1,597 @@
+// ── CONTAINER TYPES ──
+const CONTAINER_TYPES = {
+  '20ft': { L:589, W:235, H:239, vol:(589*235*239)/1e6, label:"20'", fullLabel:"20' Dry", dims:"5.89 × 2.35 × 2.39 m" },
+  '40ft': { L:1200, W:235, H:239, vol:(1200*235*239)/1e6, label:"40'", fullLabel:"40' Dry", dims:"12.00 × 2.35 × 2.39 m" },
+  '40hc': { L:1200, W:235, H:269, vol:(1200*235*269)/1e6, label:"40' HC", fullLabel:"40' High Cube", dims:"12.00 × 2.35 × 2.69 m" },
+};
+let currentContainerType = '20ft';
+let CONTAINER_VOL = CONTAINER_TYPES['20ft'].vol;
+let CONT_L = 589, CONT_W = 235, CONT_H = 239;
+
+function setContainerType(type) {
+  if (shipmentContainers[activeContainerIdx]) shipmentContainers[activeContainerIdx].type = type;
+  _setContainerTypeInternal(type);
+  renderContainerTabs();
+  renderLoader();
+}
+
+const PALLET_SIZES = { euro:{L:120,W:80}, eua:{L:120,W:100} };
+const COLORS = ['#8D7966','#A8906b','#6b7d9b','#9b7966','#6b8c6b','#b8906b','#7d6b9b','#6b9b8b','#9b8b6b','#8b6b6b'];
+
+// ── MULTI-CONTAINER / SHIPMENT SYSTEM ──
+let shipmentContainers = [
+  { id: 1, type: '20ft', products: [], priorityZones: [null,null,null], instanceManualPos: {}, instanceLockedOri: {} }
+];
+let activeContainerIdx = 0;
+
+function getActiveContainer() { return shipmentContainers[activeContainerIdx]; }
+
+function addNewContainer() {
+  const id = shipmentContainers.length + 1;
+  shipmentContainers.push({
+    id, type: currentContainerType,
+    products: [], priorityZones: [null,null,null],
+    instanceManualPos: {}, instanceLockedOri: {}
+  });
+  switchToContainer(shipmentContainers.length - 1);
+}
+
+function switchToContainer(idx) {
+  // Guardar estado del contenedor activo antes de cambiar
+  const cur = getActiveContainer();
+  cur.products = [...loadedProducts];
+  cur.priorityZones = [...window._priorityZones];
+  cur.instanceManualPos = {...window._instanceManualPos};
+  cur.instanceLockedOri = {...window._instanceLockedOri};
+  cur.type = currentContainerType;
+
+  activeContainerIdx = idx;
+  const next = getActiveContainer();
+
+  // Restaurar estado del contenedor destino
+  loadedProducts = [...next.products];
+  window._priorityZones = [...next.priorityZones];
+  window._instanceManualPos = {...next.instanceManualPos};
+  window._instanceLockedOri = {...next.instanceLockedOri};
+
+  // Cambiar tipo de contenedor sin triggear save
+  _setContainerTypeInternal(next.type);
+  renderContainerTabs();
+  renderLoader();
+}
+
+function renderContainerTabs() {
+  const tabsEl = document.getElementById('containerTabs');
+  if (!tabsEl) return;
+  tabsEl.innerHTML = shipmentContainers.map((c, i) => {
+    const totalVol = c.products.reduce((s,p) => s + p.vol * p.qty, 0);
+    const ct = CONTAINER_TYPES[c.type];
+    const pct = ct ? (totalVol / ct.vol * 100).toFixed(0) : 0;
+    const isActive = i === activeContainerIdx;
+    return `<button onclick="switchToContainer(${i})" style="
+      padding:6px 14px;font-size:11px;font-family:'DM Mono',monospace;letter-spacing:0.5px;
+      border-radius:6px;cursor:pointer;transition:all 0.15s;
+      border:1.5px solid ${isActive ? 'var(--c1)' : 'var(--border)'};
+      background:${isActive ? 'var(--c1)' : 'transparent'};
+      color:${isActive ? 'var(--c5)' : 'var(--muted)'};
+      font-weight:${isActive ? '700' : '400'}
+    ">🚢 Cont. ${c.id} <span style="opacity:0.7">${pct}%</span></button>`;
+  }).join('') +
+  `<button onclick="addNewContainer()" style="
+    padding:6px 12px;font-size:11px;font-family:'DM Mono',monospace;
+    border-radius:6px;cursor:pointer;border:1.5px dashed var(--border);
+    background:transparent;color:var(--muted);transition:all 0.15s
+  " onmouseover="this.style.borderColor='var(--c1)';this.style.color='var(--c1)'"
+    onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">+ Nuevo contenedor</button>`;
+}
+
+// ── GUARDAR EMBARQUE EN SUPABASE ──
+async function saveShipment() {
+  if (!window.currentUser) return showToast('Necesitás estar logueado', 'error');
+  const name = prompt('Nombre del embarque (ej: Embarque China Abril 2026):');
+  if (!name || !name.trim()) return;
+
+  // Guardar estado actual antes de serializar
+  const cur = getActiveContainer();
+  cur.products = [...loadedProducts];
+  cur.type = currentContainerType;
+
+  const btn = document.getElementById('btnSaveShipment');
+  if (btn) { btn.textContent = '⏳ Guardando...'; btn.disabled = true; }
+
+  const { data, error } = await _sb
+    .from('shipments')
+    .insert({
+      user_id: window.currentUser.id,
+      name: name.trim(),
+      containers: shipmentContainers
+    })
+    .select()
+    .single();
+
+  if (btn) { btn.textContent = '💾 Guardar embarque'; btn.disabled = false; }
+
+  if (error) {
+    console.error(error);
+    return showToast('Error al guardar: ' + error.message, 'error');
+  }
+  showToast('✓ Embarque guardado correctamente', 'success');
+}
+
+async function loadShipmentsList() {
+  if (!window.currentUser) return;
+  const { data, error } = await _sb
+    .from('shipments')
+    .select('id, name, created_at, containers')
+    .order('created_at', { ascending: false })
+    .limit(20);
+
+  if (error) return showToast('Error al cargar embarques', 'error');
+
+  const listEl = document.getElementById('shipmentsList');
+  if (!listEl) return;
+
+  if (!data || data.length === 0) {
+    listEl.innerHTML = '<div style="text-align:center;color:var(--muted);padding:24px;font-size:13px">No tenés embarques guardados aún.</div>';
+    return;
+  }
+
+  listEl.innerHTML = data.map(s => {
+    const date = new Date(s.created_at).toLocaleDateString('es-AR', { day:'2-digit', month:'2-digit', year:'numeric' });
+    const totalConts = s.containers ? s.containers.length : 1;
+    const totalProds = s.containers ? s.containers.reduce((acc, c) => acc + (c.products ? c.products.length : 0), 0) : 0;
+    return `<div style="padding:14px 16px;border:1px solid var(--border);border-radius:8px;display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px">
+      <div>
+        <div style="font-weight:600;font-size:14px;color:var(--text);margin-bottom:3px">${s.name}</div>
+        <div style="font-size:11px;color:var(--muted);font-family:'DM Mono',monospace">${date} · ${totalConts} contenedor${totalConts>1?'es':''} · ${totalProds} producto${totalProds!==1?'s':''}</div>
+      </div>
+      <div style="display:flex;gap:6px">
+        <button onclick="loadShipment('${s.id}')" style="padding:7px 14px;font-size:11px;font-family:'DM Mono',monospace;border-radius:6px;border:1.5px solid var(--c1);color:var(--c1);background:transparent;cursor:pointer">Cargar →</button>
+        <button onclick="deleteShipment('${s.id}',this)" style="padding:7px 10px;font-size:11px;border-radius:6px;border:1px solid var(--border);color:var(--muted);background:transparent;cursor:pointer">🗑</button>
+      </div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('shipmentsOverlay').classList.add('open');
+}
+
+async function loadShipment(id) {
+  const { data, error } = await _sb.from('shipments').select('*').eq('id', id).single();
+  if (error || !data) return showToast('Error al cargar embarque', 'error');
+
+  shipmentContainers = data.containers;
+  activeContainerIdx = 0;
+  const first = shipmentContainers[0];
+
+  loadedProducts = [...first.products];
+  window._priorityZones = [...(first.priorityZones || [null,null,null])];
+  window._instanceManualPos = {...(first.instanceManualPos || {})};
+  window._instanceLockedOri = {...(first.instanceLockedOri || {})};
+  _setContainerTypeInternal(first.type || '20ft');
+
+  closeShipmentsOverlay();
+  renderContainerTabs();
+  renderLoader();
+  showToast('✓ Embarque "' + data.name + '" cargado', 'success');
+}
+
+async function deleteShipment(id, btn) {
+  if (!confirm('¿Eliminar este embarque?')) return;
+  btn.textContent = '...';
+  const { error } = await _sb.from('shipments').delete().eq('id', id);
+  if (error) return showToast('Error al eliminar', 'error');
+  showToast('Embarque eliminado', '');
+  loadShipmentsList();
+}
+
+function closeShipmentsOverlay() {
+  document.getElementById('shipmentsOverlay').classList.remove('open');
+}
+
+// Versión interna de setContainerType que no dispara switchToContainer
+function _setContainerTypeInternal(type) {
+  currentContainerType = type;
+  const ct = CONTAINER_TYPES[type];
+  if (!ct) return;
+  CONTAINER_VOL = ct.vol;
+  CONT_L = ct.L; CONT_W = ct.W; CONT_H = ct.H;
+  _GRID_COLS = Math.ceil((CONT_L + 5) / GRID_RES);
+  _GRID_ROWS = Math.ceil((CONT_W + 5) / GRID_RES);
+  const btns = { '20ft':'btnCont20', '40ft':'btnCont40', '40hc':'btnCont40hc' };
+  Object.entries(btns).forEach(([t, id]) => {
+    const el = document.getElementById(id);
+    if (el) el.classList.toggle('active', t === type);
+  });
+  const hcl = document.getElementById('headerContLabel');
+  if (hcl) hcl.textContent = ct.fullLabel + ' · ' + ct.vol.toFixed(1) + ' m³';
+  const t3d = document.getElementById('sectionTitle3D');
+  if (t3d) t3d.textContent = 'Visualización del Contenedor ' + ct.label;
+  const dimLabel = document.getElementById('contDimsLabel');
+  if (dimLabel) dimLabel.textContent = ct.dims;
+  if (_three) {
+    _three.camera.position.set(ct.L * 0.8, ct.H * 2.2, ct.W * 2.5);
+    _three.camera.lookAt(ct.L / 2, ct.H * 0.4, ct.W / 2);
+    _three.controls.target.set(ct.L / 2, ct.H * 0.4, ct.W / 2);
+    _three.controls.minDistance = 150;
+    _three.controls.maxDistance = (type === '20ft' ? 1100 : 1800) * 1.5;
+    _three.controls.update();
+  }
+}
+
+let loadedProducts = [];
+let catalog = JSON.parse(localStorage.getItem('cl_catalog') || '[]');
+let selectedCatalogItems = {}; // { id: { qty, zone } }
+let selectedCatalogZones = {}; // { id: 0|1|2|null }
+let currentType = 'box';
+let modalType = 'box';
+let editingId = null;
+
+function showPage(p) {
+  if (p === 'loader') switchSection('container');
+  else if (p === 'catalog') switchSection('catalog');
+}
+
+function setType(t) {
+  currentType = t;
+  document.getElementById('boxSection').style.display = t==='box'?'':'none';
+  document.getElementById('palletSection').style.display = t==='pallet'?'':'none';
+  document.getElementById('tabBox').className = 'type-tab '+(t==='box'?'active-box':'');
+  document.getElementById('tabPallet').className = 'type-tab '+(t==='pallet'?'active-pallet':'');
+}
+
+// Zone globals
+const ZONE_COLORS = [0xc1704a, 0x4a7dc1, 0x4ac16b];
+const ZONE_COLORS_HEX = ['#c1704a', '#4a7dc1', '#4ac16b'];
+const ZONE_LABELS = ['Zona 1', 'Zona 2', 'Zona 3'];
+window._priorityZones = [null, null, null];
+window._activeZoneSlot = 0;
+let _selectedZoneSlot = 0;
+window._instanceManualPos = {};
+window._instanceLockedOri = {};
+
+function reorderCargo() {
+  if (!loadedProducts.length) return showToast('No hay productos para reordenar','');
+  const btn = document.getElementById('reorderBtn');
+  btn.classList.add('working');
+  btn.textContent = '⟳ Reordenando...';
+  setTimeout(() => {
+    // Clear all priority zones, manual positions, and instance overrides
+    loadedProducts.forEach(p => { p.priorityZone = null; p.manualPos = null; p.lockedOri = null; });
+    window._instanceManualPos = {};
+    window._instanceLockedOri = {};
+    // Clear global zones
+    window._priorityZones = [null, null, null];
+    clearPriorityMarker();
+    updateZoneUI();
+    // Sort: pallets by footprint desc, boxes by volume desc
+    loadedProducts.sort((a, b) => {
+      if (a.type !== b.type) return a.type === 'pallet' ? -1 : 1;
+      const volA = a.dims.L * a.dims.W * a.dims.H;
+      const volB = b.dims.L * b.dims.W * b.dims.H;
+      return volB - volA;
+    });
+    renderLoader();
+    btn.classList.remove('working');
+    btn.innerHTML = '<span class="spin">⟳</span> Reordenar Carga Optimizada';
+    showToast('✓ Carga reordenada sin zonas prioritarias','success');
+  }, 80);
+}
+
+// ── CAPACITY CHECK before adding ──
+let _pendingProduct = null;
+let _afterAddCallback = null;
+
+function checkCapacityAndAdd(productData) {
+  const vol = (productData.dims.L * productData.dims.W * productData.dims.H) / 1e6;
+  const newProd = {
+    id: 'preview', name: productData.name, type: productData.type,
+    dims: productData.dims, qty: productData.qty, price: productData.price,
+    weight: productData.weight || 0,
+    vol, color: COLORS[loadedProducts.length % COLORS.length], imgUrl: productData.imgUrl || null,
+    priorityZone: productData.priorityZone || null
+  };
+
+  const currentVol = loadedProducts.reduce((s,p) => s + p.vol * p.qty, 0);
+  const addedVol = vol * productData.qty;
+  const totalVol = currentVol + addedVol;
+  const remainingVol = CONTAINER_VOL - currentVol;
+  const volExceeds = totalVol > CONTAINER_VOL;
+
+  // Weight check
+  const WEIGHT_LIMITS = { '20ft': 28000, '40ft': 26500, '40hc': 26500 };
+  const weightLimit = WEIGHT_LIMITS[currentContainerType] || 28000;
+  const currentWeight = loadedProducts.reduce((s,p) => s + (p.weight||0) * p.qty, 0);
+  const addedWeight = (productData.weight||0) * productData.qty;
+  const totalWeight = currentWeight + addedWeight;
+  const weightExceeds = totalWeight > weightLimit;
+
+  // Test packing: put new product in the list, let BFD sort determine order naturally
+  // The sort inside runPacking will place it optimally relative to existing products
+  const testList = [...loadedProducts, newProd];
+  const { placed } = runPacking(testList);
+  const placedQty = placed['preview'] || 0;
+  const physicallyExceeds = placedQty < productData.qty;
+
+  if (volExceeds || physicallyExceeds || weightExceeds) {
+    _pendingProduct = productData;
+    const overVol = Math.max(0, totalVol - CONTAINER_VOL);
+    const overWeight = Math.max(0, totalWeight - weightLimit);
+    const fitPct = (remainingVol / CONTAINER_VOL * 100).toFixed(1);
+
+    if (weightExceeds && !volExceeds && !physicallyExceeds) {
+      document.getElementById('capBody').innerHTML =
+        `El peso total supera el límite al agregar <b>${productData.qty} ${productData.type === 'box' ? 'caja(s)' : 'pallet(s)'} de "${productData.name}"</b>.`;
+    } else if (placedQty === 0) {
+      document.getElementById('capBody').innerHTML =
+        `<b>${productData.qty} ${productData.type === 'box' ? 'caja(s)' : 'pallet(s)'} de "${productData.name}"</b> no tienen espacio físico en el contenedor con la configuración actual.`;
+    } else if (placedQty === productData.qty && volExceeds) {
+      document.getElementById('capBody').innerHTML =
+        `El volumen total supera la capacidad al agregar <b>${productData.qty} ${productData.type === 'box' ? 'caja(s)' : 'pallet(s)'} de "${productData.name}"</b>.`;
+    } else {
+      document.getElementById('capBody').innerHTML =
+        `Solo <b>${placedQty} de ${productData.qty}</b> unidades de "<b>${productData.name}</b>" tienen espacio físico disponible en el contenedor. Las restantes <b>(${productData.qty - placedQty})</b> no caben.`;
+    }
+
+    document.getElementById('capStats').innerHTML = `
+      <div class="cap-stat-row"><span>Volumen disponible</span><span>${remainingVol.toFixed(3)} m³ (${fitPct}%)</span></div>
+      <div class="cap-stat-row"><span>Volumen del producto</span><span>${addedVol.toFixed(3)} m³</span></div>
+      ${volExceeds ? `<div class="cap-stat-row"><span>Exceso volumétrico</span><span style="color:var(--error)">+${overVol.toFixed(3)} m³</span></div>` : ''}
+      ${physicallyExceeds ? `<div class="cap-stat-row"><span>Unidades que sí caben</span><span style="color:var(--success)">${placedQty} de ${productData.qty}</span></div>` : ''}
+      ${weightExceeds ? `<div class="cap-stat-row"><span>Peso actual</span><span>${(currentWeight/1000).toFixed(2)} t</span></div>` : ''}
+      ${weightExceeds ? `<div class="cap-stat-row"><span>Peso a agregar</span><span>${(addedWeight/1000).toFixed(2)} t</span></div>` : ''}
+      ${weightExceeds ? `<div class="cap-stat-row"><span>Límite del contenedor</span><span>${(weightLimit/1000).toFixed(1)} t</span></div>` : ''}
+      ${weightExceeds ? `<div class="cap-stat-row"><span>Exceso de peso</span><span style="color:var(--error)">+${(overWeight/1000).toFixed(2)} t</span></div>` : ''}
+    `;
+    document.getElementById('capOverlay').classList.add('open');
+    return;
+  }
+
+  doAddProduct(productData);
+}
+
+function closeCapAlert() {
+  document.getElementById('capOverlay').classList.remove('open');
+  _pendingProduct = null;
+  _afterAddCallback = null;
+}
+
+function forceAddProduct() {
+  if (_pendingProduct) doAddProduct(_pendingProduct);
+  closeCapAlert();
+}
+
+function sendToNewContainer() {
+  if (!_pendingProduct) return;
+  const prod = _pendingProduct;
+  closeCapAlert();
+  addNewContainer();
+  doAddProduct(prod);
+  showToast('✓ Producto enviado al Contenedor ' + shipmentContainers[activeContainerIdx].id, 'success');
+}
+
+function doAddProduct(p) {
+  loadedProducts.push({
+    id: Date.now()+Math.random(), name:p.name, type:p.type,
+    dims:p.dims, qty:p.qty, price:p.price,
+    weight: p.weight || 0,
+    vol:(p.dims.L*p.dims.W*p.dims.H)/1e6,
+    color:COLORS[loadedProducts.length%COLORS.length],
+    imgUrl:p.imgUrl||null,
+    priorityZone: p.priorityZone || null,
+    priorityZoneSlot: p.priorityZoneSlot != null ? p.priorityZoneSlot : null,
+  });
+  // Auto-sort for optimal BFD packing: pallets first, then by volume desc
+  // This ensures the visual result is always as good as manual reorder
+  loadedProducts.sort((a, b) => {
+    if (a.type !== b.type) return a.type === 'pallet' ? -1 : 1;
+    const pa = a.priorityZone ? 0 : 1, pb = b.priorityZone ? 0 : 1;
+    if (pa !== pb) return pa - pb;
+    return (b.dims.L*b.dims.W*b.dims.H) - (a.dims.L*a.dims.W*a.dims.H);
+  });
+  invalidatePackingCache();
+  renderLoader();
+  if (_afterAddCallback) { _afterAddCallback(); _afterAddCallback = null; }
+}
+
+function addProductManual() {
+  const name = document.getElementById('prodName').value.trim();
+  const qty = parseInt(document.getElementById('qty').value);
+  const price = parseFloat(document.getElementById('unitPrice').value)||0;
+  if (!name) return showToast('Ingresá el nombre del producto','error');
+  if (!qty||qty<1) return showToast('Ingresá una cantidad válida','error');
+  let dims;
+  if (currentType==='box') {
+    const L=parseFloat(document.getElementById('boxL').value);
+    const W=parseFloat(document.getElementById('boxW').value);
+    const H=parseFloat(document.getElementById('boxH').value);
+    if (!L||!W||!H) return showToast('Ingresá las dimensiones','error');
+    // Validar que no supere el contenedor más grande (40' HC: 1200×235×269 cm)
+    const maxL=1200, maxW=235, maxH=269;
+    const minD=Math.min(L,W,H), maxD=Math.max(L,W,H);
+    // Check all 3 rotations fit within container
+    const fits = (
+      (L<=maxL && W<=maxW && H<=maxH) ||
+      (L<=maxL && H<=maxW && W<=maxH) ||
+      (W<=maxL && L<=maxW && H<=maxH) ||
+      (W<=maxL && H<=maxW && L<=maxH) ||
+      (H<=maxL && L<=maxW && W<=maxH) ||
+      (H<=maxL && W<=maxW && L<=maxH)
+    );
+    if (!fits) {
+      const exceed = [];
+      if (Math.min(L,W,H) > maxW) exceed.push(`el mínimo (${Math.min(L,W,H)} cm) supera el ancho máximo del contenedor (${maxW} cm)`);
+      else if (Math.max(L,W,H) > maxL) exceed.push(`la dimensión mayor (${Math.max(L,W,H)} cm) supera el largo del 40' (${maxL} cm)`);
+      return showToast(`Caja demasiado grande: ${exceed.join(', ')}`, 'error');
+    }
+    dims={L,W,H};
+  } else {
+    const sz=PALLET_SIZES[document.getElementById('palletType').value];
+    dims={L:sz.L,W:sz.W,H:parseFloat(document.getElementById('palletHeight').value)};
+  }
+  const activeZones = window._priorityZones.filter(z => z !== null);
+  const zone = activeZones.length === 1 ? activeZones[0] : null;
+  const weight = parseFloat(document.getElementById('unitWeight').value)||0;
+  checkCapacityAndAdd({name, type:currentType, dims, qty, price, weight, priorityZone: zone});
+  // Clear form
+  document.getElementById('prodName').value='';
+  document.getElementById('qty').value='';
+  document.getElementById('unitPrice').value='';
+  document.getElementById('unitWeight').value='';
+  ['boxL','boxW','boxH'].forEach(id=>document.getElementById(id).value='');
+}
+
+function removeProduct(id) {
+  loadedProducts = loadedProducts.filter(p => p.id !== id);
+  // Clean up per-instance state to avoid stale entries
+  delete window._instanceManualPos[id];
+  delete window._instanceLockedOri[id];
+  renderLoader();
+}
+
+// Reorder one product — clear zone and re-render
+function reorderProduct(id) {
+  const p = loadedProducts.find(p => p.id == id);
+  if (!p) return;
+  p.priorityZone = null;
+  p.priorityZoneSlot = null;
+  renderLoader();
+  showToast(`✓ "${p.name}" reordenado de manera óptima`, 'success');
+}
+
+// Move product to the currently selected priority zone — store SLOT not coords
+function moveProductToZone(id) {
+  const p = loadedProducts.find(p => p.id == id);
+  if (!p) return;
+  const slot = _selectedZoneSlot;
+  if (!window._priorityZones[slot]) {
+    showToast(`Primero fijá la Zona ${slot+1} haciendo doble clic en el contenedor`, 'error');
+    return;
+  }
+  p.priorityZoneSlot = slot; // store index — auto-resolves when zone moves
+  p.priorityZone = window._priorityZones[slot];
+  renderLoader();
+  showToast(`✓ "${p.name}" → Zona ${slot+1}`, 'success');
+}
+
+// Refresh all product zone coordinates before packing (in case zones were moved)
+function refreshProductZones() {
+  loadedProducts.forEach(p => {
+    if (p.priorityZoneSlot != null) {
+      p.priorityZone = window._priorityZones[p.priorityZoneSlot] || null;
+    }
+  });
+}
+
+function renderLoader() {
+  // Refresh zone coordinates in case zones were moved in 3D
+  refreshProductZones();
+  const totalVol = loadedProducts.reduce((s,p)=>s+p.vol*p.qty,0);
+  const totalUnits = loadedProducts.reduce((s,p)=>s+p.qty,0);
+  const totalValue = loadedProducts.reduce((s,p)=>s+p.price*p.qty,0);
+  const totalWeight = loadedProducts.reduce((s,p)=>s+(p.weight||0)*p.qty,0);
+  const pct = totalVol/CONTAINER_VOL*100;
+  const over = totalVol>CONTAINER_VOL;
+  const weightOver = totalWeight > 20000;
+
+  document.getElementById('statVol').textContent = totalVol.toFixed(2);
+  document.getElementById('statPct').textContent = pct.toFixed(1)+'%';
+  document.getElementById('statUnits').textContent = totalUnits;
+  document.getElementById('statValue').textContent = '$'+fmt(totalValue);
+  const ct = CONTAINER_TYPES[currentContainerType];
+  document.getElementById('statVolSub').textContent = 'm³ de ' + ct.vol.toFixed(2) + ' disponibles';
+  document.getElementById('statPctSub').textContent = 'del contenedor ' + ct.label;
+
+  // Weight stat
+  const weightEl = document.getElementById('statWeight');
+  const weightSubEl = document.getElementById('statWeightSub');
+  if (totalWeight >= 1000) {
+    weightEl.textContent = (totalWeight/1000).toFixed(2) + ' t';
+  } else {
+    weightEl.textContent = totalWeight.toFixed(0);
+  }
+  weightEl.style.color = weightOver ? 'var(--danger)' : 'var(--c5)';
+  weightSubEl.textContent = weightOver ? '⚠ Supera límite ~20.000 kg' : (totalWeight > 0 ? `kg · ${(totalWeight/1000).toFixed(2)} t` : 'kg · límite ~20.000 kg');
+  weightSubEl.style.color = weightOver ? 'var(--danger)' : '';
+
+  // Weight progress bar
+  const weightBarRow = document.getElementById('weightBarRow');
+  const fillWeight = document.getElementById('fillWeight');
+  const pctWeightEl = document.getElementById('pctWeight');
+  if (totalWeight > 0) {
+    weightBarRow.style.display = '';
+    const weightPct = Math.min(totalWeight / 20000 * 100, 100);
+    fillWeight.style.width = weightPct + '%';
+    fillWeight.style.background = weightOver
+      ? 'linear-gradient(90deg,#d8a8a8,var(--danger))'
+      : 'linear-gradient(90deg,#b8c8d8,#6b8c9b)';
+    pctWeightEl.textContent = totalWeight >= 1000 ? (totalWeight/1000).toFixed(2)+'t' : totalWeight.toFixed(0)+' kg';
+    pctWeightEl.style.color = weightOver ? 'var(--danger)' : 'var(--text2)';
+  } else {
+    weightBarRow.style.display = 'none';
+  }
+
+  const fill = document.getElementById('fillVol');
+  fill.style.width = Math.min(pct,100)+'%';
+  fill.style.background = over ? 'linear-gradient(90deg,var(--c3),var(--danger))' : 'linear-gradient(90deg,var(--c3),var(--c1))';
+  document.getElementById('pctVol').textContent = pct.toFixed(1)+'%';
+  document.getElementById('pctVol').style.color = over?'var(--danger)':'var(--c1)';
+  document.getElementById('warningBar').style.display = over?'':'none';
+
+  const list = document.getElementById('productList');
+  list.innerHTML = loadedProducts.length===0
+    ? `<div class="empty-state"><div class="empty-icon">📦</div><div class="empty-text">Sin productos aún.</div></div>`
+    : loadedProducts.map(p=>{
+      const zoneIdx = p.priorityZoneSlot != null ? p.priorityZoneSlot : -1;
+      const zoneTag = zoneIdx >= 0 ? `<span style="font-size:9px;padding:1px 6px;border-radius:10px;background:${ZONE_COLORS_HEX[zoneIdx]};color:#fff;font-family:'DM Mono',monospace;letter-spacing:0.5px">Z${zoneIdx+1}</span>` : '';
+      const activeZones = window._priorityZones.filter(z=>z!==null).length;
+      const zoneBtnColor = _selectedZoneSlot !== undefined ? ZONE_COLORS_HEX[_selectedZoneSlot] : 'var(--muted)';
+      const weightLine = p.weight > 0 ? ` · ⚖ ${(p.weight*p.qty).toFixed(1)} kg` : '';
+      return `
+        <div class="queue-item">
+          <div class="queue-dot" style="background:${p.color}"></div>
+          <div class="queue-info">
+            <div class="queue-name">${p.name} ${zoneTag} <span class="queue-price" style="float:right">$${fmt(p.price*p.qty)}</span></div>
+            <div class="queue-meta">${p.dims.L}×${p.dims.W}×${p.dims.H} · ${p.qty}${p.type==='box'?'cj':'plt'} · ${(p.vol*p.qty).toFixed(2)}m³ · ${((p.vol*p.qty)/CONTAINER_VOL*100).toFixed(1)}%${weightLine}</div>
+          </div>
+          <div style="display:flex;gap:3px;flex-shrink:0;align-items:center">
+            <button onclick="reorderProduct(${p.id})" title="Reordenar" style="background:none;border:1px solid var(--border);border-radius:3px;padding:2px 5px;font-size:9px;color:var(--muted);cursor:pointer;font-family:'DM Mono',monospace" onmouseover="this.style.borderColor='var(--c1)';this.style.color='var(--c1)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">⟳</button>
+            <button onclick="moveProductToZone(${p.id})" title="Zona" style="background:${activeZones>0?zoneBtnColor+'22':'none'};border:1px solid ${activeZones>0?zoneBtnColor:'var(--border)'};border-radius:3px;padding:2px 5px;font-size:9px;color:${activeZones>0?zoneBtnColor:'var(--muted)'};cursor:pointer;font-family:'DM Mono',monospace">${activeZones>0?`Z${_selectedZoneSlot+1}`:'Z'}</button>
+            <button class="btn-remove" onclick="removeProduct(${p.id})" title="Eliminar">×</button>
+          </div>
+        </div>`;
+    }).join('');
+
+  const tbody = document.getElementById('tableBody');
+  tbody.innerHTML = loadedProducts.length===0
+    ? `<tr><td colspan="11"><div class="empty-state"><div class="empty-icon">📋</div><div class="empty-text">Agregá productos para ver el desglose</div></div></td></tr>`
+    : loadedProducts.map(p=>{
+        const vt=p.vol*p.qty;
+        const wt=(p.weight||0)*p.qty;
+        return `<tr>
+          <td><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${p.color};margin-right:8px;vertical-align:middle"></span>${p.name}</td>
+          <td>${p.type==='box'?'📦 Caja':'🟫 Pallet'}</td>
+          <td class="td-mono">${p.dims.L}×${p.dims.W}×${p.dims.H}</td>
+          <td class="td-mono">${p.qty}</td>
+          <td class="td-mono">${p.weight>0?p.weight.toFixed(2)+' kg':'—'}</td>
+          <td class="td-mono" style="${wt>0?'color:var(--text)':'color:var(--muted)'}">${wt>0?wt.toFixed(1)+' kg':'—'}</td>
+          <td class="td-mono">${vt.toFixed(3)} m³</td>
+          <td class="td-pct" style="color:${p.color}">${(vt/CONTAINER_VOL*100).toFixed(1)}%</td>
+          <td class="td-price">$${p.price.toFixed(2)}</td>
+          <td class="td-price">$${fmt(p.price*p.qty)}</td>
+          <td><button class="btn-remove" onclick="removeProduct(${p.id})">×</button></td>
+        </tr>`;
+      }).join('')
+    + `<tr class="total-row"><td colspan="4">TOTAL</td><td>—</td><td>${totalWeight>0?totalWeight.toFixed(1)+' kg':'—'}</td><td>${totalVol.toFixed(3)} m³</td><td>${pct.toFixed(1)}%</td><td>—</td><td>$${fmt(totalValue)}</td><td></td></tr>`;
+
+  document.getElementById('legend').innerHTML = loadedProducts.map(p=>
+    `<div class="legend-item"><div class="legend-dot" style="background:${p.color}"></div><span>${p.name}</span></div>`
+  ).join('') + (loadedProducts.length?`<div class="legend-item"><div class="legend-dot" style="background:var(--c4);border:1px solid var(--border2)"></div><span>Libre</span></div>`:'');
+
+  invalidatePackingCache();
+  drawContainer();
+  // Redraw zone markers so they appear on top of current stack
+  setTimeout(() => drawAllPriorityMarkers(), 80);
+  // Update container tabs with latest fill %
+  renderContainerTabs();
+}
+// ══════════════════════════════════════════════

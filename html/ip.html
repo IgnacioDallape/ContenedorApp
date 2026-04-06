@@ -1,0 +1,360 @@
+
+    <!-- TAB CALCULADORA -->
+    <section id="tab-calc" class="tab active">
+      <div class="page-header">
+        <h1>Calculadora de costos</h1>
+        <p class="page-sub">Costo real de importar desde 1688 a Argentina, incluyendo impuestos, logística y trader</p>
+      </div>
+
+      <div class="grid-2-1">
+        <div class="col">
+
+          <div class="card">
+            <div class="card-header"><span class="card-title">Datos del producto</span></div>
+            <div class="form-grid-2">
+              <div class="field full"><label>Nombre del producto</label><input type="text" id="p-nombre" value="Alfombra cocina"></div>
+
+              <!-- Currency mode toggle -->
+              <div class="field full">
+                <label>Moneda del precio de compra</label>
+                <div class="currency-toggle">
+                  <button class="ctog-btn active" id="ctog-cny" onclick="setCurrencyMode('cny')">Yuan (CNY)</button>
+                  <button class="ctog-btn" id="ctog-usd" onclick="setCurrencyMode('usd')">Dólar (USD)</button>
+                  <button class="ctog-btn" id="ctog-ars" onclick="setCurrencyMode('ars')">Pesos (ARS)</button>
+                </div>
+              </div>
+
+              <!-- CNY mode -->
+              <div class="field" id="input-cny-row">
+                <label>Precio 1688 <span class="unit">CNY / unidad</span></label>
+                <input type="number" id="p-fob-cny" value="27.5" step="0.1" min="0">
+              </div>
+              <!-- ARS mode -->
+              <div class="field" id="input-ars-row" style="display:none">
+                <label>Precio de compra <span class="unit">ARS / unidad</span></label>
+                <input type="number" id="p-fob-ars" value="0" step="100" min="0">
+              </div>
+              <!-- USD always shown as readonly result -->
+              <div class="field">
+                <label>Equivalente <span class="unit">USD / unidad</span></label>
+                <input type="number" id="p-fob" value="3.80" step="0.01" min="0" readonly>
+              </div>
+
+              <div class="field"><label>Cantidad <span class="unit">unidades</span></label><input type="number" id="p-qty" value="100" min="1"></div>
+
+              <!-- Rates row — changes based on mode -->
+              <div class="field" id="rate-cny-usd-row">
+                <label>Cotización CNY → USD</label>
+                <input type="number" id="p-cny" value="0.138" step="0.001" min="0">
+              </div>
+              <div class="field" id="rate-ars-usd-row" style="display:none">
+                <label>Cotización ARS → USD <span class="unit">ref. por defecto $1.450</span></label>
+                <input type="number" id="p-ars-tc" value="1450" step="10" min="1">
+              </div>
+            </div>
+
+            <!-- Datos logísticos -->
+            <div class="divider"></div>
+            <div class="section-label" style="display:flex;align-items:center;gap:8px">
+              <span>📦 Datos logísticos</span>
+              <span style="font-size:10px;font-weight:600;background:var(--accent);color:#fff;padding:2px 8px;border-radius:10px;letter-spacing:0.05em">Container Loader</span>
+            </div>
+            <div class="form-grid-2">
+              <div class="field">
+                <label>Tipo de unidad</label>
+                <div style="display:flex;gap:8px">
+                  <button type="button" id="btn-tipo-box" onclick="setTipoUnidad('box')"
+                    style="flex:1;padding:9px 12px;border-radius:var(--radius);border:1.5px solid var(--accent);background:var(--accent);color:#fff;font-family:var(--font);font-size:13px;font-weight:600;cursor:pointer;transition:all 0.15s">
+                    📦 Caja
+                  </button>
+                  <button type="button" id="btn-tipo-pallet" onclick="setTipoUnidad('pallet')"
+                    style="flex:1;padding:9px 12px;border-radius:var(--radius);border:1.5px solid var(--border-2);background:transparent;color:var(--text-2);font-family:var(--font);font-size:13px;font-weight:500;cursor:pointer;transition:all 0.15s">
+                    🟫 Pallet
+                  </button>
+                </div>
+                <input type="hidden" id="p-tipo-unidad" value="box">
+              </div>
+              <div class="field">
+                <label>Peso por unidad <span class="unit">kg</span></label>
+                <input type="number" id="p-peso-unit" placeholder="0.0" min="0" step="0.1">
+              </div>
+            </div>
+
+            <!-- Pallet options (shown only when pallet selected) -->
+            <div id="pallet-options" style="display:none">
+              <div class="form-grid-2" style="margin-bottom:14px">
+                <div class="field">
+                  <label>Tipo de pallet</label>
+                  <select id="p-pallet-type" onchange="onPalletTypeChange()">
+                    <option value="euro">Euro Pallet — 120×80 cm</option>
+                    <option value="eua">Pallet EUA — 120×100 cm</option>
+                    <option value="custom">Personalizado</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label>Altura con carga <span class="unit">cm</span></label>
+                  <div style="display:flex;align-items:center;gap:10px">
+                    <input type="range" id="p-pallet-height" min="30" max="220" value="120"
+                      oninput="document.getElementById('p-pallet-height-val').textContent=this.value+' cm';syncPalletDims()"
+                      style="flex:1;accent-color:var(--accent)">
+                    <span id="p-pallet-height-val" style="font-size:12px;font-weight:600;color:var(--accent);white-space:nowrap;min-width:48px">120 cm</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Box / custom dims -->
+            <div id="dims-section">
+              <div class="form-grid-3">
+                <div class="field">
+                  <label>Largo <span class="unit">cm</span></label>
+                  <input type="number" id="p-dim-l" placeholder="60" min="1" step="0.5">
+                </div>
+                <div class="field">
+                  <label>Ancho <span class="unit">cm</span></label>
+                  <input type="number" id="p-dim-w" placeholder="40" min="1" step="0.5">
+                </div>
+                <div class="field">
+                  <label>Alto <span class="unit">cm</span></label>
+                  <input type="number" id="p-dim-h" placeholder="30" min="1" step="0.5">
+                </div>
+              </div>
+            </div>
+
+            <!-- Referencias de precio + Fotos -->
+            <div class="divider"></div>
+            <div class="section-label">Referencias</div>
+            <div class="form-grid-2">
+              <div class="field">
+                <label>Link en 1688 <span class="unit">para comparar en origen</span></label>
+                <div style="display:flex;gap:6px" class="link-row">
+                  <input type="url" id="p-link-1688" placeholder="https://detail.1688.com/..." style="flex:1">
+                  <button class="btn-icon" onclick="openLink('p-link-1688')" title="Abrir">↗</button>
+                </div>
+              </div>
+              <div class="field">
+                <label>Link en Mercado Libre <span class="unit">para comparar precio local</span></label>
+                <div style="display:flex;gap:6px" class="link-row">
+                  <input type="url" id="p-link-ml" placeholder="https://articulo.mercadolibre.com.ar/..." style="flex:1">
+                  <button class="btn-icon" onclick="openLink('p-link-ml')" title="Abrir">↗</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="divider"></div>
+            <div class="section-label">Fotos de referencia <span class="unit" style="text-transform:none;letter-spacing:0">(máx. 2)</span></div>
+            <div class="photo-row">
+              <div class="photo-slot" id="photo-slot-0" onclick="document.getElementById('photo-input-0').click()">
+                <div class="photo-placeholder" id="photo-ph-0">
+                  <span style="font-size:22px;color:var(--text-3)">+</span>
+                  <span style="font-size:11px;color:var(--text-3);margin-top:4px">Foto 1688</span>
+                </div>
+                <img id="photo-img-0" style="display:none;width:100%;height:100%;object-fit:cover;border-radius:6px">
+                <button class="photo-del" id="photo-del-0" style="display:none" onclick="event.stopPropagation();clearPhoto(0)">×</button>
+              </div>
+              <div class="photo-slot" id="photo-slot-1" onclick="document.getElementById('photo-input-1').click()">
+                <div class="photo-placeholder" id="photo-ph-1">
+                  <span style="font-size:22px;color:var(--text-3)">+</span>
+                  <span style="font-size:11px;color:var(--text-3);margin-top:4px">Foto ML</span>
+                </div>
+                <img id="photo-img-1" style="display:none;width:100%;height:100%;object-fit:cover;border-radius:6px">
+                <button class="photo-del" id="photo-del-1" style="display:none" onclick="event.stopPropagation();clearPhoto(1)">×</button>
+              </div>
+              <input type="file" id="photo-input-0" accept="image/*" style="display:none" onchange="loadPhoto(0,this)">
+              <input type="file" id="photo-input-1" accept="image/*" style="display:none" onchange="loadPhoto(1,this)">
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">Logística e importación</span>
+              <button class="btn-text" onclick="openNcmFromCalc()">Buscar NCM →</button>
+            </div>
+
+            <div class="section-label">Flete, seguro y aduana</div>
+            <div class="form-grid-3">
+              <div class="field"><label>Flete total <span class="unit">USD</span></label><input type="number" id="p-flete" value="500" min="0"></div>
+              <div class="field"><label>Seguro <span class="unit">%</span></label><input type="number" id="p-seguro-pct" value="1" step="0.1" min="0"></div>
+              <div class="field"><label>Aduana + transp. interno <span class="unit">USD total</span></label><input type="number" id="p-aduana" value="3000" min="0"></div>
+            </div>
+
+            <div class="divider"></div>
+            <div class="section-label">Comisión trader China</div>
+            <div class="form-grid-2">
+              <div class="field">
+                <label>Comisión trader <span class="unit">% sobre FOB</span></label>
+                <input type="number" id="p-trader-pct" value="6" step="0.5" min="0" max="20">
+              </div>
+              <div class="field">
+                <label>Total comisión trader <span class="unit">USD (lote completo)</span></label>
+                <input type="number" id="p-trader-usd" readonly>
+              </div>
+            </div>
+            <div class="trader-note">El trader gestiona fabricantes, logística y despacho en origen. Rango habitual: 4 % – 8 % del valor FOB.</div>
+
+            <div class="divider"></div>
+            <div class="section-label">Aranceles Argentina</div>
+            <div class="form-grid-3">
+              <div class="field"><label>Derecho de importación</label><select id="p-di"><option value="0">0% — Exento</option><option value="6">6%</option><option value="12">12%</option><option value="18">18%</option><option value="20" selected>20%</option><option value="25">25%</option><option value="35">35%</option></select></div>
+              <div class="field"><label>IVA importación</label><select id="p-iva-imp"><option value="10.5">10.5%</option><option value="21" selected>21%</option></select></div>
+              <div class="field"><label>Tasa estadística</label><select id="p-te"><option value="0">0%</option><option value="3" selected>3%</option></select></div>
+            </div>
+          </div>
+
+        </div><!-- /left col -->
+
+        <div class="col">
+          <div class="card result-card">
+            <div class="card-header"><span class="card-title">Resultado</span></div>
+            <div class="big-metric">
+              <div class="big-label">Costo unitario total</div>
+              <div class="big-value" id="res-costo-ars">$0</div>
+              <div class="big-sub" id="res-costo-usd">U$S 0</div>
+            </div>
+            <div class="breakdown" id="breakdown"></div>
+          </div>
+          <div class="card">
+            <div class="card-header"><span class="card-title">Composición del costo</span></div>
+            <div class="pct-bars" id="pct-bars"></div>
+          </div>
+        </div>
+      </div><!-- /grid -->
+
+      <!-- Canales -->
+      <div class="card" style="margin-top:1.5rem">
+        <div class="card-header">
+          <span class="card-title">Canales de venta</span>
+          <button class="btn-outline" onclick="addCanal()">+ Agregar canal</button>
+        </div>
+        <div class="channels-table">
+          <div class="ch-head"><span>Canal</span><span>Precio venta (ARS)</span><span>Comisión %</span><span>Cuotas (ARS)</span><span>Margen s/costo</span><span>Ganancia / u</span><span></span></div>
+          <div id="canales-list"></div>
+        </div>
+      </div>
+
+      <!-- Distribución de ganancias -->
+      <div class="card dist-card" style="margin-top:1.5rem">
+        <div class="card-header"><span class="card-title">Distribución de la ganancia por venta</span></div>
+        <p class="hint" style="margin-bottom:1.25rem">Definí cómo distribuir la ganancia neta una vez consumada la venta. El porcentaje restante queda como capital disponible.</p>
+        <div class="dist-controls">
+          <div class="field">
+            <label>Reinversión en mercadería <span class="unit">% de la ganancia neta</span></label>
+            <input type="number" id="dist-reinversion" value="40" min="0" max="100" step="5">
+          </div>
+          <div class="field">
+            <label>Retiro personal (ganancia) <span class="unit">% de la ganancia neta</span></label>
+            <input type="number" id="dist-ganancia" value="40" min="0" max="100" step="5">
+          </div>
+        </div>
+        <div class="dist-metrics" id="dist-metrics"></div>
+        <div style="font-size:12px;color:var(--text-3);margin-bottom:10px" id="dist-total-line"></div>
+        <div class="hint" style="margin-bottom:6px">Distribución visual por unidad</div>
+        <div class="dist-bar-outer" id="dist-bar"></div>
+        <div id="dist-bar-legend" style="display:flex;gap:16px;margin-top:8px;flex-wrap:wrap"></div>
+      </div>
+
+      <div class="page-actions">
+        <button class="btn-primary" onclick="guardarProducto()">Guardar producto</button>
+        <button class="btn-outline" onclick="exportarCSV()">Exportar CSV</button>
+      </div>
+    </section>
+
+    <!-- TAB PRODUCTOS -->
+    <section id="tab-products" class="tab">
+      <div class="page-header"><h1>Mis productos</h1><p class="page-sub">Historial de productos calculados y comparación de márgenes</p></div>
+      <div id="products-list" class="products-grid"></div>
+      <div id="no-products" class="empty-state" style="display:none">
+        <div class="empty-icon">◧</div>
+        <p style="font-size:14px;font-weight:500">No hay productos guardados todavía</p>
+        <p style="font-size:13px;color:var(--text-3)">Calculá un producto y guardalo para verlo acá.</p>
+        <button class="btn-primary" onclick="switchTab('calc')" style="margin-top:8px">Ir a calculadora</button>
+      </div>
+      <div id="compare-section" style="display:none;margin-top:2rem">
+        <div class="card">
+          <div class="card-header"><span class="card-title">Comparación de productos</span></div>
+          <div class="overflow-x"><table class="compare-table" id="compare-table"></table></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB NCM -->
+    <section id="tab-ncm" class="tab">
+      <div class="page-header"><h1>NCM y Aranceles</h1><p class="page-sub">Buscá el código NCM por nombre de producto y conocé los aranceles que aplican en Argentina</p></div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">Búsqueda de NCM</span></div>
+        <div class="search-row">
+          <input type="text" id="ncm-query" placeholder="Ej: alfombra antideslizante, zapatilla, auriculares, juguete..." class="search-input" onkeydown="if(event.key==='Enter')buscarNcm()">
+          <button class="btn-primary" onclick="buscarNcm()">Buscar</button>
+        </div>
+        <p class="hint">Búsqueda local por palabras clave. Verificá siempre en el SIM de AFIP antes de importar.</p>
+        <div id="ncm-result"></div>
+      </div>
+      <div class="card" style="margin-top:1.25rem">
+        <div class="card-header"><span class="card-title">NCM más frecuentes</span></div>
+        <div class="ncm-grid" id="ncm-frecuentes"></div>
+      </div>
+    </section>
+
+    <!-- TAB SIMULADOR -->
+    <section id="tab-simulator" class="tab">
+      <div class="page-header"><h1>Simulador de precio de venta</h1><p class="page-sub">¿A qué precio tenés que vender para alcanzar tu margen objetivo?</p></div>
+      <div class="grid-2-1">
+        <div class="col">
+          <div class="card">
+            <div class="card-header"><span class="card-title">Parámetros</span></div>
+            <div class="form-grid-2">
+              <div class="field full">
+                <label>Producto <span class="unit">seleccioná para cargar el costo automáticamente</span></label>
+                <div class="prod-picker" id="sim-prod-picker">
+                  <div class="prod-picker-empty" id="sim-prod-empty">No hay productos guardados aún.</div>
+                </div>
+              </div>
+              <div class="field full"><label>Costo unitario <span class="unit">ARS</span></label><input type="number" id="sim-costo" value="9247" min="0"></div>
+              <div class="field"><label>Margen objetivo post-IIGG <span class="unit">%</span></label><input type="number" id="sim-margen" value="30" min="0" max="500"></div>
+              <div class="field"><label>IVA ventas</label><select id="sim-iva"><option value="10.5">10.5%</option><option value="21" selected>21%</option></select></div>
+              <div class="field"><label>IIBB <span class="unit">%</span></label><input type="number" id="sim-iibb" value="3" step="0.5" min="0"></div>
+              <div class="field full"><label>IIGG <span class="unit">% — 35% SA/SRL · 0% Monotributo</span></label><input type="number" id="sim-iigg" value="35" min="0" max="35"></div>
+            </div>
+          </div>
+        </div>
+        <div class="col">
+          <div class="card result-card">
+            <div class="card-header"><span class="card-title">Precio sugerido por canal</span></div>
+            <div id="sim-result"></div>
+          </div>
+        </div>
+      </div>
+      <div class="card" style="margin-top:1.5rem">
+        <div class="card-header"><span class="card-title">Análisis de sensibilidad</span></div>
+        <p class="hint" style="margin-bottom:1.25rem">Margen bruto según variación del precio (asume ML 13% de comisión)</p>
+        <div id="sensibilidad-table" class="sens-grid"></div>
+      </div>
+    </section>
+
+    <!-- TAB SETTINGS (mobile only) -->
+    <section id="tab-settings" class="tab">
+      <div class="page-header"><h1>Configuración</h1><p class="page-sub">Tipo de cambio y acceso a IA</p></div>
+      <div class="card" style="margin-bottom:1.25rem">
+        <div class="card-header"><span class="card-title">Tipo de cambio</span></div>
+        <div class="field">
+          <label>USD / ARS</label>
+          <div style="display:flex;align-items:center;gap:10px">
+            <input type="number" id="global-tc-mobile" value="1450" min="1" style="flex:1" oninput="document.getElementById('global-tc').value=this.value;calc()">
+            <span class="tc-badge">USD/ARS</span>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">API Key Anthropic</span><span id="apikey-status-mobile" style="font-size:11px"></span></div>
+        <div class="field">
+          <label>Pegá tu key para búsqueda NCM con IA</label>
+          <div style="display:flex;gap:8px">
+            <input type="password" id="apikey-input-mobile" placeholder="sk-ant-..." style="flex:1" oninput="syncApiKey('mobile')">
+            <button class="btn-icon" onclick="toggleApiKeyVisibilityMobile()" style="font-size:12px">👁</button>
+          </div>
+          <p class="hint" style="margin-top:6px">Obtené tu key gratis en <a href="https://console.anthropic.com" target="_blank" style="color:var(--accent)">console.anthropic.com</a> → API Keys</p>
+        </div>
+      </div>
+    </section>
+
+  </main>

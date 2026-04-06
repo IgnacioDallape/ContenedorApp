@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Arquitectura — ImportaPro + Container Loader</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0f1117; color: #e2e8f0; min-height: 100vh; padding: 2rem; }
+    h1 { font-size: 1.6rem; font-weight: 700; color: #f8f1e9; margin-bottom: .25rem; }
+    .subtitle { color: #8d7966; font-size: .875rem; margin-bottom: 2.5rem; }
+    h2 { font-size: 1rem; font-weight: 600; color: #c1a882; text-transform: uppercase; letter-spacing: .08em; margin-bottom: 1rem; }
+    h3 { font-size: .875rem; font-weight: 700; color: #f8f1e9; margin-bottom: .4rem; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1rem; margin-bottom: 2.5rem; }
+    .card { background: #1a1d27; border: 1px solid #2d3148; border-radius: 10px; padding: 1.25rem; }
+    .card.accent { border-color: #8d7966; }
+    .badge { display: inline-block; font-size: .7rem; font-weight: 600; letter-spacing: .05em; padding: 2px 8px; border-radius: 20px; margin-bottom: .6rem; }
+    .badge-html { background: #3b3020; color: #c1a882; }
+    .badge-css  { background: #1a2a3b; color: #6ab0de; }
+    .badge-js   { background: #1e2d1a; color: #7ec87a; }
+    .badge-algo { background: #2d1a2a; color: #c87ab0; }
+    .badge-auth { background: #2a1a1a; color: #e07070; }
+    .file { font-family: 'Courier New', monospace; font-size: .78rem; color: #8d7966; margin-bottom: .25rem; }
+    .lines { font-size: .7rem; color: #4a5568; }
+    ul { list-style: none; padding: 0; margin-top: .5rem; }
+    li { font-size: .8rem; color: #94a3b8; padding: 2px 0 2px 14px; position: relative; }
+    li::before { content: '→'; position: absolute; left: 0; color: #8d7966; }
+    .flow { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; margin-bottom: 2.5rem; }
+    .flow-item { background: #1a1d27; border: 1px solid #2d3148; border-radius: 6px; padding: 5px 12px; font-size: .78rem; font-family: monospace; color: #c1a882; }
+    .flow-arrow { color: #4a5568; font-size: .9rem; }
+    .globals-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: .75rem; margin-bottom: 2.5rem; }
+    .global-item { background: #1a1d27; border-left: 3px solid #8d7966; border-radius: 0 6px 6px 0; padding: .6rem .9rem; }
+    .global-name { font-family: monospace; font-size: .8rem; color: #c1a882; font-weight: 600; }
+    .global-desc { font-size: .74rem; color: #64748b; margin-top: 2px; }
+    .global-src  { font-size: .7rem; color: #4a5568; margin-top: 2px; }
+    .section-title { border-bottom: 1px solid #2d3148; padding-bottom: .5rem; margin-bottom: 1.25rem; }
+    table { width: 100%; border-collapse: collapse; font-size: .8rem; margin-bottom: 2.5rem; }
+    th { text-align: left; padding: .5rem .75rem; background: #1a1d27; color: #8d7966; font-weight: 600; border-bottom: 1px solid #2d3148; }
+    td { padding: .5rem .75rem; border-bottom: 1px solid #1a1d27; color: #94a3b8; vertical-align: top; }
+    td:first-child { font-family: monospace; color: #c1a882; }
+    tr:hover td { background: #1a1d27; }
+    .warn { background: #2d1a1a; border: 1px solid #8b3a3a; border-radius: 8px; padding: 1rem 1.25rem; font-size: .82rem; color: #e07070; margin-bottom: 2rem; }
+    .warn strong { display: block; margin-bottom: .25rem; }
+  </style>
+</head>
+<body>
+
+<h1>ImportaPro + Container Loader</h1>
+<p class="subtitle">Informe de arquitectura — estructura de archivos, responsabilidades y globals compartidos</p>
+
+<!-- ORDEN DE CARGA -->
+<div class="section-title"><h2>Orden de carga de scripts</h2></div>
+<div class="flow">
+  <span class="flow-item">supabase CDN</span><span class="flow-arrow">→</span>
+  <span class="flow-item">auth.js</span><span class="flow-arrow">→</span>
+  <span class="flow-item">packing.js</span><span class="flow-arrow">→</span>
+  <span class="flow-item">container-loader.js</span><span class="flow-arrow">→</span>
+  <span class="flow-item">importapro-calc.js</span><span class="flow-arrow">→</span>
+  <span class="flow-item">importapro-products.js</span><span class="flow-arrow">→</span>
+  <span class="flow-item">importapro-ncm.js</span><span class="flow-arrow">→</span>
+  <span class="flow-item">importapro-sim.js</span><span class="flow-arrow">→</span>
+  <span class="flow-item">three-scene.js</span><span class="flow-arrow">→</span>
+  <span class="flow-item">three-render.js</span><span class="flow-arrow">→</span>
+  <span class="flow-item">catalog.js</span><span class="flow-arrow">→</span>
+  <span class="flow-item">app.js</span>
+</div>
+
+<!-- HTML / CSS -->
+<div class="section-title"><h2>Archivos HTML y CSS</h2></div>
+<div class="grid">
+  <div class="card accent">
+    <span class="badge badge-html">HTML SHELL</span>
+    <h3>index.html</h3>
+    <p class="file">index.html · 170 líneas</p>
+    <ul>
+      <li>Página de login (3 paneles: login, forgot, reset)</li>
+      <li>AppShell: sidebar con nav + footer (TC / API Key / logout)</li>
+      <li>Contenedores vacíos para secciones IP y CL</li>
+      <li>Carga los 11 scripts JS en orden correcto</li>
+    </ul>
+  </div>
+  <div class="card">
+    <span class="badge badge-html">HTML PARTIAL</span>
+    <h3>html/ip.html</h3>
+    <p class="file">html/ip.html · 359 líneas</p>
+    <ul>
+      <li>Tab Calculadora: formulario de costos, canales de venta, distribución</li>
+      <li>Tab Mis Productos: grid de productos guardados + comparación</li>
+      <li>Tab NCM / Aranceles: buscador + NCM frecuentes</li>
+      <li>Tab Simulador de precio: parámetros + tabla de sensibilidad</li>
+      <li>Tab Settings (mobile): TC + API Key</li>
+    </ul>
+    <p style="font-size:.74rem;color:#4a5568;margin-top:.5rem">Cargado via fetch() en app.js → inyectado en secciones IP</p>
+  </div>
+  <div class="card">
+    <span class="badge badge-html">HTML PARTIAL</span>
+    <h3>html/cl.html</h3>
+    <p class="file">html/cl.html · 343 líneas</p>
+    <ul>
+      <li>Página Loader: stats strip, sidebar de carga, canvas 3D, inspector panel, zonas de prioridad</li>
+      <li>Página Catálogo: grid de cards, barra "Agregar al contenedor"</li>
+      <li>Modal de producto (nuevo/editar)</li>
+      <li>Modal de capacidad excedida (cap-overlay)</li>
+    </ul>
+    <p style="font-size:.74rem;color:#4a5568;margin-top:.5rem">Cargado via fetch() en app.js → inyectado en secciones CL</p>
+  </div>
+  <div class="card">
+    <span class="badge badge-css">CSS</span>
+    <h3>css/styles.css</h3>
+    <p class="file">css/styles.css · 1105 líneas</p>
+    <ul>
+      <li>Variables CSS globales (colores, tipografías, radios)</li>
+      <li>Estilos de login, sidebar, nav, main layout</li>
+      <li>Cards, formularios, tablas, botones (ImportaPro)</li>
+      <li>Canvas 3D, inspector, zonas, toast (Container Loader)</li>
+      <li>Catálogo: cards, modal, barra ATC</li>
+    </ul>
+  </div>
+</div>
+
+<!-- JS FILES -->
+<div class="section-title"><h2>Archivos JavaScript</h2></div>
+<div class="grid">
+  <div class="card">
+    <span class="badge badge-auth">AUTH</span>
+    <h3>js/auth.js</h3>
+    <p class="file">auth.js · 106 líneas</p>
+    <ul>
+      <li>Inicializa Supabase: <code>_sb</code>, <code>currentUser</code></li>
+      <li>IIFE <code>checkAuthRedirect</code> (hash token reset)</li>
+      <li>Handler <code>onAuthStateChange</code></li>
+      <li><code>enterApp</code>, <code>showLoginPage</code>, <code>switchPanel</code></li>
+      <li><code>doLogin</code>, <code>doLogout</code>, <code>doForgot</code>, <code>doReset</code></li>
+    </ul>
+  </div>
+  <div class="card">
+    <span class="badge badge-algo">ALGORITMO</span>
+    <h3>js/packing.js</h3>
+    <p class="file">packing.js · 326 líneas</p>
+    <p class="lines" style="color:#c87ab0;margin-bottom:.4rem">⚠ NO MODIFICAR sin análisis previo</p>
+    <ul>
+      <li>Heightmap BFD con resolución 5 cm (<code>GRID_RES</code>)</li>
+      <li><code>makeHeightMap</code>, <code>hmGetMax</code>, <code>hmSet</code>, <code>hmIdx</code></li>
+      <li><code>runPacking</code>: BFD con interlocking pallets, priority zones, posicionamiento manual</li>
+      <li><code>runPackingCached</code>, <code>invalidatePackingCache</code></li>
+    </ul>
+  </div>
+  <div class="card">
+    <span class="badge badge-js">JS</span>
+    <h3>js/container-loader.js</h3>
+    <p class="file">container-loader.js · 408 líneas</p>
+    <ul>
+      <li>Tipos de contenedor (<code>CONTAINER_TYPES</code>), <code>setContainerType()</code></li>
+      <li>Globals: <code>CONT_L/W/H</code>, <code>CONTAINER_VOL</code>, <code>loadedProducts</code>, <code>catalog</code></li>
+      <li>Zonas: <code>ZONE_COLORS</code>, <code>window._priorityZones</code>, <code>_instanceManualPos/LockedOri</code></li>
+      <li><code>reorderCargo</code>, <code>checkCapacityAndAdd</code>, <code>forceAddProduct</code></li>
+      <li><code>addProductManual</code>, <code>removeProduct</code>, <code>reorderProduct</code>, <code>moveProductToZone</code></li>
+      <li><code>renderLoader</code>: actualiza stats, lista de productos, tabla de desglose</li>
+    </ul>
+  </div>
+  <div class="card">
+    <span class="badge badge-js">JS</span>
+    <h3>js/importapro-calc.js</h3>
+    <p class="file">importapro-calc.js · 350 líneas</p>
+    <ul>
+      <li>Constantes: <code>NCM_FRECUENTES</code>, <code>canales</code>, <code>savedProducts</code></li>
+      <li><code>setCurrencyMode</code>, <code>syncCny</code>: modos CNY / USD / ARS</li>
+      <li><code>calc()</code>, <code>calcCostos()</code>, <code>debouncedCalc</code>: motor de cálculo principal</li>
+      <li><code>renderResult</code>, <code>renderCanales</code>, <code>calcDist</code>: UI de resultados</li>
+      <li>Utilidades: <code>v(id)</code>, <code>ars(n)</code>, <code>rd(n)</code>, <code>toast(msg)</code></li>
+    </ul>
+  </div>
+  <div class="card">
+    <span class="badge badge-js">JS</span>
+    <h3>js/importapro-products.js</h3>
+    <p class="file">importapro-products.js · 310 líneas</p>
+    <ul>
+      <li><code>guardarProducto</code>: guarda en localStorage con dims y fotos</li>
+      <li><code>renderProducts</code>, <code>loadProduct</code>, <code>deleteProduct</code>, <code>renderCompare</code></li>
+      <li><code>getApiKey</code>, <code>saveApiKey</code>, <code>updateApiKeyStatus</code>, <code>toggleApiKeyVisibility</code></li>
+      <li><code>setTipoUnidad</code>, <code>syncPalletDims</code>, <code>onPalletTypeChange</code></li>
+      <li><code>enviarAlContenedor</code>: sincroniza producto IP → catálogo CL</li>
+      <li><code>populateSimProductSelect</code>, <code>simLoadProduct</code></li>
+    </ul>
+  </div>
+  <div class="card">
+    <span class="badge badge-js">JS</span>
+    <h3>js/importapro-ncm.js</h3>
+    <p class="file">importapro-ncm.js · 151 líneas</p>
+    <ul>
+      <li><code>NCM_DB</code>: base de datos local de códigos NCM</li>
+      <li><code>buscarNcm</code>: búsqueda local + fallback Claude Haiku API</li>
+      <li><code>renderNcmCard</code>, <code>applyNcm</code>, <code>openNcmFromCalc</code>, <code>renderNcmFrecuentes</code></li>
+    </ul>
+  </div>
+  <div class="card">
+    <span class="badge badge-js">JS</span>
+    <h3>js/importapro-sim.js</h3>
+    <p class="file">importapro-sim.js · 58 líneas</p>
+    <ul>
+      <li><code>simCalc</code>: calcula precio de venta objetivo por canal</li>
+      <li><code>exportarCSV</code>: exporta resultados del simulador</li>
+    </ul>
+  </div>
+  <div class="card">
+    <span class="badge badge-js">JS</span>
+    <h3>js/three-scene.js</h3>
+    <p class="file">three-scene.js · 781 líneas</p>
+    <ul>
+      <li>IIFE <code>loadThree</code>: carga Three.js r128 desde CDN dinámicamente</li>
+      <li><code>injectOrbitControls</code>: OrbitControls inline (sin importar)</li>
+      <li>Global <code>_three</code>: estado compartido de Three.js</li>
+      <li><code>initThreeScene</code>: renderer, cámara, luces, suelo, controles, animate loop, ResizeObserver</li>
+      <li>Zonas: <code>drawAllPriorityMarkers</code>, <code>clearPriorityMarker</code>, <code>updateZoneUI</code></li>
+      <li>Interacción 3D: mousedown/move/up, dblclick, contextmenu → <code>setInteractMode</code>, <code>nudgeSelected</code></li>
+    </ul>
+  </div>
+  <div class="card">
+    <span class="badge badge-js">JS</span>
+    <h3>js/three-render.js</h3>
+    <p class="file">three-render.js · 376 líneas</p>
+    <ul>
+      <li><code>drawContainer</code>: construye escena 3D (shell, cajas con materiales por cara, pallets, etiquetas)</li>
+      <li><code>rotateSelected</code>, <code>resetSelectedOrientation</code></li>
+      <li><code>removeSelectedProduct</code>, <code>duplicateSelectedProduct</code></li>
+      <li><code>closeInspector</code>: panel inspector 3D</li>
+      <li>ResizeObserver del canvas, click-outside del inspector</li>
+    </ul>
+  </div>
+  <div class="card">
+    <span class="badge badge-js">JS</span>
+    <h3>js/catalog.js</h3>
+    <p class="file">catalog.js · 224 líneas</p>
+    <ul>
+      <li><code>saveCatalog</code>, <code>renderCatalog</code>: grid de cards con selectores de zona</li>
+      <li><code>toggleCatalogItem</code>, <code>setCatalogQty</code>, <code>setCatalogZone</code></li>
+      <li><code>clearCatalogSelection</code>, <code>updateAtcBar</code>, <code>addSelectedToContainer</code></li>
+      <li><code>openModal</code>, <code>closeModal</code>, <code>saveProduct</code> (versión CL), <code>editCatalogItem</code></li>
+      <li><code>fmt(n)</code>, <code>showToast(msg, type)</code> (versión CL)</li>
+    </ul>
+  </div>
+  <div class="card">
+    <span class="badge badge-js">JS</span>
+    <h3>js/app.js</h3>
+    <p class="file">app.js · 129 líneas</p>
+    <ul>
+      <li>Navegación unificada: <code>switchSection(id)</code>, <code>switchTab(tab)</code></li>
+      <li>DOMContentLoaded: <code>fetch('html/ip.html')</code> + <code>fetch('html/cl.html')</code> en paralelo</li>
+      <li>Inyecta tabs IP en sus placeholders, páginas CL en sus secciones, modales al body</li>
+      <li>Sincroniza productos IP guardados → catálogo CL al iniciar</li>
+      <li>Overridea <code>enterApp</code> para mostrar appShell</li>
+    </ul>
+  </div>
+</div>
+
+<!-- GLOBALS -->
+<div class="section-title"><h2>Variables globales compartidas</h2></div>
+<div class="globals-grid">
+  <div class="global-item">
+    <div class="global-name">_sb · currentUser</div>
+    <div class="global-desc">Cliente Supabase y usuario autenticado</div>
+    <div class="global-src">declarados en auth.js</div>
+  </div>
+  <div class="global-item">
+    <div class="global-name">CONT_L · CONT_W · CONT_H · CONTAINER_VOL</div>
+    <div class="global-desc">Dimensiones del contenedor activo</div>
+    <div class="global-src">declarados en container-loader.js, modificados por setContainerType()</div>
+  </div>
+  <div class="global-item">
+    <div class="global-name">loadedProducts</div>
+    <div class="global-desc">Array central de productos cargados en el contenedor</div>
+    <div class="global-src">container-loader.js</div>
+  </div>
+  <div class="global-item">
+    <div class="global-name">catalog</div>
+    <div class="global-desc">Array del catálogo CL (persistido en localStorage)</div>
+    <div class="global-src">container-loader.js</div>
+  </div>
+  <div class="global-item">
+    <div class="global-name">_three</div>
+    <div class="global-desc">Estado Three.js: scene, camera, renderer, controls, meshes</div>
+    <div class="global-src">declarado en three-scene.js, referenciado en three-render.js y catalog.js</div>
+  </div>
+  <div class="global-item">
+    <div class="global-name">window._priorityZones</div>
+    <div class="global-desc">Array [3] con las zonas de prioridad activas (null = sin zona)</div>
+    <div class="global-src">container-loader.js / three-scene.js</div>
+  </div>
+  <div class="global-item">
+    <div class="global-name">window._instanceManualPos · _instanceLockedOri</div>
+    <div class="global-desc">Posicionamiento y orientación manual por instancia 3D</div>
+    <div class="global-src">container-loader.js / three-render.js</div>
+  </div>
+  <div class="global-item">
+    <div class="global-name">savedProducts · canales</div>
+    <div class="global-desc">Productos IP guardados y canales de venta configurados</div>
+    <div class="global-src">importapro-calc.js</div>
+  </div>
+</div>
+
+<!-- RESUMEN DE LÍNEAS -->
+<div class="section-title"><h2>Resumen de tamaño por archivo</h2></div>
+<table>
+  <thead>
+    <tr><th>Archivo</th><th>Líneas</th><th>Responsabilidad principal</th><th>Módulo</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>index.html</td><td>170</td><td>Shell: login + appshell + scripts</td><td>–</td></tr>
+    <tr><td>html/ip.html</td><td>359</td><td>HTML de las 5 tabs de ImportaPro</td><td>ImportaPro</td></tr>
+    <tr><td>html/cl.html</td><td>343</td><td>HTML del loader, catálogo y modales CL</td><td>Container Loader</td></tr>
+    <tr><td>css/styles.css</td><td>1105</td><td>Todo el CSS (ambos módulos)</td><td>–</td></tr>
+    <tr><td>js/auth.js</td><td>106</td><td>Autenticación Supabase</td><td>Auth</td></tr>
+    <tr><td>js/packing.js</td><td>326</td><td>Algoritmo BFD con heightmap</td><td>Container Loader</td></tr>
+    <tr><td>js/container-loader.js</td><td>408</td><td>Estado CL, UI, renderLoader</td><td>Container Loader</td></tr>
+    <tr><td>js/importapro-calc.js</td><td>350</td><td>Calculadora de costos, canales</td><td>ImportaPro</td></tr>
+    <tr><td>js/importapro-products.js</td><td>310</td><td>Gestión de productos IP</td><td>ImportaPro</td></tr>
+    <tr><td>js/importapro-ncm.js</td><td>151</td><td>Búsqueda NCM local + IA</td><td>ImportaPro</td></tr>
+    <tr><td>js/importapro-sim.js</td><td>58</td><td>Simulador de precios</td><td>ImportaPro</td></tr>
+    <tr><td>js/three-scene.js</td><td>781</td><td>Escena Three.js, interacción 3D, zonas</td><td>Container Loader</td></tr>
+    <tr><td>js/three-render.js</td><td>376</td><td>Renderizado de cajas, pallets, inspector</td><td>Container Loader</td></tr>
+    <tr><td>js/catalog.js</td><td>224</td><td>Catálogo CL, modal, toast</td><td>Container Loader</td></tr>
+    <tr><td>js/app.js</td><td>129</td><td>Routing, inicialización, fetch de partials</td><td>–</td></tr>
+  </tbody>
+</table>
+
+<div class="warn">
+  <strong>Reglas importantes al modificar este proyecto</strong>
+  No agregar frameworks ni build tools — todo es vanilla JS con &lt;script src&gt;.
+  No modificar <code>packing.js</code> sin análisis previo (BFD + heightmap con priority zones, interlocking y posicionamiento manual).
+  No separar más los archivos JS. Al agregar globals, verificar que no rompan archivos que se cargan después.
+  La app usa <code>fetch()</code> para cargar <code>html/ip.html</code> y <code>html/cl.html</code> — requiere servidor HTTP (no funciona con <code>file://</code>).
+</div>
+
+</body>
+</html>
