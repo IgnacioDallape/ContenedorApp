@@ -1,8 +1,8 @@
 // ══════════════════════════════════════════
 // UNIFIED NAVIGATION
 // ══════════════════════════════════════════
-const SECTIONS = ['calc','products','ncm','simulator','settings','prices','container','catalog'];
-const CL_SECTIONS = ['container','catalog'];
+const SECTIONS = ['calc','products','ncm','simulator','settings','prices','container','catalog','palletbuilder'];
+const CL_SECTIONS = ['container','catalog','palletbuilder'];
 const IP_SECTIONS = ['calc','products','ncm','simulator','settings','prices'];
 
 function switchSection(id) {
@@ -18,6 +18,7 @@ function switchSection(id) {
   if (CL_SECTIONS.includes(id)) {
     if (typeof renderLoader === 'function' && id === 'container') setTimeout(renderLoader, 50);
     if (typeof renderCatalog === 'function' && id === 'catalog') setTimeout(renderCatalog, 50);
+    if (typeof pb_init === 'function' && id === 'palletbuilder') setTimeout(pb_init, 50);
   }
 
   if (IP_SECTIONS.includes(id)) {
