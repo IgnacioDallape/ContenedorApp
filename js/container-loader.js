@@ -60,6 +60,23 @@ function switchToContainer(idx) {
   renderLoader();
 }
 
+
+function removeContainer(idx) {
+  if (shipmentContainers.length <= 1) return showToast('No podes eliminar el unico contenedor', 'error');
+  shipmentContainers.splice(idx, 1);
+  // Ajustar indice activo
+  if (activeContainerIdx >= shipmentContainers.length) activeContainerIdx = shipmentContainers.length - 1;
+  // Cargar estado del contenedor activo
+  const cur = getActiveContainer();
+  loadedProducts = [...cur.products];
+  window._priorityZones = [...(cur.priorityZones || [null,null,null])];
+  window._instanceManualPos = {...(cur.instanceManualPos || {})};
+  window._instanceLockedOri = {...(cur.instanceLockedOri || {})};
+  _setContainerTypeInternal(cur.type || '20ft');
+  renderContainerTabs();
+  renderLoader();
+  showToast('Contenedor eliminado', '');
+}
 function renderContainerTabs() {
   const tabsEl = document.getElementById('containerTabs');
   if (!tabsEl) return;
@@ -68,14 +85,17 @@ function renderContainerTabs() {
     const ct = CONTAINER_TYPES[c.type];
     const pct = ct ? (totalVol / ct.vol * 100).toFixed(0) : 0;
     const isActive = i === activeContainerIdx;
+    const removeBtn = shipmentContainers.length > 1
+      ? `<span onclick="event.stopPropagation();removeContainer(${i})" style="margin-left:5px;opacity:0.6;font-size:12px;cursor:pointer;line-height:1" title="Eliminar contenedor">&times;</span>`
+      : '';
     return `<button onclick="switchToContainer(${i})" style="
       padding:6px 14px;font-size:11px;font-family:'DM Mono',monospace;letter-spacing:0.5px;
-      border-radius:6px;cursor:pointer;transition:all 0.15s;
+      border-radius:6px;cursor:pointer;transition:all 0.15s;display:flex;align-items:center;gap:2px;
       border:1.5px solid ${isActive ? 'var(--c1)' : 'var(--border)'};
       background:${isActive ? 'var(--c1)' : 'transparent'};
       color:${isActive ? 'var(--c5)' : 'var(--muted)'};
       font-weight:${isActive ? '700' : '400'}
-    ">🚢 Cont. ${c.id} <span style="opacity:0.7">${pct}%</span></button>`;
+    ">&#x1F6A2; Cont. ${c.id} <span style="opacity:0.7">${pct}%</span>${removeBtn}</button>`;
   }).join('') +
   `<button onclick="addNewContainer()" style="
     padding:6px 12px;font-size:11px;font-family:'DM Mono',monospace;
@@ -97,8 +117,36 @@ async function confirmSaveShipment() {
   if (!session) return showToast('Necesitas estar logueado', 'error');
   const name = document.getElementById('saveShipmentName').value.trim();
   if (!name) { document.getElementById('saveShipmentName').focus(); return; }
-  document.getElementById('saveShipmentModal').classList.remove('open');
 
+  // Verificar si ya existe un embarque con ese nombre
+  const { data: existing } = await _sb
+    .from('shipments')
+    .select('id, name')
+    .eq('user_id', session.user.id)
+    .eq('name', name)
+    .maybeSingle();
+
+  if (existing) {
+    // Guardar ID para sobreescribir y mostrar modal de confirmacion
+    document.getElementById('overwriteShipmentId').value = existing.id;
+    document.getElementById('overwriteShipmentName').textContent = name;
+    document.getElementById('saveShipmentModal').classList.remove('open');
+    document.getElementById('overwriteShipmentModal').classList.add('open');
+    return;
+  }
+
+  await doSaveShipment(session, name, null);
+}
+
+async function confirmOverwriteShipment() {
+  const { data: { session } } = await _sb.auth.getSession();
+  const id = document.getElementById('overwriteShipmentId').value;
+  const name = document.getElementById('overwriteShipmentName').textContent;
+  document.getElementById('overwriteShipmentModal').classList.remove('open');
+  await doSaveShipment(session, name, id);
+}
+
+async function doSaveShipment(session, name, overwriteId) {
   const cur = getActiveContainer();
   cur.products = [...loadedProducts];
   cur.type = currentContainerType;
@@ -106,23 +154,21 @@ async function confirmSaveShipment() {
   const btn = document.getElementById('btnSaveShipment');
   if (btn) { btn.textContent = 'Guardando...'; btn.disabled = true; }
 
-  const { data, error } = await _sb
-    .from('shipments')
-    .insert({
-      user_id: session.user.id,
-      name: name,
-      containers: shipmentContainers
-    })
-    .select()
-    .single();
+  let error;
+  if (overwriteId) {
+    ({ error } = await _sb
+      .from('shipments')
+      .update({ name, containers: shipmentContainers, created_at: new Date().toISOString() })
+      .eq('id', overwriteId));
+  } else {
+    ({ error } = await _sb
+      .from('shipments')
+      .insert({ user_id: session.user.id, name, containers: shipmentContainers }));
+  }
 
   if (btn) { btn.textContent = 'Guardar embarque'; btn.disabled = false; }
-
-  if (error) {
-    console.error(error);
-    return showToast('Error al guardar: ' + error.message, 'error');
-  }
-  showToast('Embarque "' + name + '" guardado', 'success');
+  if (error) { console.error(error); return showToast('Error al guardar: ' + error.message, 'error'); }
+  showToast((overwriteId ? 'Embarque actualizado: ' : 'Embarque guardado: ') + '"' + name + '"', 'success');
 }
 
 
