@@ -431,6 +431,8 @@ function pb_addAllToContainer() {
       price: 0,
       weight: result.totalWeight,
       priorityZone: null,
+      packedItems: result.boxes,   // cajas individuales para render 3D en contenedor
+      palletBase: { L: pt.L, W: pt.W }, // base del pallet
     };
     doAddProduct(productData);
     added++;

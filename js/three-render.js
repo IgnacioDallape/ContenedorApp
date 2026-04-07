@@ -151,8 +151,41 @@ function drawContainer() {
       animItems.push({ mesh: dl, targetY: dty, delay });
       containerGroup.add(dl);
 
-      // Cargo block on top
-      if (cargoH > 2) {
+      // Cargo: si tiene cajas individuales del pallet builder, renderizarlas
+      if (b.packedItems && b.packedItems.length) {
+        // Calcular escala: las cajas del pallet builder están en coords del pallet (0..palL, 0..palW)
+        // b.dX y b.dZ son las dims del pallet en el contenedor (pueden estar rotadas)
+        const palL = b.palletBase ? b.palletBase.L : b.dX;
+        const palW = b.palletBase ? b.palletBase.W : b.dZ;
+        const scaleX = b.dX / palL;
+        const scaleZ = b.dZ / palW;
+
+        for (const box of b.packedItems) {
+          const bDelay = delay + Math.min(box.y * 2, 200); // cajas altas aparecen después
+          const bColor = box.color || b.color;
+          const bGeo = new THREE.BoxGeometry(box.dX * scaleX - 0.4, box.dY - 0.4, box.dZ * scaleZ - 0.4);
+          const bMesh = new THREE.Mesh(bGeo, makeBoxMaterials(bColor));
+          const ty = b.y + baseH + box.y + box.dY / 2;
+          bMesh.position.set(
+            b.x + box.x * scaleX + box.dX * scaleX / 2,
+            ty + CONT_H * 1.5,
+            b.z + box.z * scaleZ + box.dZ * scaleZ / 2
+          );
+          bMesh.castShadow = true; bMesh.receiveShadow = true;
+          bMesh.userData = { label: b.name, type: b.type, dims: b.dims, pct: b.pct, productId: b.productId, instanceId: iid };
+          animItems.push({ mesh: bMesh, targetY: ty, delay: bDelay });
+          containerGroup.add(bMesh);
+          // Wireframe sutil
+          const bEg = new THREE.EdgesGeometry(bGeo);
+          const bEl = new THREE.LineSegments(bEg, new THREE.LineBasicMaterial({ color: 0x100808, transparent: true, opacity: 0.12 }));
+          bEl.position.copy(bMesh.position);
+          bEl.position.y = ty + CONT_H * 1.5;
+          bEl.userData = { instanceId: iid, productId: b.productId };
+          animItems.push({ mesh: bEl, targetY: ty, delay: bDelay });
+          containerGroup.add(bEl);
+        }
+      } else if (cargoH > 2) {
+        // Fallback: bloque genérico si no hay packedItems
         const cgo = new THREE.BoxGeometry(b.dX - gap, cargoH - gap, b.dZ - gap);
         const cmesh = new THREE.Mesh(cgo, makeBoxMaterials(b.color));
         const ty = b.y + baseH + cargoH/2;
@@ -374,4 +407,3 @@ function duplicateSelectedProduct() {
 }
 
 renderLoader();
-

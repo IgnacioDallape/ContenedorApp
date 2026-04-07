@@ -158,7 +158,9 @@ function runPacking(products) {
           color: u.color, name: u.name, type: u.type,
           productId: u.id, instanceId: u.instanceId,
           pct: ((u.vol * u.qty) / CONTAINER_VOL * 100).toFixed(1),
-          dims: `${u.dims.L}×${u.dims.W}×${u.dims.H} cm` });
+          dims: `${u.dims.L}×${u.dims.W}×${u.dims.H} cm`,
+          packedItems: u.packedItems || null,
+          palletBase: u.palletBase || null });
         placed[u.id]++;
         return true;
       }
@@ -209,7 +211,9 @@ function runPacking(products) {
       color: u.color, name: u.name, type: u.type,
       productId: u.id, instanceId: u.instanceId,
       pct: ((u.vol * u.qty) / CONTAINER_VOL * 100).toFixed(1),
-      dims: `${u.dims.L}×${u.dims.W}×${u.dims.H} cm` });
+      dims: `${u.dims.L}×${u.dims.W}×${u.dims.H} cm`,
+      packedItems: u.packedItems || null,
+      palletBase: u.palletBase || null });
     placed[u.id]++;
     return true;
   }
@@ -287,7 +291,9 @@ function runPacking(products) {
         color: u.color, name: u.name, type: u.type,
         productId: u.id, instanceId: u.instanceId,
         pct: ((u.vol * u.qty) / CONTAINER_VOL * 100).toFixed(1),
-        dims: `${u.dims.L}×${u.dims.W}×${u.dims.H} cm` });
+        dims: `${u.dims.L}×${u.dims.W}×${u.dims.H} cm`,
+        packedItems: u.packedItems || null,
+        palletBase: u.palletBase || null });
       placed[u.id]++;
       handledByPattern.add(u.instanceId);
       idx++;
