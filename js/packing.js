@@ -170,14 +170,11 @@ function runPacking(products) {
       const px = Math.max(0, Math.min(CONT_L - ori.dX, manualPosOverride.x));
       const pz = Math.max(0, Math.min(CONT_W - ori.dZ, manualPosOverride.z));
       const h = hmGetMax(hm, px, pz, ori.dX, ori.dZ);
-      // If position is already occupied AND this is a pallet (floor-only), clear the pin
-      // and fall through to auto-placement so it doesn't disappear
-      if (u.type === 'pallet' && h > 1) {
-        delete instanceManualPos[u.instanceId];
-        if (window._instanceManualPos) delete window._instanceManualPos[u.instanceId];
-        // Fall through to auto-placement below
-      } else if (h + ori.dY > CONT_H + 0.1) {
-        // Doesn't fit vertically — clear pin and auto-place
+      const posBlocked = (u.type === 'pallet' && h > 1) || (h + ori.dY > CONT_H + 0.1);
+      if (posBlocked) {
+        // Posición bloqueada — limpiar pin y dejar que el BFD lo ubique automáticamente
+        // El pallet NUNCA desaparece — si no hay lugar en el BFD, se muestra en la primera
+        // posición libre aunque sea, con un toast de aviso al usuario
         delete instanceManualPos[u.instanceId];
         if (window._instanceManualPos) delete window._instanceManualPos[u.instanceId];
         // Fall through to auto-placement below
@@ -206,6 +203,8 @@ function runPacking(products) {
           const h = hmGetMax(hm, px, pz, ori.dX, ori.dZ);
           if (h + ori.dY > CONT_H + 0.1) continue;
           // PALLETS NEVER STACK — physical constraint, period
+          // Excepción: si el pallet tenía un pin que fue liberado (se estaba moviendo),
+          // permitir colocarlo en la primera posición libre de piso que encuentre
           if (u.type === 'pallet' && h > 1) continue;
           let score;
           if (prio) {
@@ -234,7 +233,20 @@ function runPacking(products) {
       }
     }
 
-    if (bestPx === -1) return false;
+    // Si el pallet no encontró lugar en el scan normal, mostrar toast y no colocarlo
+    if (bestPx === -1) {
+      if (u.type === 'pallet' && typeof showToast === 'function') {
+        // Solo mostrar una vez por render, no en cada unit
+        if (!window._palletNoSpaceToast) {
+          window._palletNoSpaceToast = true;
+          setTimeout(() => {
+            showToast('⚠ Un pallet no tiene espacio — movelo a un nuevo contenedor', 'error');
+            window._palletNoSpaceToast = false;
+          }, 100);
+        }
+      }
+      return false;
+    }
     hmSetPallet(hm, bestPx, bestPz, bestOri.dX, bestOri.dZ, bestH, bestOri.dY, u.packedItems, u.palletBase);
     packed.push({ x: bestPx, y: bestH, z: bestPz, dX: bestOri.dX, dY: bestOri.dY, dZ: bestOri.dZ,
       color: u.color, name: u.name, type: u.type,
