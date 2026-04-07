@@ -458,7 +458,7 @@ function pb_openCatalogPicker() {
           <button onclick="var i=document.getElementById('pbqty_${p.id}');i.value=Math.max(1,parseInt(i.value)-1)"
             style="width:28px;height:28px;background:transparent;border:none;font-size:16px;cursor:pointer;color:var(--text);line-height:1">−</button>
           <input id="pbqty_${p.id}" type="number" value="1" min="1" max="500"
-            style="width:44px;height:28px;border:none;border-left:1.5px solid var(--border);border-right:1.5px solid var(--border);text-align:center;font-size:13px;font-family:'DM Mono',monospace;background:var(--c5);color:var(--text);-moz-appearance:textfield"
+            style="width:70px;height:28px;border:none;border-left:1.5px solid var(--border);border-right:1.5px solid var(--border);text-align:center;font-size:13px;font-family:'DM Mono',monospace;background:var(--c5);color:var(--text);-moz-appearance:textfield"
             oninput="this.value=Math.max(1,Math.min(500,parseInt(this.value)||1))">
           <button onclick="var i=document.getElementById('pbqty_${p.id}');i.value=Math.min(500,parseInt(i.value)+1)"
             style="width:28px;height:28px;background:transparent;border:none;font-size:16px;cursor:pointer;color:var(--text);line-height:1">+</button>
