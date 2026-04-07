@@ -101,7 +101,7 @@ function drawContainer() {
   const animItems = [];
 
   for (const b of packed) {
-    const gap = 0.5;
+    const gap = 0.1;
     // Animation delay: stagger up to 400ms, but offset based on y position so
     // floor items animate first, stacked items animate after floor settles
     const baseDelay = Math.min(animItems.length * 6, 400);
