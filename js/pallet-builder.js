@@ -439,29 +439,42 @@ function pb_openCatalogPicker() {
   const existing = document.getElementById('pbCatalogModal');
   if (existing) existing.remove();
 
-  const rows = catalog.map(p => {
-    const dims = p.dims ? p.dims.L + 'x' + p.dims.W + 'x' + p.dims.H : '—';
-    return '<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);cursor:pointer" onclick="pb_addFromCatalog(' + p.id + ')" onmouseover="this.style.background='var(--c4)'" onmouseout="this.style.background='transparent'">'
-      + (p.imgUrl ? '<img src="' + p.imgUrl + '" style="width:36px;height:36px;object-fit:cover;border-radius:6px;flex-shrink:0">' : '<div style="width:36px;height:36px;background:var(--border);border-radius:6px;flex-shrink:0"></div>')
-      + '<div style="flex:1;min-width:0">'
-      + '<div style="font-size:13px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + p.name + '</div>'
-      + '<div style="font-size:11px;color:var(--muted);font-family:'DM Mono',monospace">' + dims + ' cm · ' + (p.type === 'pallet' ? 'Pallet' : 'Caja') + '</div>'
-      + '</div>'
-      + '<div style="font-size:11px;color:var(--c2);font-family:'DM Mono',monospace;flex-shrink:0">Agregar +</div>'
-      + '</div>';
+  const items = catalog.filter(p => p.dims && p.type !== 'pallet');
+  const rows = items.map(p => {
+    const dims = p.dims.L + '×' + p.dims.W + '×' + p.dims.H;
+    const img = p.imgUrl
+      ? `<img src="${p.imgUrl}" style="width:36px;height:36px;object-fit:cover;border-radius:6px;flex-shrink:0">`
+      : `<div style="width:36px;height:36px;background:var(--border);border-radius:6px;flex-shrink:0"></div>`;
+    return `<div
+      style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);cursor:pointer;border-radius:4px;padding-left:4px;padding-right:4px"
+      onclick="pb_addFromCatalog(${p.id})"
+      onmouseover="this.style.background='var(--c4)'"
+      onmouseout="this.style.background='transparent'">
+      ${img}
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.name}</div>
+        <div style="font-size:11px;color:var(--muted);font-family:'DM Mono',monospace">${dims} cm · Caja</div>
+      </div>
+      <div style="font-size:11px;color:var(--c2);font-family:'DM Mono',monospace;flex-shrink:0">+ Agregar</div>
+    </div>`;
   }).join('');
+
+  const body = items.length
+    ? `<div style="overflow-y:auto;flex:1">${rows}</div>`
+    : `<div style="text-align:center;color:var(--muted);padding:24px;font-size:13px">No hay cajas con dimensiones en el catálogo.</div>`;
 
   const modal = document.createElement('div');
   modal.id = 'pbCatalogModal';
   modal.className = 'cap-overlay open';
   modal.style.zIndex = '300';
-  modal.innerHTML = '<div class="cap-modal" style="max-width:480px;width:90vw;max-height:70vh;overflow:hidden;display:flex;flex-direction:column">'
-    + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">'
-    + '<div class="cap-title" style="margin:0">Catálogo de productos</div>'
-    + '<button onclick="document.getElementById('pbCatalogModal').remove()" style="background:none;border:none;font-size:18px;cursor:pointer;color:var(--muted)">×</button>'
-    + '</div>'
-    + '<div style="overflow-y:auto;flex:1">' + rows + '</div>'
-    + '</div>';
+  modal.innerHTML = `
+    <div class="cap-modal" style="max-width:480px;width:90vw;max-height:70vh;overflow:hidden;display:flex;flex-direction:column">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+        <div class="cap-title" style="margin:0">Catálogo de productos</div>
+        <button onclick="document.getElementById('pbCatalogModal').remove()" style="background:none;border:none;font-size:18px;cursor:pointer;color:var(--muted)">×</button>
+      </div>
+      ${body}
+    </div>`;
   document.body.appendChild(modal);
 }
 
