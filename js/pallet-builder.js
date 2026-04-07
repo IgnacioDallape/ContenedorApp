@@ -443,24 +443,35 @@ function pb_openCatalogPicker() {
   const rows = items.map(p => {
     const dims = p.dims.L + '×' + p.dims.W + '×' + p.dims.H;
     const img = p.imgUrl
-      ? `<img src="${p.imgUrl}" style="width:36px;height:36px;object-fit:cover;border-radius:6px;flex-shrink:0">`
-      : `<div style="width:36px;height:36px;background:var(--border);border-radius:6px;flex-shrink:0"></div>`;
-    return `<div
-      style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);cursor:pointer;border-radius:4px;padding-left:4px;padding-right:4px"
-      onclick="pb_addFromCatalog(${p.id})"
-      onmouseover="this.style.background='var(--c4)'"
-      onmouseout="this.style.background='transparent'">
-      ${img}
-      <div style="flex:1;min-width:0">
-        <div style="font-size:13px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.name}</div>
-        <div style="font-size:11px;color:var(--muted);font-family:'DM Mono',monospace">${dims} cm · Caja</div>
+      ? `<img src="${p.imgUrl}" style="width:40px;height:40px;object-fit:cover;border-radius:6px;flex-shrink:0">`
+      : `<div style="width:40px;height:40px;background:var(--border);border-radius:6px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:18px">📦</div>`;
+    return `<div style="padding:12px 4px;border-bottom:1px solid var(--border)">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px">
+        ${img}
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;font-weight:600;color:var(--text)">${p.name}</div>
+          <div style="font-size:11px;color:var(--muted);font-family:'DM Mono',monospace">${dims} cm${p.weight ? ' · ' + p.weight + ' kg/u' : ''}</div>
+        </div>
       </div>
-      <div style="font-size:11px;color:var(--c2);font-family:'DM Mono',monospace;flex-shrink:0">+ Agregar</div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <div style="display:flex;align-items:center;border:1.5px solid var(--border);border-radius:6px;overflow:hidden;flex-shrink:0">
+          <button onclick="var i=document.getElementById('pbqty_${p.id}');i.value=Math.max(1,parseInt(i.value)-1)"
+            style="width:28px;height:28px;background:transparent;border:none;font-size:16px;cursor:pointer;color:var(--text);line-height:1">−</button>
+          <input id="pbqty_${p.id}" type="number" value="1" min="1" max="500"
+            style="width:40px;height:28px;border:none;text-align:center;font-size:13px;font-family:'DM Mono',monospace;background:transparent;color:var(--text)">
+          <button onclick="var i=document.getElementById('pbqty_${p.id}');i.value=Math.min(500,parseInt(i.value)+1)"
+            style="width:28px;height:28px;background:transparent;border:none;font-size:16px;cursor:pointer;color:var(--text);line-height:1">+</button>
+        </div>
+        <button onclick="pb_addFromCatalog(${p.id}, parseInt(document.getElementById('pbqty_${p.id}').value))"
+          style="flex:1;padding:6px 12px;background:var(--c1);color:var(--c5);border:none;border-radius:6px;font-size:12px;font-family:var(--font);font-weight:600;cursor:pointer;letter-spacing:0.5px">
+          + Agregar al pallet
+        </button>
+      </div>
     </div>`;
   }).join('');
 
   const body = items.length
-    ? `<div style="overflow-y:auto;flex:1">${rows}</div>`
+    ? `<div style="overflow-y:auto;flex:1;padding-right:2px">${rows}</div>`
     : `<div style="text-align:center;color:var(--muted);padding:24px;font-size:13px">No hay cajas con dimensiones en el catálogo.</div>`;
 
   const modal = document.createElement('div');
@@ -468,7 +479,7 @@ function pb_openCatalogPicker() {
   modal.className = 'cap-overlay open';
   modal.style.zIndex = '300';
   modal.innerHTML = `
-    <div class="cap-modal" style="max-width:480px;width:90vw;max-height:70vh;overflow:hidden;display:flex;flex-direction:column">
+    <div class="cap-modal" style="max-width:480px;width:90vw;max-height:75vh;overflow:hidden;display:flex;flex-direction:column">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
         <div class="cap-title" style="margin:0">Catálogo de productos</div>
         <button onclick="document.getElementById('pbCatalogModal').remove()" style="background:none;border:none;font-size:18px;cursor:pointer;color:var(--muted)">×</button>
@@ -478,16 +489,20 @@ function pb_openCatalogPicker() {
   document.body.appendChild(modal);
 }
 
-function pb_addFromCatalog(id) {
+function pb_addFromCatalog(id, qty) {
+  qty = Math.max(1, parseInt(qty) || 1);
   const catalog = JSON.parse(localStorage.getItem('cl_catalog') || '[]');
   const p = catalog.find(x => x.id == id);
   if (!p || !p.dims) return showToast('Producto sin dimensiones', 'error');
 
+  const modal = document.getElementById('pbCatalogModal');
+  if (modal) modal.remove();
+
   const existing = pb_products.find(x => x.name === p.name);
   if (existing) {
-    existing.qty += 1;
+    existing.qty += qty;
     pb_renderProductList();
-    showToast('+ 1 ' + p.name, 'success');
+    showToast('+ ' + qty + ' ' + p.name, 'success');
     return;
   }
 
@@ -495,7 +510,7 @@ function pb_addFromCatalog(id) {
     id: Date.now() + Math.random(),
     name: p.name,
     dims: { L: p.dims.L, W: p.dims.W, H: p.dims.H },
-    qty: 1,
+    qty: qty,
     weight: p.weight || 0,
     mustBeBase: false,
     color: PB_COLORS[pb_products.length % PB_COLORS.length],
@@ -503,7 +518,7 @@ function pb_addFromCatalog(id) {
   pb_renderProductList();
   pb_results = [];
   pb_renderResults();
-  showToast('✓ ' + p.name + ' agregado', 'success');
+  showToast('✓ ' + p.name + ' (' + qty + ' u) agregado', 'success');
 }
 
 function pb_openProductForm(editId) {
