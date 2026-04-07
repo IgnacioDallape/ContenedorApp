@@ -233,17 +233,11 @@ function runPacking(products) {
       }
     }
 
-    // Si el pallet no encontró lugar en el scan normal, mostrar toast y no colocarlo
     if (bestPx === -1) {
-      if (u.type === 'pallet' && typeof showToast === 'function') {
-        // Solo mostrar una vez por render, no en cada unit
-        if (!window._palletNoSpaceToast) {
-          window._palletNoSpaceToast = true;
-          setTimeout(() => {
-            showToast('⚠ Un pallet no tiene espacio — movelo a un nuevo contenedor', 'error');
-            window._palletNoSpaceToast = false;
-          }, 100);
-        }
+      // Pallet sin lugar — registrarlo para avisar al usuario después del render
+      if (u.type === 'pallet') {
+        window._palletsWithNoSpace = window._palletsWithNoSpace || [];
+        window._palletsWithNoSpace.push(u.id);
       }
       return false;
     }

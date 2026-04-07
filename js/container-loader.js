@@ -129,7 +129,9 @@ function saveShipment() {
 }
 
 async function confirmSaveShipment() {
-  const { data: { session } } = await _sb.auth.getSession();
+  let session;
+  try { ({ data: { session } } = await _sb.auth.getSession()); }
+  catch(e) { return showToast('Error de conexión — verificá tu internet', 'error'); }
   if (!session) return showToast('Necesitas estar logueado', 'error');
   const name = document.getElementById('saveShipmentName').value.trim();
   if (!name) { document.getElementById('saveShipmentName').focus(); return; }
@@ -155,7 +157,9 @@ async function confirmSaveShipment() {
 }
 
 async function confirmOverwriteShipment() {
-  const { data: { session } } = await _sb.auth.getSession();
+  let session;
+  try { ({ data: { session } } = await _sb.auth.getSession()); }
+  catch(e) { return showToast('Error de conexión — verificá tu internet', 'error'); }
   const id = document.getElementById('overwriteShipmentId').value;
   const name = document.getElementById('overwriteShipmentName').textContent;
   document.getElementById('overwriteShipmentModal').classList.remove('open');
@@ -177,15 +181,20 @@ async function doSaveShipment(session, name, overwriteId) {
   if (btn) { btn.textContent = 'Guardando...'; btn.disabled = true; }
 
   let error;
-  if (overwriteId) {
-    ({ error } = await _sb
-      .from('shipments')
-      .update({ name, containers: snapshot })
-      .eq('id', overwriteId));
-  } else {
-    ({ error } = await _sb
-      .from('shipments')
-      .insert({ user_id: session.user.id, name, containers: snapshot }));
+  try {
+    if (overwriteId) {
+      ({ error } = await _sb
+        .from('shipments')
+        .update({ name, containers: snapshot })
+        .eq('id', overwriteId));
+    } else {
+      ({ error } = await _sb
+        .from('shipments')
+        .insert({ user_id: session.user.id, name, containers: snapshot }));
+    }
+  } catch(e) {
+    if (btn) { btn.textContent = 'Guardar embarque'; btn.disabled = false; }
+    return showToast('Error de conexión — verificá tu internet', 'error');
   }
 
   if (btn) { btn.textContent = 'Guardar embarque'; btn.disabled = false; }
@@ -196,15 +205,19 @@ async function doSaveShipment(session, name, overwriteId) {
 
 
 async function loadShipmentsList() {
-  const { data: { session } } = await _sb.auth.getSession();
+  let session;
+  try { ({ data: { session } } = await _sb.auth.getSession()); }
+  catch(e) { return showToast('Error de conexión — verificá tu internet', 'error'); }
   if (!session) return showToast('Necesitás estar logueado', 'error');
-  const { data, error } = await _sb
-    .from('shipments')
-    .select('id, name, created_at, containers')
-    .order('created_at', { ascending: false })
-    .limit(20);
-
-  if (error) return showToast('Error al cargar embarques', 'error');
+  let data, error;
+  try {
+    ({ data, error } = await _sb
+      .from('shipments')
+      .select('id, name, created_at, containers')
+      .order('created_at', { ascending: false })
+      .limit(20));
+  } catch(e) { return showToast('Error de conexión al cargar embarques', 'error'); }
+  if (error) return showToast('Error al cargar embarques: ' + error.message, 'error');
 
   const listEl = document.getElementById('shipmentsList');
   if (!listEl) return;
@@ -234,8 +247,10 @@ async function loadShipmentsList() {
 }
 
 async function loadShipment(id) {
-  const { data, error } = await _sb.from('shipments').select('*').eq('id', id).single();
-  if (error || !data) return showToast('Error al cargar embarque', 'error');
+  let data, error;
+  try { ({ data, error } = await _sb.from('shipments').select('*').eq('id', id).single()); }
+  catch(e) { return showToast('Error de conexión — verificá tu internet', 'error'); }
+  if (error || !data) return showToast('Error al cargar embarque: ' + (error?.message || 'no encontrado'), 'error');
 
   _currentShipmentId = data.id;
   shipmentContainers = data.containers;
@@ -262,8 +277,10 @@ async function deleteShipment(id) {
 async function confirmDeleteShipment() {
   const id = document.getElementById('deleteShipmentId').value;
   document.getElementById('deleteShipmentModal').classList.remove('open');
-  const { error } = await _sb.from('shipments').delete().eq('id', id);
-  if (error) return showToast('Error al eliminar', 'error');
+  let error;
+  try { ({ error } = await _sb.from('shipments').delete().eq('id', id)); }
+  catch(e) { return showToast('Error de conexión — verificá tu internet', 'error'); }
+  if (error) return showToast('Error al eliminar: ' + error.message, 'error');
   // Si eliminamos el embarque actualmente cargado, resetear el ID
   if (_currentShipmentId && String(_currentShipmentId) === String(id)) {
     _currentShipmentId = null;
@@ -601,6 +618,8 @@ function refreshProductZones() {
 }
 
 function renderLoader() {
+  // Limpiar registro de pallets sin lugar antes de cada render
+  window._palletsWithNoSpace = [];
   // Refresh zone coordinates in case zones were moved in 3D
   refreshProductZones();
   const totalVol = loadedProducts.reduce((s,p)=>s+p.vol*p.qty,0);
@@ -709,6 +728,21 @@ function renderLoader() {
 
   invalidatePackingCache();
   drawContainer();
+  // Detectar pallets que no entraron y avisar al usuario
+  setTimeout(() => {
+    const noSpace = window._palletsWithNoSpace || [];
+    if (noSpace.length) {
+      // Encontrar los productos afectados por nombre para el toast
+      const names = [...new Set(noSpace.map(id => {
+        const p = loadedProducts.find(p => p.id == id);
+        return p ? p.name : null;
+      }).filter(Boolean))];
+      if (names.length) {
+        showToast(`⚠ "${names[0]}" no tiene espacio físico — envialo a un nuevo contenedor`, 'error');
+      }
+      window._palletsWithNoSpace = [];
+    }
+  }, 150);
   // Redraw zone markers so they appear on top of current stack
   setTimeout(() => drawAllPriorityMarkers(), 80);
   // Update container tabs with latest fill %
