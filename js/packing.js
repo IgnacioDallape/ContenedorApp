@@ -30,6 +30,35 @@ function hmSet(hm, px, pz, dX, dZ, h) {
       hm[hmIdx(gx, gz)] = h;
 }
 
+
+// ── hmSetPallet: registra altura real por columna cuando el pallet tiene packedItems ──
+// Si el pallet viene del pallet builder con cajas individuales, registra la altura
+// de cada columna de cajas en el heightmap (en vez de un bloque sólido).
+// Esto permite que cajas sueltas se apoyen en los huecos reales del pallet.
+function hmSetPallet(hm, px, pz, dX, dZ, baseY, totalDY, packedItems, palletBase) {
+  const PALLET_BASE_H = 14; // altura estructura del pallet en cm
+  if (!packedItems || !packedItems.length || !palletBase) {
+    // Sin info de cajas individuales — bloque sólido
+    hmSet(hm, px, pz, dX, dZ, baseY + totalDY);
+    return;
+  }
+  // Primero marcar toda la huella con la altura de la base del pallet
+  hmSet(hm, px, pz, dX, dZ, baseY + PALLET_BASE_H);
+  // Luego registrar cada caja individual con su altura real
+  const palL = palletBase.L;
+  const palW = palletBase.W;
+  const scaleX = dX / palL;
+  const scaleZ = dZ / palW;
+  for (const box of packedItems) {
+    const bpx = px + box.x * scaleX;
+    const bpz = pz + box.z * scaleZ;
+    const bdX = box.dX * scaleX;
+    const bdZ = box.dZ * scaleZ;
+    const topH = baseY + PALLET_BASE_H + box.y + box.dY;
+    hmSet(hm, bpx, bpz, bdX, bdZ, topH);
+  }
+}
+
 // ── TRUE BEST-FIT DECREASING PACKING ENGINE ──
 function runPacking(products) {
   const hm = makeHeightMap();
@@ -153,7 +182,7 @@ function runPacking(products) {
         if (window._instanceManualPos) delete window._instanceManualPos[u.instanceId];
         // Fall through to auto-placement below
       } else {
-        hmSet(hm, px, pz, ori.dX, ori.dZ, h + ori.dY);
+        hmSetPallet(hm, px, pz, ori.dX, ori.dZ, h, ori.dY, u.packedItems, u.palletBase);
         packed.push({ x: px, y: h, z: pz, dX: ori.dX, dY: ori.dY, dZ: ori.dZ,
           color: u.color, name: u.name, type: u.type,
           productId: u.id, instanceId: u.instanceId,
@@ -206,7 +235,7 @@ function runPacking(products) {
     }
 
     if (bestPx === -1) return false;
-    hmSet(hm, bestPx, bestPz, bestOri.dX, bestOri.dZ, bestH + bestOri.dY);
+    hmSetPallet(hm, bestPx, bestPz, bestOri.dX, bestOri.dZ, bestH, bestOri.dY, u.packedItems, u.palletBase);
     packed.push({ x: bestPx, y: bestH, z: bestPz, dX: bestOri.dX, dY: bestOri.dY, dZ: bestOri.dZ,
       color: u.color, name: u.name, type: u.type,
       productId: u.id, instanceId: u.instanceId,
@@ -286,7 +315,7 @@ function runPacking(products) {
       const h = hmGetMax(hm, cp.px, cp.pz, cp.ori.dX, cp.ori.dZ);
       if (h > 1) { idx++; continue; }
       if (h + cp.ori.dY > CONT_H + 0.1) { idx++; continue; }
-      hmSet(hm, cp.px, cp.pz, cp.ori.dX, cp.ori.dZ, h + cp.ori.dY);
+      hmSetPallet(hm, cp.px, cp.pz, cp.ori.dX, cp.ori.dZ, h, cp.ori.dY, u.packedItems, u.palletBase);
       packed.push({ x: cp.px, y: h, z: cp.pz, dX: cp.ori.dX, dY: cp.ori.dY, dZ: cp.ori.dZ,
         color: u.color, name: u.name, type: u.type,
         productId: u.id, instanceId: u.instanceId,
