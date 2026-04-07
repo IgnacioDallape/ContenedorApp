@@ -466,6 +466,8 @@ function doAddProduct(p) {
     imgUrl:p.imgUrl||null,
     priorityZone: p.priorityZone || null,
     priorityZoneSlot: p.priorityZoneSlot != null ? p.priorityZoneSlot : null,
+    packedItems: p.packedItems || null,
+    palletBase: p.palletBase || null,
   });
   // Auto-sort for optimal BFD packing: pallets first, then by volume desc
   // This ensures the visual result is always as good as manual reorder
