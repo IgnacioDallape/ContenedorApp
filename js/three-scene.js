@@ -23,7 +23,7 @@ function injectOrbitControls() {
     this.enableRotate = true;
     this.minDistance = 100;
     this.maxDistance = 2000;
-    this.maxPolarAngle = Math.PI * 0.85;
+    this.maxPolarAngle = Math.PI * 0.72; // ~130° — no permite ver desde abajo del piso
 
     let _spherical = new THREE.Spherical();
     let _sphericalDelta = new THREE.Spherical();
@@ -309,7 +309,7 @@ function initThreeScene() {
   controls.target.set(CONT_L/2, CONT_H*0.35, CONT_W/2);
   controls.minDistance = 150;
   controls.maxDistance = 3500;
-  controls.maxPolarAngle = Math.PI * 0.82;
+  controls.maxPolarAngle = Math.PI * 0.72; // ~130° — no permite ver desde abajo
   controls.update();
 
   // Container group
@@ -736,11 +736,11 @@ function initThreeScene() {
         const duration = 320;
         const progress = Math.min(1, t / duration);
         const eased = 1 - Math.pow(1 - progress, 3);
-        // Drop from just above container ceiling (CONT_H + 20cm) instead of 1.5x above target
-        // This keeps stacked items visible and prevents clipping through ceiling
         const dropFrom = CONT_H + 20;
         const startY = Math.max(item.targetY + dropFrom, item.targetY + 40);
-        item.mesh.position.y = startY + (item.targetY - startY) * eased;
+        item.mesh.position.y = progress >= 1
+          ? item.targetY  // forzar posición exacta al terminar
+          : startY + (item.targetY - startY) * eased;
         if (progress < 1) allDone = false;
       }
       if (allDone) _three._animItems = [];
@@ -779,4 +779,4 @@ function initThreeScene() {
     }
     drawContainer();
   }, 50);
-}
+}
