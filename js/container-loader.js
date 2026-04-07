@@ -531,10 +531,16 @@ function addProductManual() {
 }
 
 function removeProduct(id) {
-  loadedProducts = loadedProducts.filter(p => p.id !== id);
-  // Clean up per-instance state to avoid stale entries
-  delete window._instanceManualPos[id];
-  delete window._instanceLockedOri[id];
+  // Usar == para evitar mismatch number/string en el id
+  loadedProducts = loadedProducts.filter(p => p.id != id);
+  // Clean up per-instance state — limpiar todas las instancias de este producto
+  Object.keys(window._instanceManualPos || {}).forEach(k => {
+    if (k.startsWith(String(id) + '_')) delete window._instanceManualPos[k];
+  });
+  Object.keys(window._instanceLockedOri || {}).forEach(k => {
+    if (k.startsWith(String(id) + '_')) delete window._instanceLockedOri[k];
+  });
+  invalidatePackingCache();
   renderLoader();
 }
 
