@@ -17,7 +17,7 @@ function hmGetMax(hm, px, pz, dX, dZ) {
   for (let gz = gz0; gz < gz1; gz++)
     for (let gx = gx0; gx < gx1; gx++)
       max = Math.max(max, hm[hmIdx(gx, gz)]);
-  return max;
+  return Math.round(max * 100) / 100; // redondear a 2 decimales para evitar float drift
 }
 
 function hmSet(hm, px, pz, dX, dZ, h) {
@@ -54,7 +54,7 @@ function hmSetPallet(hm, px, pz, dX, dZ, baseY, totalDY, packedItems, palletBase
     const bpz = pz + box.z * scaleZ;
     const bdX = box.dX * scaleX;
     const bdZ = box.dZ * scaleZ;
-    const topH = baseY + PALLET_BASE_H + box.y + box.dY;
+    const topH = Math.round((baseY + PALLET_BASE_H + box.y + box.dY) * 100) / 100;
     hmSet(hm, bpx, bpz, bdX, bdZ, topH);
   }
 }
