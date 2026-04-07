@@ -64,10 +64,16 @@ function pb_runPacking(products, palL, palW, maxH) {
     }
   }
 
-  // Sort: mustBeBase primero, luego por volumen desc
+  // Sort: mustBeBase primero, luego por huella (área de base) desc, luego altura desc
+  // Esto pone las cajas más grandes y pesadas abajo, las chicas rellenan huecos arriba
   units.sort((a, b) => {
     if (a.mustBeBase !== b.mustBeBase) return a.mustBeBase ? -1 : 1;
-    return (b.dims.L * b.dims.W * b.dims.H) - (a.dims.L * a.dims.W * a.dims.H);
+    // Huella máxima posible = mayor de las dos dimensiones horizontales × la otra
+    const footprintA = Math.max(a.dims.L * a.dims.W, a.dims.L * a.dims.H, a.dims.W * a.dims.H);
+    const footprintB = Math.max(b.dims.L * b.dims.W, b.dims.L * b.dims.H, b.dims.W * b.dims.H);
+    if (footprintB !== footprintA) return footprintB - footprintA;
+    // Igual huella: la más alta va primero (mejor soporte)
+    return Math.max(b.dims.L, b.dims.W, b.dims.H) - Math.max(a.dims.L, a.dims.W, a.dims.H);
   });
 
   for (const u of units) {
@@ -97,7 +103,11 @@ function pb_runPacking(products, palL, palW, maxH) {
           if (h + ori.dY > maxH + 1) continue;
           // mustBeBase: solo en el piso (h === 0)
           if (u.mustBeBase && h > 0.5) continue;
-          const score = (h + ori.dY) * 10000000 + px * 100 + pz;
+          // Score: minimizar altura resultante (compactar hacia abajo),
+          // desempate por posición: llenar X antes que Z (izquierda→derecha, frente→atrás)
+          // Bonus: preferir posiciones donde la caja queda bien apoyada (h uniforme bajo ella)
+          const hMax = pb_hmGetMax(hm, px, pz, ori.dX, ori.dZ);
+          const score = hMax * 10000000 + px * 100 + pz;
           if (score < bestScore) { bestScore = score; bestH = h; bestPx = px; bestPz = pz; bestOri = ori; }
         }
       }
