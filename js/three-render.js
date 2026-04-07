@@ -261,7 +261,7 @@ function drawContainer() {
 renderLoader();
 
 // ResizeObserver on the 3D wrap
-const _cw = document.getElementById('canvasWrap');
+var _cw = document.getElementById('canvasWrap');
 if (_cw) {
   new ResizeObserver(() => {
     if (_three) {
