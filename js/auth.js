@@ -14,9 +14,14 @@ window.currentUser = null;
     switchPanel('panelReset');
     showLoginPage();
   } else {
-    const { data: { session } } = await _sb.auth.getSession();
-    if (session) enterApp(session.user);
-    else showLoginPage();
+    try {
+      const { data: { session } } = await _sb.auth.getSession();
+      if (session) enterApp(session.user);
+      else showLoginPage();
+    } catch(e) {
+      console.error('Error al verificar sesión:', e);
+      showLoginPage();
+    }
   }
 })();
 
@@ -63,17 +68,22 @@ async function doLogin() {
   const pass  = document.getElementById('loginPass').value;
   if (!email || !pass) return showErr('loginError', 'Completá el e-mail y la contraseña.');
   setLoading('loginBtn', true, 'Ingresar →');
-  const { error } = await _sb.auth.signInWithPassword({ email, password: pass });
-  setLoading('loginBtn', false, 'Ingresar →');
-  if (error) {
-    const msg = error.message.includes('Invalid login') ? 'E-mail o contraseña incorrectos.' : error.message;
-    showErr('loginError', msg); shakePanel();
-    document.getElementById('loginPass').value = '';
+  try {
+    const { error } = await _sb.auth.signInWithPassword({ email, password: pass });
+    setLoading('loginBtn', false, 'Ingresar →');
+    if (error) {
+      const msg = error.message.includes('Invalid login') ? 'E-mail o contraseña incorrectos.' : 'Error al ingresar — verificá tu conexión.';
+      showErr('loginError', msg); shakePanel();
+      document.getElementById('loginPass').value = '';
+    }
+  } catch(e) {
+    setLoading('loginBtn', false, 'Ingresar →');
+    showErr('loginError', 'Sin conexión — verificá tu internet.'); shakePanel();
   }
 }
 
 async function doLogout() {
-  await _sb.auth.signOut();
+  try { await _sb.auth.signOut(); } catch(e) { console.error('Error al cerrar sesión:', e); }
   currentUser = null;
   window.currentUser = null;
   switchPanel('panelLogin');
@@ -84,14 +94,19 @@ async function doForgot() {
   const email = document.getElementById('forgotEmail').value.trim();
   if (!email) { alert('Ingresá tu e-mail.'); return; }
   setLoading('forgotBtn', true, 'Enviar link →');
-  const { error } = await _sb.auth.resetPasswordForEmail(email, {
-    redirectTo: 'https://ignaciodallape.github.io/ContenedorApp/'
-  });
-  setLoading('forgotBtn', false, 'Enviar link →');
-  if (error) { alert('Error: ' + error.message); return; }
-  alert('✓ Link enviado a ' + email + '. Revisá tu bandeja.');
-  document.getElementById('forgotEmail').value = '';
-  switchPanel("panelLogin");
+  try {
+    const { error } = await _sb.auth.resetPasswordForEmail(email, {
+      redirectTo: 'https://ignaciodallape.github.io/ContenedorApp/'
+    });
+    setLoading('forgotBtn', false, 'Enviar link →');
+    if (error) { showErr('forgotError', 'Error: ' + error.message); return; }
+    showOk('forgotSuccess', '✓ Link enviado a ' + email + '. Revisá tu bandeja.');
+    document.getElementById('forgotEmail').value = '';
+    setTimeout(() => switchPanel('panelLogin'), 3000);
+  } catch(e) {
+    setLoading('forgotBtn', false, 'Enviar link →');
+    showErr('forgotError', 'Sin conexión — verificá tu internet.');
+  }
 }
 
 async function doReset() {
@@ -100,10 +115,15 @@ async function doReset() {
   if (pass.length < 6) return showErr('resetError', 'La contraseña debe tener al menos 6 caracteres.');
   if (pass !== pass2)  return showErr('resetError', 'Las contraseñas no coinciden.');
   setLoading('resetBtn', true, 'Guardar contraseña →');
-  const { error } = await _sb.auth.updateUser({ password: pass });
-  setLoading('resetBtn', false, 'Guardar contraseña →');
-  if (error) { showErr('resetError', error.message); return; }
-  showOk('resetSuccess', '✓ Contraseña guardada. Ingresando…');
-  window.location.hash = '';
-  setTimeout(() => switchPanel('panelLogin'), 2000);
+  try {
+    const { error } = await _sb.auth.updateUser({ password: pass });
+    setLoading('resetBtn', false, 'Guardar contraseña →');
+    if (error) { showErr('resetError', error.message); return; }
+    showOk('resetSuccess', '✓ Contraseña guardada. Ingresando…');
+    window.location.hash = '';
+    setTimeout(() => switchPanel('panelLogin'), 2000);
+  } catch(e) {
+    setLoading('resetBtn', false, 'Guardar contraseña →');
+    showErr('resetError', 'Sin conexión — verificá tu internet.');
+  }
 }
