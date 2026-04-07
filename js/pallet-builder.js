@@ -420,10 +420,11 @@ function pb_draw3D(result) {
 function pb_addAllToContainer() {
   if (!pb_results.length) return showToast('Armá los pallets primero', 'error');
 
-  let added = 0;
-  for (const result of pb_results) {
+  // Encolar pallets y procesarlos de a uno para que checkCapacityAndAdd
+  // pueda mostrar el modal "enviar a nuevo contenedor" sin saltarse los siguientes
+  const queue = pb_results.map(result => {
     const pt = PB_PALLET_TYPES[result.type];
-    const productData = {
+    return {
       name: 'Pallet ' + result.id + ' (' + result.totalBoxes + ' cj)',
       type: 'pallet',
       dims: { L: pt.L, W: pt.W, H: result.heightUsed + 14 },
@@ -431,15 +432,24 @@ function pb_addAllToContainer() {
       price: 0,
       weight: result.totalWeight,
       priorityZone: null,
-      packedItems: result.boxes,   // cajas individuales para render 3D en contenedor
-      palletBase: { L: pt.L, W: pt.W }, // base del pallet
+      packedItems: result.boxes,
+      palletBase: { L: pt.L, W: pt.W },
     };
-    doAddProduct(productData);
-    added++;
+  });
+
+  function processNext() {
+    if (!queue.length) return;
+    const productData = queue.shift();
+    if (queue.length > 0) {
+      // Hay más en cola — encadenar via callback post-add
+      window._afterAddCallback = processNext;
+    }
+    checkCapacityAndAdd(productData);
   }
 
   switchSection('container');
-  showToast('✓ ' + added + ' pallet' + (added > 1 ? 's' : '') + ' agregado' + (added > 1 ? 's' : '') + ' al contenedor', 'success');
+  processNext();
+  showToast('✓ Agregando ' + pb_results.length + ' pallet' + (pb_results.length > 1 ? 's' : '') + ' al contenedor', 'success');
 }
 
 // ── GESTIÓN DE PRODUCTOS ──
@@ -452,20 +462,26 @@ function pb_openCatalogPicker() {
   if (existing) existing.remove();
 
   const items = catalog.filter(p => p.dims && p.type !== 'pallet');
+  if (!items.length) {
+    return showToast('No hay cajas con dimensiones en el catálogo', 'error');
+  }
+
   const rows = items.map(p => {
     const dims = p.dims.L + '×' + p.dims.W + '×' + p.dims.H;
     const img = p.imgUrl
       ? `<img src="${p.imgUrl}" style="width:40px;height:40px;object-fit:cover;border-radius:6px;flex-shrink:0">`
       : `<div style="width:40px;height:40px;background:var(--border);border-radius:6px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:18px">📦</div>`;
-    return `<div style="padding:12px 4px;border-bottom:1px solid var(--border)">
-      <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px">
+    return `<div style="padding:10px 4px;border-bottom:1px solid var(--border)">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+        <input type="checkbox" id="pbsel_${p.id}" onchange="pb_updateCatalogBtn()"
+          style="width:16px;height:16px;cursor:pointer;flex-shrink:0;accent-color:var(--c1)">
         ${img}
         <div style="flex:1;min-width:0">
           <div style="font-size:13px;font-weight:600;color:var(--text)">${p.name}</div>
           <div style="font-size:11px;color:var(--muted);font-family:'DM Mono',monospace">${dims} cm${p.weight ? ' · ' + p.weight + ' kg/u' : ''}</div>
         </div>
       </div>
-      <div style="display:flex;align-items:center;gap:8px">
+      <div style="display:flex;align-items:center;gap:8px;padding-left:26px">
         <div style="display:flex;align-items:center;border:1.5px solid var(--border);border-radius:6px;overflow:hidden;flex-shrink:0">
           <button onclick="var i=document.getElementById('pbqty_${p.id}');i.value=Math.max(1,parseInt(i.value)-1)"
             style="width:28px;height:28px;background:transparent;border:none;font-size:16px;cursor:pointer;color:var(--text);line-height:1">−</button>
@@ -476,31 +492,83 @@ function pb_openCatalogPicker() {
             style="width:28px;height:28px;background:transparent;border:none;font-size:16px;cursor:pointer;color:var(--text);line-height:1">+</button>
         </div>
         <button onclick="pb_addFromCatalog(${p.id}, parseInt(document.getElementById('pbqty_${p.id}').value))"
-          style="flex:1;padding:6px 12px;background:var(--c1);color:var(--c5);border:none;border-radius:6px;font-size:12px;font-family:var(--font);font-weight:600;cursor:pointer;letter-spacing:0.5px">
-          + Agregar al pallet
+          style="flex:1;padding:6px 8px;background:transparent;color:var(--c1);border:1.5px solid var(--c1);border-radius:6px;font-size:11px;font-family:var(--font);font-weight:600;cursor:pointer">
+          + Individual
         </button>
       </div>
     </div>`;
   }).join('');
-
-  const body = items.length
-    ? `<div style="overflow-y:auto;flex:1;padding-right:2px">${rows}</div>`
-    : `<div style="text-align:center;color:var(--muted);padding:24px;font-size:13px">No hay cajas con dimensiones en el catálogo.</div>`;
 
   const modal = document.createElement('div');
   modal.id = 'pbCatalogModal';
   modal.className = 'cap-overlay open';
   modal.style.zIndex = '300';
   modal.innerHTML = `
-    <div class="cap-modal" style="max-width:480px;width:90vw;max-height:75vh;overflow:hidden;display:flex;flex-direction:column">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+    <div class="cap-modal" style="max-width:500px;width:90vw;max-height:80vh;overflow:hidden;display:flex;flex-direction:column">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
         <div class="cap-title" style="margin:0">Catálogo de productos</div>
         <button onclick="document.getElementById('pbCatalogModal').remove()" style="background:none;border:none;font-size:18px;cursor:pointer;color:var(--muted)">×</button>
       </div>
-      ${body}
+      <div style="display:flex;gap:8px;margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid var(--border)">
+        <button onclick="pb_selectAllCatalog(true)" style="font-size:11px;padding:4px 10px;border:1px solid var(--border);border-radius:4px;background:transparent;color:var(--muted);cursor:pointer">Seleccionar todo</button>
+        <button onclick="pb_selectAllCatalog(false)" style="font-size:11px;padding:4px 10px;border:1px solid var(--border);border-radius:4px;background:transparent;color:var(--muted);cursor:pointer">Deseleccionar</button>
+        <button id="pbCatalogLoadBtn" onclick="pb_loadSelectedFromCatalog()" disabled
+          style="margin-left:auto;padding:6px 16px;background:var(--c1);color:var(--c5);border:none;border-radius:6px;font-size:12px;font-family:var(--font);font-weight:700;cursor:pointer;opacity:0.4;transition:opacity 0.15s">
+          ✓ Cargar selección
+        </button>
+      </div>
+      <div style="overflow-y:auto;flex:1">${rows}</div>
     </div>`;
   document.body.appendChild(modal);
 }
+
+function pb_updateCatalogBtn() {
+  const modal = document.getElementById('pbCatalogModal');
+  if (!modal) return;
+  const anyChecked = modal.querySelectorAll('input[type=checkbox]:checked').length > 0;
+  const btn = document.getElementById('pbCatalogLoadBtn');
+  if (btn) { btn.disabled = !anyChecked; btn.style.opacity = anyChecked ? '1' : '0.4'; }
+}
+
+function pb_selectAllCatalog(val) {
+  const modal = document.getElementById('pbCatalogModal');
+  if (!modal) return;
+  modal.querySelectorAll('input[type=checkbox]').forEach(cb => cb.checked = val);
+  pb_updateCatalogBtn();
+}
+
+function pb_loadSelectedFromCatalog() {
+  const modal = document.getElementById('pbCatalogModal');
+  if (!modal) return;
+  const catalog = JSON.parse(localStorage.getItem('cl_catalog') || '[]');
+  const checked = [...modal.querySelectorAll('input[type=checkbox]:checked')];
+  let added = 0;
+  for (const cb of checked) {
+    const pid = cb.id.replace('pbsel_', '');
+    const qty = parseInt(document.getElementById('pbqty_' + pid)?.value) || 1;
+    const p = catalog.find(x => String(x.id) === pid);
+    if (!p || !p.dims) continue;
+    const existing = pb_products.find(x => x.name === p.name);
+    if (existing) {
+      existing.qty += qty;
+    } else {
+      pb_products.push({
+        id: Date.now() + Math.random(),
+        name: p.name,
+        dims: { L: p.dims.L, W: p.dims.W, H: p.dims.H },
+        qty, weight: p.weight || 0, mustBeBase: false,
+        color: PB_COLORS[pb_products.length % PB_COLORS.length],
+      });
+    }
+    added++;
+  }
+  modal.remove();
+  pb_renderProductList();
+  pb_results = [];
+  pb_renderResults();
+  showToast('✓ ' + added + ' producto' + (added !== 1 ? 's' : '') + ' agregado' + (added !== 1 ? 's' : '') + ' al pallet', 'success');
+}
+
 
 function pb_addFromCatalog(id, qty) {
   qty = Math.max(1, parseInt(qty) || 1);

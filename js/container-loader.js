@@ -264,6 +264,10 @@ async function confirmDeleteShipment() {
   document.getElementById('deleteShipmentModal').classList.remove('open');
   const { error } = await _sb.from('shipments').delete().eq('id', id);
   if (error) return showToast('Error al eliminar', 'error');
+  // Si eliminamos el embarque actualmente cargado, resetear el ID
+  if (_currentShipmentId && String(_currentShipmentId) === String(id)) {
+    _currentShipmentId = null;
+  }
   showToast('Embarque eliminado', '');
   loadShipmentsList();
 }
@@ -443,7 +447,25 @@ function closeCapAlert() {
 }
 
 function forceAddProduct() {
-  if (_pendingProduct) doAddProduct(_pendingProduct);
+  if (!_pendingProduct) return closeCapAlert();
+  // Para pallets: no permitir forzar si no tienen espacio físico real
+  // (el pallet quedaría invisible en el contenedor)
+  if (_pendingProduct.type === 'pallet') {
+    const testList = [...loadedProducts, {
+      id: 'preview', name: _pendingProduct.name, type: 'pallet',
+      dims: _pendingProduct.dims, qty: 1,
+      vol: (_pendingProduct.dims.L * _pendingProduct.dims.W * _pendingProduct.dims.H) / 1e6,
+      weight: _pendingProduct.weight || 0, color: '#999',
+      priorityZone: null
+    }];
+    const { placed } = runPacking(testList);
+    if ((placed['preview'] || 0) < 1) {
+      showToast('El pallet no tiene espacio físico — envialo a un nuevo contenedor', 'error');
+      closeCapAlert();
+      return;
+    }
+  }
+  doAddProduct(_pendingProduct);
   closeCapAlert();
 }
 
