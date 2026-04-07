@@ -101,7 +101,7 @@ function drawContainer() {
   const animItems = [];
 
   for (const b of packed) {
-    const gap = 0.1;
+    const gap = 0.2;
     // Animation delay: stagger up to 400ms, but offset based on y position so
     // floor items animate first, stacked items animate after floor settles
     const baseDelay = Math.min(animItems.length * 6, 400);
@@ -163,7 +163,7 @@ function drawContainer() {
         for (const box of b.packedItems) {
           const bDelay = delay + Math.min(box.y * 2, 200); // cajas altas aparecen después
           const bColor = box.color || b.color;
-          const bGeo = new THREE.BoxGeometry(box.dX * scaleX - 0.4, box.dY - 0.4, box.dZ * scaleZ - 0.4);
+          const bGeo = new THREE.BoxGeometry(Math.max(0.1, box.dX * scaleX - 0.2), Math.max(0.1, box.dY - 0.2), Math.max(0.1, box.dZ * scaleZ - 0.2));
           const bMesh = new THREE.Mesh(bGeo, makeBoxMaterials(bColor));
           const ty = b.y + baseH + box.y + box.dY / 2;
           bMesh.position.set(
@@ -176,8 +176,8 @@ function drawContainer() {
           animItems.push({ mesh: bMesh, targetY: ty, delay: bDelay });
           containerGroup.add(bMesh);
           // Wireframe sutil
-          const bEg = new THREE.EdgesGeometry(bGeo);
-          const bEl = new THREE.LineSegments(bEg, new THREE.LineBasicMaterial({ color: 0x100808, transparent: true, opacity: 0.12 }));
+          const bEg = new THREE.EdgesGeometry(bGeo); // wireframe sutil
+          const bEl = new THREE.LineSegments(bEg, new THREE.LineBasicMaterial({ color: 0x100808, transparent: true, opacity: 0.05 }));
           bEl.position.copy(bMesh.position);
           bEl.position.y = ty + CONT_H * 1.5;
           bEl.userData = { instanceId: iid, productId: b.productId };
@@ -195,7 +195,7 @@ function drawContainer() {
         animItems.push({ mesh: cmesh, targetY: ty, delay });
         containerGroup.add(cmesh);
         const ceg = new THREE.EdgesGeometry(cgo);
-        const cel = new THREE.LineSegments(ceg, new THREE.LineBasicMaterial({ color: 0x100808, transparent: true, opacity: 0.18 }));
+        const cel = new THREE.LineSegments(ceg, new THREE.LineBasicMaterial({ color: 0x100808, transparent: true, opacity: 0.06 }));
         cel.position.set(b.x + b.dX/2, ty + CONT_H * 1.5, b.z + b.dZ/2);
         cel.userData = { instanceId: iid, productId: b.productId };
         animItems.push({ mesh: cel, targetY: ty, delay });
@@ -216,7 +216,7 @@ function drawContainer() {
     containerGroup.add(mesh);
 
     const eg = new THREE.EdgesGeometry(geo);
-    const el = new THREE.LineSegments(eg, new THREE.LineBasicMaterial({ color: 0x100808, transparent: true, opacity: 0.15 }));
+    const el = new THREE.LineSegments(eg, new THREE.LineBasicMaterial({ color: 0x100808, transparent: true, opacity: 0.06 }));
     el.position.set(b.x + b.dX/2, targetY + CONT_H * 1.5, b.z + b.dZ/2);
     animItems.push({ mesh: el, targetY, delay });
     containerGroup.add(el);
