@@ -465,19 +465,23 @@ function closeCapAlert() {
 
 function forceAddProduct() {
   if (!_pendingProduct) return closeCapAlert();
-  // Para pallets: no permitir forzar si no tienen espacio físico real
-  // (el pallet quedaría invisible en el contenedor)
   if (_pendingProduct.type === 'pallet') {
-    const testList = [...loadedProducts, {
+    // Verificar que con el nuevo pallet, TODOS los existentes siguen teniendo lugar
+    const newProd = {
       id: 'preview', name: _pendingProduct.name, type: 'pallet',
       dims: _pendingProduct.dims, qty: 1,
       vol: (_pendingProduct.dims.L * _pendingProduct.dims.W * _pendingProduct.dims.H) / 1e6,
       weight: _pendingProduct.weight || 0, color: '#999',
-      priorityZone: null
-    }];
+      priorityZone: null, packedItems: _pendingProduct.packedItems || null,
+      palletBase: _pendingProduct.palletBase || null
+    };
+    const testList = [...loadedProducts, newProd];
     const { placed } = runPacking(testList);
-    if ((placed['preview'] || 0) < 1) {
-      showToast('El pallet no tiene espacio físico — envialo a un nuevo contenedor', 'error');
+    // Verificar que el nuevo entra Y que todos los existentes también
+    const newEntra = (placed['preview'] || 0) >= 1;
+    const todosEntran = loadedProducts.every(p => (placed[p.id] || 0) >= p.qty);
+    if (!newEntra || !todosEntran) {
+      showToast('No hay espacio para todos los pallets — usá un nuevo contenedor', 'error');
       closeCapAlert();
       return;
     }
