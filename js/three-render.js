@@ -427,7 +427,9 @@ function drawTruck(scene, CL, CW, CH) {
   loadGLTFLoader(() => {
     const loader = new THREE.GLTFLoader();
     // El archivo debe estar en assets/truck.glb dentro del repo
-    const url = 'assets/truck.glb';
+    // Ruta relativa funciona tanto en local como en GitHub Pages
+    const base = window.location.pathname.replace(/\/[^/]*$/, '/');
+    const url = base + 'assets/truck.glb';
 
     loader.load(url, (gltf) => {
       const truck = gltf.scene;
@@ -491,10 +493,12 @@ function drawSemiAxles(scene, CL, CW, CH) {
   const R = 52, TW = 26;
 
   function addWheel(x, z) {
+    // Torus: por defecto en plano XY → rotar PI/2 en X para que quede parado (plano XZ)
     const tire = new THREE.Mesh(new THREE.TorusGeometry(R*0.78, R*0.22, 10, 22), mTire);
-    tire.rotation.y = Math.PI/2;
+    tire.rotation.x = Math.PI/2;
     tire.position.set(x, -R, z);
     g.add(tire);
+    // Rin y hub: cilindro horizontal → rotation.z = PI/2
     const rim = new THREE.Mesh(new THREE.CylinderGeometry(R*0.55, R*0.55, TW*0.3, 16), mRim);
     rim.rotation.z = Math.PI/2;
     rim.position.set(x, -R, z);
@@ -510,11 +514,11 @@ function drawSemiAxles(scene, CL, CW, CH) {
     addWheel(x, zOuter + TW + 8);
   }
 
-  // 3 ejes traseros
+  // 3 ejes traseros — ruedas dobles justo en los bordes del semi
   const e1 = CL*0.70, e2 = e1+138, e3 = e2+138;
   for (const ex of [e1, e2, e3]) {
-    addDouble(ex, -(TW*2+10));
-    addDouble(ex, CW+10);
+    addDouble(ex, -(TW + 6));   // lado izquierdo
+    addDouble(ex, CW + 6);     // lado derecho
   }
 
   // Chasis
