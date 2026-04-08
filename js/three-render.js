@@ -60,7 +60,9 @@ function drawContainer() {
 
   // Floor grid — subtle
   const gridHelper = new THREE.GridHelper(Math.max(CL, CW) * 1.2, 12, 0xC8B8A8, 0xD8CCC0);
-  gridHelper.position.set(CL/2, 0.5, CW/2);
+  // Para semis: bajar la grilla al nivel del suelo (bajo las ruedas)
+  const gridY = currentContainerType.startsWith('semi') ? -52 : 0.5;
+  gridHelper.position.set(CL/2, gridY, CW/2);
   gridHelper.material.transparent = true;
   gridHelper.material.opacity = 0.5;
   containerGroup.add(gridHelper);
@@ -410,10 +412,77 @@ function duplicateSelectedProduct() {
 }
 
 
-// ── SEMI: solo ejes y chasis ──
+// ── SEMI: ejes, ruedas y chasis ──
 function drawTruck(scene, CL, CW, CH) {
   if (!currentContainerType.startsWith('semi')) return;
   drawSemiAxles(scene, CL, CW, CH);
+}
+
+function drawSemiAxles(scene, CL, CW, CH) {
+  const g = new THREE.Group();
+
+  const mTire    = new THREE.MeshPhongMaterial({ color:0x111111, shininess:8 });
+  const mRim     = new THREE.MeshPhongMaterial({ color:0xbbbbbb, shininess:120, specular:0xffffff });
+  const mChrome  = new THREE.MeshPhongMaterial({ color:0x888888, shininess:60 });
+  const mChassis = new THREE.MeshPhongMaterial({ color:0x222222, shininess:10 });
+
+  const R  = 52;   // radio rueda cm
+  const TW = 26;   // ancho rueda cm
+
+  // El piso del semi está en Y=0
+  // Las ruedas deben quedar con su centro en Y = -R (por debajo del piso)
+  // para que la parte inferior de la rueda toque el suelo (Y = -2R)
+  // y el piso del semi quede elevado R cm del suelo
+
+  function addWheel(x, z) {
+    // Torus: rotation.x = PI/2 para que quede parado (vertical)
+    const tire = new THREE.Mesh(new THREE.TorusGeometry(R*0.78, R*0.22, 10, 24), mTire);
+    tire.rotation.x = Math.PI / 2;
+    tire.position.set(x, -R, z);
+    g.add(tire);
+    // Rin
+    const rim = new THREE.Mesh(new THREE.CylinderGeometry(R*0.55, R*0.55, TW*0.3, 16), mRim);
+    rim.rotation.z = Math.PI / 2;
+    rim.position.set(x, -R, z);
+    g.add(rim);
+    // Hub
+    const hub = new THREE.Mesh(new THREE.CylinderGeometry(R*0.14, R*0.14, TW*0.34, 8), mChrome);
+    hub.rotation.z = Math.PI / 2;
+    hub.position.set(x, -R, z);
+    g.add(hub);
+  }
+
+  function addDouble(x, zOuter) {
+    addWheel(x, zOuter);
+    addWheel(x, zOuter + TW + 8);
+  }
+
+  // 3 ejes traseros — al 70%, 83%, 96% del largo
+  const e1 = CL * 0.70, e2 = e1 + 138, e3 = e2 + 138;
+  for (const ex of [e1, e2, e3]) {
+    addDouble(ex, -(TW + 6));    // lado izquierdo
+    addDouble(ex, CW + 6);       // lado derecho
+  }
+
+  // Chasis — 2 largueros en I
+  const chH = 22;
+  [-26, CW + 26].forEach(zc => {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(CL, chH, 14), mChassis);
+    m.position.set(CL/2, -chH/2, zc);
+    g.add(m);
+  });
+  // Travesaños cada 170cm
+  for (let tx = 0; tx <= CL; tx += 170) {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(10, chH, CW + 52 + 14), mChassis);
+    m.position.set(tx, -chH/2, CW/2);
+    g.add(m);
+  }
+
+  // Bajar el grupo completo para que las ruedas toquen el piso de la grilla
+  // El piso del semi (Y=0) debe quedar elevado R cm sobre la grilla
+  g.position.y = -R;
+
+  scene.add(g);
 }
 
 renderLoader();
