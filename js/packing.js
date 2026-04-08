@@ -217,8 +217,11 @@ function runPacking(products) {
             const isDominant = !dom || (ori.dX === dom.dX && ori.dZ === dom.dZ);
             const oriPenalty = isDominant ? 0 : 500000;
             if (h < 1) {
-              // Floor: fill systematically left→right, front→back, dominant orientation first
-              score = pz * 10000 + px + oriPenalty;
+              // Floor: fill systematically
+              // Semis (largo > 800cm): llenar X primero (de frente a lo largo)
+              // Contenedores: llenar Z primero (comportamiento original)
+              const isSemi = CONT_L > 800;
+              score = isSemi ? (px * 10 + pz + oriPenalty) : (pz * 10000 + px + oriPenalty);
             } else {
               // Stacking: place on top of leftmost/frontmost pallets first (neat stack)
               // Strongly prefer stacking on px=0,pz=0 area before going to later columns
