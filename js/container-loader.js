@@ -5,9 +5,11 @@ if (typeof fmt === 'undefined') {
 }
 
 const CONTAINER_TYPES = {
-  '20ft': { L:589, W:235, H:239, vol:(589*235*239)/1e6, label:"20'", fullLabel:"20' Dry", dims:"5.89 × 2.35 × 2.39 m" },
-  '40ft': { L:1200, W:235, H:239, vol:(1200*235*239)/1e6, label:"40'", fullLabel:"40' Dry", dims:"12.00 × 2.35 × 2.39 m" },
-  '40hc': { L:1200, W:235, H:269, vol:(1200*235*269)/1e6, label:"40' HC", fullLabel:"40' High Cube", dims:"12.00 × 2.35 × 2.69 m" },
+  '20ft':   { L:589,  W:235, H:239, vol:(589*235*239)/1e6,   label:"20'",     fullLabel:"20' Dry",       dims:"5.89 × 2.35 × 2.39 m" },
+  '40ft':   { L:1200, W:235, H:239, vol:(1200*235*239)/1e6,  label:"40'",     fullLabel:"40' Dry",       dims:"12.00 × 2.35 × 2.39 m" },
+  '40hc':   { L:1200, W:235, H:269, vol:(1200*235*269)/1e6,  label:"40' HC",  fullLabel:"40' High Cube", dims:"12.00 × 2.35 × 2.69 m" },
+  'semi145': { L:1450, W:244, H:270, vol:(1450*244*270)/1e6, label:"Semi 14.5m", fullLabel:"Semi 14.5 m",  dims:"14.50 × 2.44 × 2.70 m" },
+  'semi155': { L:1550, W:244, H:270, vol:(1550*244*270)/1e6, label:"Semi 15.5m", fullLabel:"Semi 15.5 m",  dims:"15.50 × 2.44 × 2.70 m" },
 };
 let currentContainerType = '20ft';
 let CONTAINER_VOL = CONTAINER_TYPES['20ft'].vol;
@@ -302,7 +304,7 @@ function _setContainerTypeInternal(type) {
   CONT_L = ct.L; CONT_W = ct.W; CONT_H = ct.H;
   _GRID_COLS = Math.ceil((CONT_L + 5) / GRID_RES);
   _GRID_ROWS = Math.ceil((CONT_W + 5) / GRID_RES);
-  const btns = { '20ft':'btnCont20', '40ft':'btnCont40', '40hc':'btnCont40hc' };
+  const btns = { '20ft':'btnCont20', '40ft':'btnCont40', '40hc':'btnCont40hc', 'semi145':'btnContSemi145', 'semi155':'btnContSemi155' };
   Object.entries(btns).forEach(([t, id]) => {
     const el = document.getElementById(id);
     if (el) el.classList.toggle('active', t === type);
@@ -318,7 +320,7 @@ function _setContainerTypeInternal(type) {
     _three.camera.lookAt(ct.L / 2, ct.H * 0.4, ct.W / 2);
     _three.controls.target.set(ct.L / 2, ct.H * 0.4, ct.W / 2);
     _three.controls.minDistance = 150;
-    _three.controls.maxDistance = (type === '20ft' ? 1100 : 1800) * 1.5;
+    _three.controls.maxDistance = (type === '20ft' ? 1100 : type.startsWith('semi') ? 2400 : 1800) * 1.5;
     _three.controls.update();
   }
 }
@@ -403,7 +405,7 @@ function checkCapacityAndAdd(productData) {
   const volExceeds = totalVol > CONTAINER_VOL;
 
   // Weight check
-  const WEIGHT_LIMITS = { '20ft': 28000, '40ft': 26500, '40hc': 26500 };
+  const WEIGHT_LIMITS = { '20ft': 28000, '40ft': 26500, '40hc': 26500, 'semi145': 28000, 'semi155': 28000 };
   const weightLimit = WEIGHT_LIMITS[currentContainerType] || 28000;
   const currentWeight = loadedProducts.reduce((s,p) => s + (p.weight||0) * p.qty, 0);
   const addedWeight = (productData.weight||0) * productData.qty;
@@ -632,7 +634,7 @@ function renderLoader() {
   const totalWeight = loadedProducts.reduce((s,p)=>s+(p.weight||0)*p.qty,0);
   const pct = totalVol/CONTAINER_VOL*100;
   const over = totalVol>CONTAINER_VOL;
-  const WEIGHT_LIMITS = { '20ft': 28000, '40ft': 26500, '40hc': 26500 };
+  const WEIGHT_LIMITS = { '20ft': 28000, '40ft': 26500, '40hc': 26500, 'semi145': 28000, 'semi155': 28000 };
   const weightLimit = WEIGHT_LIMITS[currentContainerType] || 28000;
   const weightOver = totalWeight > weightLimit;
 
