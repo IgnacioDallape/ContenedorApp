@@ -416,92 +416,90 @@ function drawTruck(scene, CL, CW, CH) {
 
   const truckGroup = new THREE.Group();
 
-  const matDark   = new THREE.MeshPhongMaterial({ color: 0x2e2e2e, shininess: 40 });
-  const matMid    = new THREE.MeshPhongMaterial({ color: 0x555555, shininess: 20 });
+  const matDark   = new THREE.MeshPhongMaterial({ color: 0x2a2a2a, shininess: 30 });
+  const matMid    = new THREE.MeshPhongMaterial({ color: 0x444444, shininess: 15 });
   const matBlack  = new THREE.MeshPhongMaterial({ color: 0x111111 });
-  const matChrome = new THREE.MeshPhongMaterial({ color: 0xbbbbbb, shininess: 80 });
-  const matGlass  = new THREE.MeshPhongMaterial({ color: 0x88aacc, transparent: true, opacity: 0.45, shininess: 60 });
+  const matChrome = new THREE.MeshPhongMaterial({ color: 0xaaaaaa, shininess: 60 });
+  const matGlass  = new THREE.MeshPhongMaterial({ color: 0x7799bb, transparent: true, opacity: 0.5 });
 
-  const R     = 48;   // radio rueda cm
-  const TREAD = 22;   // ancho rueda
-  const AXLE_Y = -R;  // centro de rueda: R cm por debajo del piso (Y=0)
+  // Rueda: radio 50cm, ancho 22cm
+  const R = 50;
+  const TW = 22; // tread width
 
-  // ── Rueda helper ──
   function addWheel(x, z) {
-    const wGeo = new THREE.CylinderGeometry(R, R, TREAD, 18);
+    const wGeo = new THREE.CylinderGeometry(R, R, TW, 18);
     const w = new THREE.Mesh(wGeo, matBlack);
     w.rotation.z = Math.PI / 2;
-    w.position.set(x, AXLE_Y, z);
+    w.position.set(x, -R, z);
     truckGroup.add(w);
-    const rGeo = new THREE.CylinderGeometry(R * 0.52, R * 0.52, TREAD + 2, 14);
+    // Rin
+    const rGeo = new THREE.CylinderGeometry(R * 0.5, R * 0.5, TW + 2, 14);
     const r = new THREE.Mesh(rGeo, matChrome);
     r.rotation.z = Math.PI / 2;
-    r.position.set(x, AXLE_Y, z);
+    r.position.set(x, -R, z);
     truckGroup.add(r);
   }
 
-  // ── Chasis (2 largueros bajos) ──
-  const CHASSIS_H = 16;
-  const CHASSIS_Y = -R * 2 + CHASSIS_H / 2 + R; // apoya sobre las ruedas
-  function addChassis(zPos) {
-    const g = new THREE.BoxGeometry(CL + 230, CHASSIS_H, 18);
+  // ── 3 EJES TRASEROS — al final del semirremolque, separados 130cm ──
+  // En la foto argentina los 3 ejes están juntos hacia el final
+  const rearBase = CL * 0.72; // primer eje trasero
+  for (let e = 0; e < 3; e++) {
+    const ax = rearBase + e * 130;
+    if (ax > CL + 5) break;
+    // Rueda doble izquierda
+    addWheel(ax, -(TW + 4));
+    addWheel(ax, -(TW * 2 + 6));
+    // Rueda doble derecha
+    addWheel(ax, CW + TW + 4);
+    addWheel(ax, CW + TW * 2 + 6);
+  }
+
+  // ── CHASIS — 2 largueros longitudinales ──
+  const CHASIS_H = 20;
+  const CHASIS_Y = -CHASIS_H / 2; // justo en el piso del semirremolque
+  [-30, CW + 30].forEach(z => {
+    const g = new THREE.BoxGeometry(CL + 220, CHASIS_H, 16);
     const m = new THREE.Mesh(g, matDark);
-    m.position.set((CL - 230) / 2, -CHASSIS_H / 2, zPos);
+    m.position.set(CL / 2 - 110, CHASIS_Y, z);
     truckGroup.add(m);
-  }
-  addChassis(28);
-  addChassis(CW - 28);
+  });
 
-  // ── Ruedas cabina (eje delantero) ──
-  const frontAxleX = -160;
-  addWheel(frontAxleX, 20);
-  addWheel(frontAxleX, CW - 20);
-
-  // ── Ejes traseros semirremolque (a 78% y 88% del largo) ──
-  const ax1 = CL * 0.78;
-  const ax2 = CL * 0.88;
-  for (const ax of [ax1, ax2]) {
-    addWheel(ax, 14);
-    addWheel(ax, 14 + TREAD + 4);   // doble izq
-    addWheel(ax, CW - 14);
-    addWheel(ax, CW - 14 - TREAD - 4); // doble der
-  }
-
-  // ── Cabina ──
-  const CAB_L = 200;
-  const CAB_H = CH * 0.82;
+  // ── CABINA ──
+  // Foto: cabina corta (~180cm), altura ~280cm, arranca desde el piso
+  const CAB_L = 180;
+  const CAB_H = CH * 0.95;
   const CAB_W = CW;
-  const CAB_X = -CAB_L / 2 - 10; // pegada al frente del semirremolque
-  const CAB_Y = CAB_H / 2;       // apoya en Y=0 (piso del semi)
+  // Posición: pegada al frente del semi (x=0), hacia la izquierda (x negativo)
+  const CAB_CX = -CAB_L / 2;
+  const CAB_CY =  CAB_H / 2;
 
-  // Cuerpo
+  // Cuerpo cabina
   const cabGeo = new THREE.BoxGeometry(CAB_L, CAB_H, CAB_W);
   const cab = new THREE.Mesh(cabGeo, matDark);
-  cab.position.set(CAB_X, CAB_Y, CW / 2);
+  cab.position.set(CAB_CX, CAB_CY, CW / 2);
   truckGroup.add(cab);
 
-  // Parabrisas (cara trasera de la cabina = frente del semi)
-  const windGeo = new THREE.BoxGeometry(6, CAB_H * 0.42, CAB_W * 0.72);
+  // Parabrisas — cara que mira hacia x negativo (frente del camión)
+  const windGeo = new THREE.BoxGeometry(5, CAB_H * 0.38, CAB_W * 0.68);
   const wind = new THREE.Mesh(windGeo, matGlass);
-  wind.position.set(CAB_X + CAB_L / 2, CAB_Y + CAB_H * 0.12, CW / 2);
+  wind.position.set(CAB_CX - CAB_L / 2 + 3, CAB_CY + CAB_H * 0.1, CW / 2);
   truckGroup.add(wind);
 
-  // Spoiler / visera superior
-  const spoilerGeo = new THREE.BoxGeometry(CAB_L * 0.6, 12, CAB_W * 0.9);
-  const spoiler = new THREE.Mesh(spoilerGeo, matMid);
-  spoiler.position.set(CAB_X + CAB_L * 0.1, CAB_Y + CAB_H / 2 + 6, CW / 2);
-  truckGroup.add(spoiler);
-
   // Parachoques
-  const bumpGeo = new THREE.BoxGeometry(18, 28, CAB_W * 0.85);
+  const bumpGeo = new THREE.BoxGeometry(14, 30, CAB_W * 0.9);
   const bump = new THREE.Mesh(bumpGeo, matChrome);
-  bump.position.set(CAB_X - CAB_L / 2 + 9, CAB_Y - CAB_H / 2 + 14, CW / 2);
+  bump.position.set(CAB_CX - CAB_L / 2 + 7, CAB_CY - CAB_H / 2 + 15, CW / 2);
   truckGroup.add(bump);
 
-  // ── Quinta rueda ──
-  const kpGeo = new THREE.CylinderGeometry(28, 28, 12, 14);
+  // ── EJE DELANTERO cabina — debajo de la cabina, hacia adelante ──
+  const frontAxleX = CAB_CX - CAB_L * 0.3;
+  addWheel(frontAxleX, -TW - 2);
+  addWheel(frontAxleX, CW + TW + 2);
+
+  // ── QUINTA RUEDA — disco sobre el chasis cerca del frente del semi ──
+  const kpGeo = new THREE.CylinderGeometry(32, 32, 14, 16);
   const kp = new THREE.Mesh(kpGeo, matChrome);
-  kp.position.set(CL * 0.10, 6, CW / 2);
+  kp.position.set(CL * 0.08, 7, CW / 2);
   truckGroup.add(kp);
 
   scene.add(truckGroup);
