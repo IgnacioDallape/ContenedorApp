@@ -455,18 +455,13 @@ function drawTruck(scene, CL, CW, CH) {
       truck.scale.set(scale, scale, scale);
       console.log('scale:', scale, 'targetH:', targetH, 'size.y*100:', size.y*100);
 
-      // Recalcular bbox final con escala y rotación aplicadas
-      const box3 = new THREE.Box3().setFromObject(truck);
-      const size3 = new THREE.Vector3();
-      const center3 = new THREE.Vector3();
-      box3.getSize(size3);
-      box3.getCenter(center3);
-
-      // Posicionar: pegado al frente del semi, centrado en Z, apoyado en el piso
+      // Posición hardcodeada con los valores calculados del modelo real
+      // Tamaño escena: 338 x 238 x 174 cm
+      // Center escena después de rot.y=PI: x=13, y=119, z=-2.6
       truck.position.set(
-        -size3.x / 2 - center3.x - 5,  // antes del frente del semi
-        -box3.min.y,                     // apoyar en Y=0
-        CW / 2 - center3.z              // centrado en ancho
+        -192,      // cabina antes del semi (~338/2 + 13 + 10)
+        0,         // apoyado en el piso
+        CW / 2     // centrado en el ancho del semi
       );
 
       truck.traverse(child => {
