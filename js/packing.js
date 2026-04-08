@@ -273,7 +273,53 @@ function runPacking(products) {
 
   const handledByPattern = new Set();
 
+  // ── SEMI LAYOUT: todos "de punta" — dX=pW (corto a lo largo), dZ=pL (largo en profundidad), 2 filas ──
+  const isSemiLayout = CONT_L > 800;
+
+  if (isSemiLayout) {
+    for (const [pid, group] of Object.entries(palletGroupsMap)) {
+      if (!group.length) continue;
+      const s = group[0];
+      // "De punta": lado corto (W) a lo largo del semi, lado largo (L) en profundidad
+      const ori = { dX: s.dims.W, dZ: s.dims.L, dY: s.dims.H };
+      // Verificar que 2 filas en Z entren
+      if (ori.dZ * 2 > CONT_W + 5) continue;
+      if (ori.dX > CONT_L + 5) continue;
+
+      const placements = [];
+      for (let row = 0; row < 2; row++) {
+        const pz = row * ori.dZ;
+        if (pz + ori.dZ > CONT_W + 5) break;
+        let px = 0;
+        while (px + ori.dX <= CONT_L + 5) {
+          placements.push({ px, pz, ori });
+          px += ori.dX;
+        }
+      }
+
+      let idx = 0;
+      for (const cp of placements) {
+        if (idx >= group.length) break;
+        const u = group[idx];
+        const h = hmGetMax(hm, cp.px, cp.pz, cp.ori.dX, cp.ori.dZ);
+        if (h > 1 || h + cp.ori.dY > CONT_H + 0.1) { idx++; continue; }
+        hmSetPallet(hm, cp.px, cp.pz, cp.ori.dX, cp.ori.dZ, h, cp.ori.dY, u.packedItems, u.palletBase);
+        packed.push({ x: cp.px, y: h, z: cp.pz, dX: cp.ori.dX, dY: cp.ori.dY, dZ: cp.ori.dZ,
+          color: u.color, name: u.name, type: u.type,
+          productId: u.id, instanceId: u.instanceId,
+          pct: ((u.vol * u.qty) / CONTAINER_VOL * 100).toFixed(1),
+          dims: `${u.dims.L}×${u.dims.W}×${u.dims.H} cm`,
+          packedItems: u.packedItems || null,
+          palletBase: u.palletBase || null });
+        placed[u.id]++;
+        handledByPattern.add(u.instanceId);
+        idx++;
+      }
+    }
+  }
+
   for (const [pid, group] of Object.entries(palletGroupsMap)) {
+    if (isSemiLayout) continue; // ya manejado arriba
     if (group.length < 2) continue;
     const s = group[0];
     const A = { dX: s.dims.L, dZ: s.dims.W, dY: s.dims.H };
