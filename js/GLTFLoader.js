@@ -881,7 +881,7 @@
 				if ( chunkType === BINARY_EXTENSION_CHUNK_TYPES.JSON ) {
 
 					const contentArray = new Uint8Array( data, BINARY_EXTENSION_HEADER_LENGTH + chunkIndex, chunkLength );
-					this.content = THREE.LoaderUtils.decodeText( contentArray );
+					this.content = new TextDecoder().decode( contentArray );
 
 				} else if ( chunkType === BINARY_EXTENSION_CHUNK_TYPES.BIN ) {
 
