@@ -446,10 +446,14 @@ function drawTruck(scene, CL, CW, CH) {
       // Solo rotar 180° en Y para que el frente mire hacia x negativo (hacia afuera del semi)
       truck.rotation.y = Math.PI;
 
-      // Escalar para que el alto coincida con la cabina (~CH*0.88)
-      // Alto raw = 4.23 unidades → en escena queremos CH*0.88
-      const scale = (CH * 0.88) / (size.y * 100);
+      // size está en unidades GLB (metros aprox)
+      // Alto raw = 4.23 → queremos CH*0.88 cm en escena
+      // Three.js escena está en cm, GLB en metros → factor 100
+      // scale = target_cm / (raw_units * 100)
+      const targetH = CH * 0.88;
+      const scale = targetH / (size.y * 100);
       truck.scale.set(scale, scale, scale);
+      console.log('scale:', scale, 'targetH:', targetH, 'size.y*100:', size.y*100);
 
       // Recalcular bbox final con escala y rotación aplicadas
       const box3 = new THREE.Box3().setFromObject(truck);
