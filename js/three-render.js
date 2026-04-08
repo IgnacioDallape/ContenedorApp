@@ -442,36 +442,28 @@ function drawTruck(scene, CL, CW, CH) {
       box.getSize(size);
       console.log('Truck GLB loaded! Raw size:', size, 'Center:', box.getCenter(new THREE.Vector3()));
 
-      // El modelo tiene largo en eje Y → rotar para que quede en eje X
-      truck.rotation.x = Math.PI / 2;
-      truck.rotation.z = -Math.PI / 2;
+      // El largo del modelo está en X, el alto en Y, el ancho en Z
+      // Solo rotar 180° en Y para que el frente mire hacia x negativo (hacia afuera del semi)
+      truck.rotation.y = Math.PI;
 
-      // Recalcular bbox después de rotar
-      const box2 = new THREE.Box3().setFromObject(truck);
-      const size2 = new THREE.Vector3();
-      box2.getSize(size2);
-      console.log('After rotation size:', size2);
-
-      // Escalar para que el alto (Y) coincida con CH*0.9
-      const scale = (CH * 0.88) / size2.y;
+      // Escalar para que el alto coincida con la cabina (~CH*0.88)
+      // Alto raw = 4.23 unidades → en escena queremos CH*0.88
+      const scale = (CH * 0.88) / (size.y * 100);
       truck.scale.set(scale, scale, scale);
 
-      // Recalcular bbox final
+      // Recalcular bbox final con escala y rotación aplicadas
       const box3 = new THREE.Box3().setFromObject(truck);
       const size3 = new THREE.Vector3();
       const center3 = new THREE.Vector3();
       box3.getSize(size3);
       box3.getCenter(center3);
-      console.log('Final size:', size3, 'Center:', center3);
 
-      // Posicionar: cabina antes del semi (x negativo), centrada en Z
+      // Posicionar: pegado al frente del semi, centrado en Z, apoyado en el piso
       truck.position.set(
-        -size3.x * 0.5 - center3.x - 10,
-        -box3.min.y,   // apoyar en el piso (Y=0)
-        CW / 2 - center3.z
+        -size3.x / 2 - center3.x - 5,  // antes del frente del semi
+        -box3.min.y,                     // apoyar en Y=0
+        CW / 2 - center3.z              // centrado en ancho
       );
-
-      console.log('Truck position:', truck.position);
 
       truck.traverse(child => {
         if (child.isMesh) {
