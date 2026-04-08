@@ -436,45 +436,53 @@ function drawTruck(scene, CL, CW, CH) {
     loader.load(url, (gltf) => {
       const truck = gltf.scene;
 
-      // El modelo tiene largo en eje Y → rotar para que quede en eje X
-      truck.rotation.x = Math.PI / 2;   // Y→Z primero
-      truck.rotation.z = -Math.PI / 2;  // luego Z→X
+      // Calcular bounding box real del modelo para escalarlo correctamente
+      const box = new THREE.Box3().setFromObject(truck);
+      const size = new THREE.Vector3();
+      box.getSize(size);
+      console.log('Truck GLB loaded! Raw size:', size, 'Center:', box.getCenter(new THREE.Vector3()));
 
-      // Escala: ajustamos para que la cabina mida ~200cm de largo y ~CH de alto
-      // Bounding box del GLB: Y=8.073, X=5.474, Z=3.815 (unidades)
-      // Queremos alto = CH*0.9 → scale = CH*0.9 / 547.4
-      const scale = (CH * 0.88) / 547.4;
+      // El modelo tiene largo en eje Y → rotar para que quede en eje X
+      truck.rotation.x = Math.PI / 2;
+      truck.rotation.z = -Math.PI / 2;
+
+      // Recalcular bbox después de rotar
+      const box2 = new THREE.Box3().setFromObject(truck);
+      const size2 = new THREE.Vector3();
+      box2.getSize(size2);
+      console.log('After rotation size:', size2);
+
+      // Escalar para que el alto (Y) coincida con CH*0.9
+      const scale = (CH * 0.88) / size2.y;
       truck.scale.set(scale, scale, scale);
 
-      // Ancho del modelo escalado en Z
-      const modelW = 381.5 * scale;
-      const modelL = 807.3 * scale;
+      // Recalcular bbox final
+      const box3 = new THREE.Box3().setFromObject(truck);
+      const size3 = new THREE.Vector3();
+      const center3 = new THREE.Vector3();
+      box3.getSize(size3);
+      box3.getCenter(center3);
+      console.log('Final size:', size3, 'Center:', center3);
 
-      // Centrar en Z (ancho del semi) y posicionar en X (antes del semi)
+      // Posicionar: cabina antes del semi (x negativo), centrada en Z
       truck.position.set(
-        -modelL * 0.5 - 20,   // justo antes del frente del semirremolque
-        0,                     // piso
-        (CW - modelW) / 2      // centrado en ancho
+        -size3.x * 0.5 - center3.x - 10,
+        -box3.min.y,   // apoyar en el piso (Y=0)
+        CW / 2 - center3.z
       );
 
-      // Mejorar materiales — oscurecer para que combine con la escena
+      console.log('Truck position:', truck.position);
+
       truck.traverse(child => {
         if (child.isMesh) {
           child.castShadow = true;
           child.receiveShadow = true;
-          if (child.material) {
-            if (Array.isArray(child.material)) {
-              child.material.forEach(m => { if (m.color) m.color.multiplyScalar(0.85); });
-            } else {
-              if (child.material.color) child.material.color.multiplyScalar(0.85);
-            }
-          }
         }
       });
 
       scene.add(truck);
+      console.log('Truck added to scene!');
 
-      // Ejes traseros del semirremolque (siempre con geometría propia)
       drawSemiAxles(scene, CL, CW, CH);
 
     }, undefined, (err) => {
