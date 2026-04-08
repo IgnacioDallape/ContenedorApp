@@ -569,6 +569,23 @@
                 <div class="progress-bar"><div class="progress-fill" id="fillWeight" style="width:0%;background:linear-gradient(90deg,#b8c8d8,#6b8c9b)"></div></div>
                 <span class="progress-pct" id="pctWeight" style="color:var(--text2);font-size:11px">0 kg</span>
               </div>
+              <!-- Panel semi: solo visible cuando hay semi seleccionado -->
+              <div id="semiPanel" style="display:none;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 14px;margin-bottom:8px;font-family:'DM Mono',monospace;font-size:11px;">
+                <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+                  <div style="display:flex;align-items:center;gap:8px;">
+                    <span style="color:var(--muted);letter-spacing:1px;text-transform:uppercase">Límite peso</span>
+                    <input id="semiWeightLimitInput" type="number" min="1000" max="60000" step="500" value="28000"
+                      onchange="setSemiWeightLimit(this.value)"
+                      style="width:90px;padding:4px 8px;border:1.5px solid var(--border);border-radius:5px;font-family:'DM Mono',monospace;font-size:12px;background:var(--c5);color:var(--text);text-align:right;">
+                    <span style="color:var(--muted)">kg</span>
+                  </div>
+                  <div id="semiAxleInfo" style="display:flex;gap:16px;flex-wrap:wrap;color:var(--text2)">
+                    <span>🔩 Eje delantero: <b id="axleFront">—</b></span>
+                    <span>🔩 Eje trasero: <b id="axleRear">—</b></span>
+                    <span>📦 Carga total: <b id="axleTotal">—</b></span>
+                  </div>
+                </div>
+              </div>
               <div class="canvas-wrap" id="canvasWrap" style="position:relative;overflow:hidden;border-radius:6px;">
                 <div id="threeContainer" style="width:100%;height:100%;"></div>
                 <div id="tooltip3d" style="position:absolute;pointer-events:none;display:none;background:rgba(58,48,40,0.92);color:#F8F1E9;font-family:'Jost',sans-serif;font-size:12px;line-height:1.6;padding:8px 12px;border-radius:6px;max-width:200px;box-shadow:0 4px 16px rgba(0,0,0,0.25);z-index:50;"></div>

@@ -65,6 +65,9 @@ function drawContainer() {
   gridHelper.material.opacity = 0.5;
   containerGroup.add(gridHelper);
 
+  // ── Camión 3D para semis ──
+  drawTruck(containerGroup, CL, CW, CH);
+
   // ── Use shared precision packing engine ──
   const { packed } = runPacking(loadedProducts);
 
@@ -404,6 +407,95 @@ function duplicateSelectedProduct() {
   p.qty++;
   renderLoader();
   showToast(`⧉ "${p.name}" duplicado (${p.qty} unidades)`, 'success');
+}
+
+
+// ── CAMIÓN 3D PARA SEMIS ──
+function drawTruck(scene, CL, CW, CH) {
+  if (!currentContainerType.startsWith('semi')) return;
+
+  const truckGroup = new THREE.Group();
+  const darkGray   = new THREE.MeshPhongMaterial({ color: 0x3a3a3a, shininess: 40 });
+  const midGray    = new THREE.MeshPhongMaterial({ color: 0x666666, shininess: 20 });
+  const lightGray  = new THREE.MeshPhongMaterial({ color: 0x999999, shininess: 10 });
+  const black      = new THREE.MeshPhongMaterial({ color: 0x111111 });
+  const chrome     = new THREE.MeshPhongMaterial({ color: 0xcccccc, shininess: 80 });
+
+  // ── Semirremolque (caja de carga) — alineado con el contenedor ──
+  // Ya está dibujado como el contenedor, solo agregamos la cabina y ejes
+
+  // ── Cabina ──
+  const cabH = CH * 0.85;
+  const cabL = 220; // ~2.2m de largo cabina
+  const cabW = CW;
+
+  // Cuerpo cabina
+  const cabGeo = new THREE.BoxGeometry(cabL, cabH, cabW);
+  const cab = new THREE.Mesh(cabGeo, darkGray);
+  cab.position.set(-cabL / 2, cabH / 2, CW / 2);
+  truckGroup.add(cab);
+
+  // Parabrisas
+  const windGeo = new THREE.BoxGeometry(8, cabH * 0.45, cabW * 0.7);
+  const windMat = new THREE.MeshPhongMaterial({ color: 0x88aacc, transparent: true, opacity: 0.5, shininess: 60 });
+  const wind = new THREE.Mesh(windGeo, windMat);
+  wind.position.set(-cabL + 4, cabH * 0.65, CW / 2);
+  truckGroup.add(wind);
+
+  // Guardabarros delantero
+  const gfGeo = new THREE.BoxGeometry(60, 20, cabW * 0.55);
+  const gf = new THREE.Mesh(gfGeo, midGray);
+  gf.position.set(-cabL + 30, 40, CW / 2);
+  truckGroup.add(gf);
+
+  // ── Ruedas ──
+  function addWheel(x, z, radius, width) {
+    const wGeo = new THREE.CylinderGeometry(radius, radius, width, 16);
+    const w = new THREE.Mesh(wGeo, black);
+    w.rotation.z = Math.PI / 2;
+    w.position.set(x, radius, z);
+    truckGroup.add(w);
+    // Rin
+    const rGeo = new THREE.CylinderGeometry(radius * 0.55, radius * 0.55, width + 2, 12);
+    const r = new THREE.Mesh(rGeo, chrome);
+    r.rotation.z = Math.PI / 2;
+    r.position.set(x, radius, z);
+    truckGroup.add(r);
+  }
+
+  const R = 50; // radio rueda ~50cm
+  const W = 22; // ancho rueda
+
+  // Ruedas cabina (eje delantero) — debajo de la cabina
+  addWheel(-cabL + 40, 25,  R, W);
+  addWheel(-cabL + 40, CW - 25, R, W);
+
+  // Ejes traseros semirremolque — a 80% y 90% del largo
+  const axle1X = CL * 0.78;
+  const axle2X = CL * 0.88;
+  for (const ax of [axle1X, axle2X]) {
+    addWheel(ax, 20, R, W);
+    addWheel(ax, W + 4, R, W);       // rueda doble izq
+    addWheel(ax, CW - 20, R, W);
+    addWheel(ax, CW - W - 4, R, W);  // rueda doble der
+  }
+
+  // ── Chasis / largueros ──
+  const chassisGeo = new THREE.BoxGeometry(CL + cabL, 12, 20);
+  const chassisL = new THREE.Mesh(chassisGeo, darkGray);
+  chassisL.position.set((CL - cabL) / 2, R - 6, 30);
+  truckGroup.add(chassisL);
+  const chassisR = chassisL.clone();
+  chassisR.position.z = CW - 30;
+  truckGroup.add(chassisR);
+
+  // ── Quinta rueda (kingpin area) ──
+  const kpGeo = new THREE.CylinderGeometry(30, 30, 10, 16);
+  const kp = new THREE.Mesh(kpGeo, chrome);
+  kp.position.set(CL * 0.12, R * 2 + 5, CW / 2);
+  truckGroup.add(kp);
+
+  scene.add(truckGroup);
 }
 
 renderLoader();

@@ -14,11 +14,18 @@ const CONTAINER_TYPES = {
 let currentContainerType = '20ft';
 let CONTAINER_VOL = CONTAINER_TYPES['20ft'].vol;
 let CONT_L = 589, CONT_W = 235, CONT_H = 239;
+let _semiWeightLimit = 28000; // editable por el usuario
 
 function setContainerType(type) {
   if (shipmentContainers[activeContainerIdx]) shipmentContainers[activeContainerIdx].type = type;
   _setContainerTypeInternal(type);
   renderContainerTabs();
+  // Mostrar/ocultar panel semi
+  const semiPanel = document.getElementById('semiPanel');
+  if (semiPanel) semiPanel.style.display = type.startsWith('semi') ? '' : 'none';
+  // Actualizar input con valor actual
+  const inp = document.getElementById('semiWeightLimitInput');
+  if (inp && type.startsWith('semi')) inp.value = _semiWeightLimit;
   renderLoader();
 }
 
@@ -405,8 +412,8 @@ function checkCapacityAndAdd(productData) {
   const volExceeds = totalVol > CONTAINER_VOL;
 
   // Weight check
-  const WEIGHT_LIMITS = { '20ft': 28000, '40ft': 26500, '40hc': 26500, 'semi145': 28000, 'semi155': 28000 };
-  const weightLimit = WEIGHT_LIMITS[currentContainerType] || 28000;
+  const WEIGHT_LIMITS = { '20ft': 28000, '40ft': 26500, '40hc': 26500 };
+  const weightLimit = currentContainerType.startsWith('semi') ? _semiWeightLimit : (WEIGHT_LIMITS[currentContainerType] || 28000);
   const currentWeight = loadedProducts.reduce((s,p) => s + (p.weight||0) * p.qty, 0);
   const addedWeight = (productData.weight||0) * productData.qty;
   const totalWeight = currentWeight + addedWeight;
@@ -634,8 +641,8 @@ function renderLoader() {
   const totalWeight = loadedProducts.reduce((s,p)=>s+(p.weight||0)*p.qty,0);
   const pct = totalVol/CONTAINER_VOL*100;
   const over = totalVol>CONTAINER_VOL;
-  const WEIGHT_LIMITS = { '20ft': 28000, '40ft': 26500, '40hc': 26500, 'semi145': 28000, 'semi155': 28000 };
-  const weightLimit = WEIGHT_LIMITS[currentContainerType] || 28000;
+  const WEIGHT_LIMITS = { '20ft': 28000, '40ft': 26500, '40hc': 26500 };
+  const weightLimit = currentContainerType.startsWith('semi') ? _semiWeightLimit : (WEIGHT_LIMITS[currentContainerType] || 28000);
   const weightOver = totalWeight > weightLimit;
 
   document.getElementById('statVol').textContent = totalVol.toFixed(2);
@@ -753,5 +760,59 @@ function renderLoader() {
   setTimeout(() => drawAllPriorityMarkers(), 80);
   // Update container tabs with latest fill %
   renderContainerTabs();
+  // Actualizar ejes si es semi
+  if (currentContainerType.startsWith('semi')) setTimeout(updateSemiAxles, 50);
 }
 // ══════════════════════════════════════════════
+
+// ── SEMI: límite de peso editable ──
+function setSemiWeightLimit(val) {
+  const v = parseInt(val);
+  if (!v || v < 1000) return;
+  _semiWeightLimit = v;
+  renderLoader();
+  updateSemiAxles();
+}
+
+// ── SEMI: cálculo de peso por eje ──
+function updateSemiAxles() {
+  const panel = document.getElementById('semiAxleInfo');
+  if (!panel) return;
+  if (!currentContainerType.startsWith('semi')) return;
+
+  const totalWeight = loadedProducts.reduce((s, p) => s + (p.weight || 0) * p.qty, 0);
+  if (!totalWeight) {
+    document.getElementById('axleFront').textContent = '—';
+    document.getElementById('axleRear').textContent  = '—';
+    document.getElementById('axleTotal').textContent = '—';
+    return;
+  }
+
+  // Calcular centro de gravedad X de la carga (promedio ponderado por peso)
+  const { packed } = runPackingCached(loadedProducts);
+  let sumWeightX = 0, sumW = 0;
+  for (const box of packed) {
+    const prod = loadedProducts.find(p => String(p.id) === String(box.productId));
+    const w = prod ? (prod.weight || 0) : 0;
+    sumWeightX += (box.x + box.dX / 2) * w;
+    sumW += w;
+  }
+  const cgX = sumW > 0 ? sumWeightX / sumW : CONT_L / 2; // cm desde frente del semi
+
+  // Modelo simplificado de ejes:
+  // Semi: eje delantero (quinta rueda) aprox a 20% del largo, eje trasero a 85%
+  const axleFrontX = CONT_L * 0.20;
+  const axleRearX  = CONT_L * 0.85;
+  const axleSpan   = axleRearX - axleFrontX;
+
+  // Distribución proporcional según posición del CG
+  const rearFraction  = Math.max(0, Math.min(1, (cgX - axleFrontX) / axleSpan));
+  const frontFraction = 1 - rearFraction;
+
+  const frontKg = Math.round(totalWeight * frontFraction);
+  const rearKg  = Math.round(totalWeight * rearFraction);
+
+  document.getElementById('axleFront').textContent = frontKg.toLocaleString('es-AR') + ' kg';
+  document.getElementById('axleRear').textContent  = rearKg.toLocaleString('es-AR')  + ' kg';
+  document.getElementById('axleTotal').textContent = totalWeight.toLocaleString('es-AR') + ' kg';
+}
