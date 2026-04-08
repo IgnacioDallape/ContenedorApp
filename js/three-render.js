@@ -418,7 +418,9 @@ function drawTruck(scene, CL, CW, CH) {
   function loadGLTFLoader(cb) {
     if (typeof THREE.GLTFLoader !== 'undefined') { cb(); return; }
     const s = document.createElement('script');
-    s.src = 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js';
+    // Cargar desde el mismo repo (js/GLTFLoader.js) — mismo origen, sin CORS
+    const base = window.location.pathname.replace(/\/[^/]*$/, '/');
+    s.src = base + 'js/GLTFLoader.js';
     s.onload = cb;
     s.onerror = () => { console.warn('GLTFLoader no disponible'); drawTruckFallback(scene, CL, CW, CH); };
     document.head.appendChild(s);
@@ -493,9 +495,9 @@ function drawSemiAxles(scene, CL, CW, CH) {
   const R = 52, TW = 26;
 
   function addWheel(x, z) {
-    // Torus: por defecto en plano XY → rotar PI/2 en X para que quede parado (plano XZ)
+    // Torus: por defecto en plano XY → rotar PI/2 en Z para que quede parado sobre el piso
     const tire = new THREE.Mesh(new THREE.TorusGeometry(R*0.78, R*0.22, 10, 22), mTire);
-    tire.rotation.x = Math.PI/2;
+    tire.rotation.z = Math.PI/2;
     tire.position.set(x, -R, z);
     g.add(tire);
     // Rin y hub: cilindro horizontal → rotation.z = PI/2
