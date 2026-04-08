@@ -31,7 +31,7 @@ _sb.auth.onAuthStateChange((event, session) => {
   if (event === 'PASSWORD_RECOVERY') { switchPanel('panelReset'); showLoginPage(); }
 });
 
-function enterApp(user) {
+async function enterApp(user) {
   currentUser = user;
   window.currentUser = user;
   const label = user.user_metadata?.username || user.email.split('@')[0];
@@ -40,6 +40,42 @@ function enterApp(user) {
   const lp = document.getElementById('loginPage');
   lp.classList.add('hidden');
   setTimeout(() => lp.style.display = 'none', 500);
+
+  // Leer plan del usuario desde Supabase
+  try {
+    const { data } = await _sb
+      .from('subscriptions')
+      .select('plan, status')
+      .eq('user_id', user.id)
+      .single();
+    window._userPlan = (data && data.status === 'active') ? data.plan : 'none';
+  } catch(e) {
+    window._userPlan = 'none';
+  }
+
+  document.getElementById('appShell').style.display = 'flex';
+  if (typeof applyPlanRestrictions === 'function') applyPlanRestrictions();
+}
+
+function applyPlanRestrictions() {
+  const plan = window._userPlan || 'none';
+  const hasPro    = ['pro', 'promax'].includes(plan);
+  const hasProMax = plan === 'promax';
+  const hasAny    = plan !== 'none';
+
+  const navNCM       = document.querySelector('[onclick*="ncm"]');
+  const navSim       = document.querySelector('[onclick*="simulator"]');
+  const navPrices    = document.querySelector('[onclick*="prices"]');
+  const navContainer = document.querySelector('[onclick*="container"]');
+  const navCatalog   = document.querySelector('[onclick*="catalog"]');
+  const navPallet    = document.querySelector('[onclick*="palletbuilder"]');
+
+  if (navNCM)       navNCM.style.opacity       = hasAny    ? '1' : '0.4';
+  if (navSim)       navSim.style.opacity       = hasAny    ? '1' : '0.4';
+  if (navPrices)    navPrices.style.opacity    = hasAny    ? '1' : '0.4';
+  if (navContainer) navContainer.style.opacity = hasPro    ? '1' : '0.4';
+  if (navCatalog)   navCatalog.style.opacity   = hasPro    ? '1' : '0.4';
+  if (navPallet)    navPallet.style.opacity    = hasProMax ? '1' : '0.4';
 }
 
 function showLoginPage() {
@@ -86,6 +122,7 @@ async function doLogout() {
   try { await _sb.auth.signOut(); } catch(e) { console.error('Error al cerrar sesión:', e); }
   currentUser = null;
   window.currentUser = null;
+  window._userPlan = 'none';
   switchPanel('panelLogin');
   showLoginPage();
 }

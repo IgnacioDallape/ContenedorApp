@@ -6,6 +6,18 @@ const CL_SECTIONS = ['container','catalog','palletbuilder'];
 const IP_SECTIONS = ['calc','products','ncm','simulator','settings','prices'];
 
 function switchSection(id) {
+  // Validación de plan
+  const plan = window._userPlan || 'none';
+  const proSections    = ['container', 'catalog'];
+  const promaxSections = ['palletbuilder'];
+
+  if (proSections.includes(id) && !['pro', 'promax'].includes(plan)) {
+    showUpgradeModal('Pro'); return;
+  }
+  if (promaxSections.includes(id) && plan !== 'promax') {
+    showUpgradeModal('Pro Max'); return;
+  }
+
   document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
   const clicked = [...document.querySelectorAll('.nav-item')].find(b => b.getAttribute('onclick')?.includes(`'${id}'`));
   if (clicked) clicked.classList.add('active');
@@ -33,6 +45,35 @@ function switchSection(id) {
 
 function switchTab(tab) {
   switchSection(tab);
+}
+
+function showUpgradeModal(planName) {
+  const existing = document.getElementById('upgradeModal');
+  if (existing) existing.remove();
+  const modal = document.createElement('div');
+  modal.id = 'upgradeModal';
+  modal.className = 'cap-overlay open';
+  modal.style.zIndex = '400';
+  modal.innerHTML = `
+    <div class="cap-modal" style="max-width:420px;text-align:center;padding:32px">
+      <div style="font-size:40px;margin-bottom:16px">🚀</div>
+      <div class="cap-title">Plan ${planName} requerido</div>
+      <p style="color:var(--muted);font-size:14px;margin:12px 0 24px">
+        Esta función está disponible en el plan ${planName} o superior.
+      </p>
+      <a href="https://ignaciodallape.github.io/containerloader-landing/#precios"
+         target="_blank"
+         style="display:inline-block;padding:12px 28px;background:var(--c1);
+                color:var(--c5);border-radius:8px;font-weight:700;
+                text-decoration:none;font-size:14px">
+        Ver planes →
+      </a><br><br>
+      <button onclick="document.getElementById('upgradeModal').remove()"
+              style="background:none;border:none;color:var(--muted);cursor:pointer">
+        Cerrar
+      </button>
+    </div>`;
+  document.body.appendChild(modal);
 }
 
 // ══════════════════════════════════════════
@@ -69,16 +110,3 @@ document.addEventListener('DOMContentLoaded', () => {
   if (typeof renderLoader === 'function') renderLoader();
   if (typeof renderCatalog === 'function') renderCatalog();
 });
-
-// ══════════════════════════════════════════
-// AUTH: enterApp shows appShell
-// ══════════════════════════════════════════
-function enterApp(user) {
-  currentUser = user;
-  const label = user.user_metadata?.username || user.email.split('@')[0];
-  const el = document.getElementById('headerUserName');
-  if (el) el.textContent = label;
-  const lp = document.getElementById('loginPage');
-  if (lp) { lp.classList.add('hidden'); setTimeout(() => lp.style.display = 'none', 500); }
-  document.getElementById('appShell').style.display = 'flex';
-}
