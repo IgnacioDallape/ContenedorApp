@@ -442,11 +442,9 @@ function pb_addActiveToContainer() {
 function pb_addAllToContainer() {
   if (!pb_results.length) return showToast('Armá los pallets primero', 'error');
 
-  // Encolar pallets y procesarlos de a uno para que checkCapacityAndAdd
-  // pueda mostrar el modal "enviar a nuevo contenedor" sin saltarse los siguientes
-  const queue = pb_results.map(result => {
+  for (const result of pb_results) {
     const pt = PB_PALLET_TYPES[result.type];
-    return {
+    const productData = {
       name: 'Pallet ' + result.id + ' (' + result.totalBoxes + ' cj)',
       type: 'pallet',
       dims: { L: pt.L, W: pt.W, H: result.heightUsed + 14 },
@@ -457,21 +455,11 @@ function pb_addAllToContainer() {
       packedItems: result.boxes,
       palletBase: { L: pt.L, W: pt.W },
     };
-  });
-
-  function processNext() {
-    if (!queue.length) return;
-    const productData = queue.shift();
-    if (queue.length > 0) {
-      // Hay más en cola — encadenar via callback post-add
-      window._afterAddCallback = processNext;
-    }
-    checkCapacityAndAdd(productData);
+    doAddProduct(productData);
   }
 
   switchSection('container');
-  processNext();
-  showToast('✓ Agregando ' + pb_results.length + ' pallet' + (pb_results.length > 1 ? 's' : '') + ' al contenedor', 'success');
+  showToast('✓ ' + pb_results.length + ' pallets agregados al contenedor', 'success');
 }
 
 // ── GESTIÓN DE PRODUCTOS ──
