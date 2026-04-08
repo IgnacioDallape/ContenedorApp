@@ -258,7 +258,8 @@ function pb_renderResults(leftover) {
   el.innerHTML = `
     <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;align-items:center">
       ${tabs}
-      <button onclick="pb_addAllToContainer()" style="margin-left:auto;padding:6px 16px;font-size:11px;font-family:'DM Mono',monospace;letter-spacing:0.5px;border-radius:6px;cursor:pointer;border:1.5px solid var(--c1);background:var(--c1);color:var(--c5);font-weight:700;white-space:nowrap">+ Agregar al contenedor</button>
+      <button onclick="pb_addActiveToContainer()" style="margin-left:auto;padding:6px 16px;font-size:11px;font-family:'DM Mono',monospace;letter-spacing:0.5px;border-radius:6px;cursor:pointer;border:1.5px solid var(--c1);background:var(--c1);color:var(--c5);font-weight:700;white-space:nowrap">+ Este pallet</button>
+      ${pb_results.length > 1 ? `<button onclick="pb_addAllToContainer()" style="padding:6px 16px;font-size:11px;font-family:'DM Mono',monospace;letter-spacing:0.5px;border-radius:6px;cursor:pointer;border:1.5px solid var(--c1);background:transparent;color:var(--c1);font-weight:700;white-space:nowrap">+ Todos (${pb_results.length})</button>` : ''}
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;margin-bottom:14px">
       <div style="background:var(--surface2);border-radius:8px;padding:10px 14px;border:1px solid var(--border)">
@@ -414,6 +415,27 @@ function pb_draw3D(result) {
     pb_three.controls.target.set(palL / 2, (result.heightUsed + PALLET_H) / 2, palW / 2);
     pb_three.controls.update();
   }
+}
+
+
+function pb_addActiveToContainer() {
+  if (!pb_results.length) return showToast("Armá los pallets primero", "error");
+  const result = pb_results[pb_activeResult];
+  const pt = PB_PALLET_TYPES[result.type];
+  const productData = {
+    name: "Pallet " + result.id + " (" + result.totalBoxes + " cj)",
+    type: "pallet",
+    dims: { L: pt.L, W: pt.W, H: result.heightUsed + 14 },
+    qty: 1,
+    price: 0,
+    weight: result.totalWeight,
+    priorityZone: null,
+    packedItems: result.boxes,
+    palletBase: { L: pt.L, W: pt.W },
+  };
+  switchSection("container");
+  checkCapacityAndAdd(productData);
+  showToast("✓ Pallet " + result.id + " agregado al contenedor", "success");
 }
 
 // ── AGREGAR AL CONTENEDOR ──
