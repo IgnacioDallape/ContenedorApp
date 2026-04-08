@@ -410,211 +410,137 @@ function duplicateSelectedProduct() {
 }
 
 
-// ── CAMIÓN 3D PARA SEMIS ──
+// ── CAMIÓN 3D PARA SEMIS — carga GLB via GLTFLoader ──
 function drawTruck(scene, CL, CW, CH) {
   if (!currentContainerType.startsWith('semi')) return;
 
-  const g = new THREE.Group();
+  // Cargar GLTFLoader desde jsdelivr (compatible r128)
+  function loadGLTFLoader(cb) {
+    if (typeof THREE.GLTFLoader !== 'undefined') { cb(); return; }
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js';
+    s.onload = cb;
+    s.onerror = () => { console.warn('GLTFLoader no disponible'); drawTruckFallback(scene, CL, CW, CH); };
+    document.head.appendChild(s);
+  }
 
-  // ── Materiales ──
-  const mBody    = new THREE.MeshPhongMaterial({ color:0x1a1f24, shininess:60, specular:0x334455 });
-  const mBumper  = new THREE.MeshPhongMaterial({ color:0xcccccc, shininess:120, specular:0xffffff });
-  const mGlass   = new THREE.MeshPhongMaterial({ color:0x3a5f8a, transparent:true, opacity:0.6, shininess:120, specular:0xaaccff });
-  const mTire    = new THREE.MeshPhongMaterial({ color:0x111111, shininess:8 });
-  const mRim     = new THREE.MeshPhongMaterial({ color:0xbbbbbb, shininess:150, specular:0xffffff });
-  const mChrome  = new THREE.MeshPhongMaterial({ color:0x999999, shininess:100, specular:0xffffff });
-  const mChassis = new THREE.MeshPhongMaterial({ color:0x222222, shininess:15 });
-  const mExhaust = new THREE.MeshPhongMaterial({ color:0x555555, shininess:40 });
-  const mLight   = new THREE.MeshPhongMaterial({ color:0xffffaa, shininess:200, specular:0xffffff, emissive:0x332200 });
+  loadGLTFLoader(() => {
+    const loader = new THREE.GLTFLoader();
+    // El archivo debe estar en assets/truck.glb dentro del repo
+    const url = 'assets/truck.glb';
 
-  const R  = 52;  // radio rueda cm
-  const TW = 26;  // ancho rueda
+    loader.load(url, (gltf) => {
+      const truck = gltf.scene;
 
-  // ── RUEDA: goma + rin + radios ──
-  function addWheel(x, z) {
-    // Neumático
-    const tire = new THREE.Mesh(
-      new THREE.TorusGeometry(R * 0.78, R * 0.22, 12, 24),
-      mTire
-    );
-    tire.rotation.y = Math.PI / 2;
-    tire.position.set(x, -R, z);
-    g.add(tire);
-    // Cara interna del neumático
-    const sideGeo = new THREE.CylinderGeometry(R, R, TW * 0.3, 20);
-    const side = new THREE.Mesh(sideGeo, mTire);
-    side.rotation.z = Math.PI / 2;
-    side.position.set(x, -R, z);
-    g.add(side);
-    // Rin
-    const rim = new THREE.Mesh(
-      new THREE.CylinderGeometry(R * 0.58, R * 0.58, TW * 0.28, 18),
-      mRim
-    );
-    rim.rotation.z = Math.PI / 2;
-    rim.position.set(x, -R, z);
-    g.add(rim);
-    // Hub
-    const hub = new THREE.Mesh(
-      new THREE.CylinderGeometry(R * 0.15, R * 0.15, TW * 0.32, 8),
-      mChrome
-    );
-    hub.rotation.z = Math.PI / 2;
-    hub.position.set(x, -R, z);
-    g.add(hub);
-    // Radios (6)
-    for (let i = 0; i < 6; i++) {
-      const angle = (i / 6) * Math.PI * 2;
-      const spoke = new THREE.Mesh(
-        new THREE.BoxGeometry(TW * 0.26, R * 0.08, R * 0.42),
-        mRim
+      // El modelo tiene largo en eje Y → rotar para que quede en eje X
+      truck.rotation.x = Math.PI / 2;   // Y→Z primero
+      truck.rotation.z = -Math.PI / 2;  // luego Z→X
+
+      // Escala: ajustamos para que la cabina mida ~200cm de largo y ~CH de alto
+      // Bounding box del GLB: Y=8.073, X=5.474, Z=3.815 (unidades)
+      // Queremos alto = CH*0.9 → scale = CH*0.9 / 547.4
+      const scale = (CH * 0.88) / 547.4;
+      truck.scale.set(scale, scale, scale);
+
+      // Ancho del modelo escalado en Z
+      const modelW = 381.5 * scale;
+      const modelL = 807.3 * scale;
+
+      // Centrar en Z (ancho del semi) y posicionar en X (antes del semi)
+      truck.position.set(
+        -modelL * 0.5 - 20,   // justo antes del frente del semirremolque
+        0,                     // piso
+        (CW - modelW) / 2      // centrado en ancho
       );
-      spoke.rotation.x = angle;
-      spoke.rotation.z = Math.PI / 2;
-      spoke.position.set(x, -R + Math.sin(angle) * R * 0.38, z + Math.cos(angle) * R * 0.38);
-      g.add(spoke);
-    }
-  }
 
-  // ── Rueda doble (dos ruedas juntas) ──
-  function addDoubleWheel(x, zOuter) {
-    const gap = TW * 0.7;
-    addWheel(x, zOuter);
-    addWheel(x, zOuter + gap + TW * 0.5);
-  }
+      // Mejorar materiales — oscurecer para que combine con la escena
+      truck.traverse(child => {
+        if (child.isMesh) {
+          child.castShadow = true;
+          child.receiveShadow = true;
+          if (child.material) {
+            if (Array.isArray(child.material)) {
+              child.material.forEach(m => { if (m.color) m.color.multiplyScalar(0.85); });
+            } else {
+              if (child.material.color) child.material.color.multiplyScalar(0.85);
+            }
+          }
+        }
+      });
 
-  // ── 3 EJES TRASEROS ──
-  const e1 = CL * 0.70, e2 = e1 + 138, e3 = e2 + 138;
-  for (const ex of [e1, e2, e3]) {
-    addDoubleWheel(ex, -(TW * 1.5 + 8));          // lado iz exterior
-    addDoubleWheel(ex, CW + 8);                    // lado der exterior
-  }
+      scene.add(truck);
 
-  // ── EJE DELANTERO ──
-  const fax = -150;
-  addWheel(fax, -(TW * 0.6));
-  addWheel(fax, CW + TW * 0.6);
+      // Ejes traseros del semirremolque (siempre con geometría propia)
+      drawSemiAxles(scene, CL, CW, CH);
 
-  // ── CHASIS perfil I ──
-  const chH = 24;
-  [-28, CW + 28].forEach(zc => {
-    [[-chH/2, chH, 14], [-1, 5, 30], [-chH-1, 5, 30]].forEach(([y, h, w]) => {
-      const m = new THREE.Mesh(new THREE.BoxGeometry(CL + 240, h, w), mChassis);
-      m.position.set(CL/2 - 120, y, zc);
-      g.add(m);
+    }, undefined, (err) => {
+      console.warn('Error cargando truck.glb, usando fallback:', err);
+      drawTruckFallback(scene, CL, CW, CH);
     });
   });
-  // Travesaños
-  for (let tx = 0; tx <= CL + 20; tx += 170) {
-    const m = new THREE.Mesh(new THREE.BoxGeometry(10, chH, CW + 56 + 30), mChassis);
-    m.position.set(tx, -chH/2, CW/2);
+}
+
+// ── EJES TRASEROS (siempre se dibujan, independiente del GLB) ──
+function drawSemiAxles(scene, CL, CW, CH) {
+  const g = new THREE.Group();
+  const mTire   = new THREE.MeshPhongMaterial({ color:0x111111, shininess:8 });
+  const mRim    = new THREE.MeshPhongMaterial({ color:0xbbbbbb, shininess:120, specular:0xffffff });
+  const mChrome = new THREE.MeshPhongMaterial({ color:0x888888, shininess:60 });
+  const mChassis= new THREE.MeshPhongMaterial({ color:0x222222, shininess:10 });
+
+  const R = 52, TW = 26;
+
+  function addWheel(x, z) {
+    const tire = new THREE.Mesh(new THREE.TorusGeometry(R*0.78, R*0.22, 10, 22), mTire);
+    tire.rotation.y = Math.PI/2;
+    tire.position.set(x, -R, z);
+    g.add(tire);
+    const rim = new THREE.Mesh(new THREE.CylinderGeometry(R*0.55, R*0.55, TW*0.3, 16), mRim);
+    rim.rotation.z = Math.PI/2;
+    rim.position.set(x, -R, z);
+    g.add(rim);
+    const hub = new THREE.Mesh(new THREE.CylinderGeometry(R*0.14, R*0.14, TW*0.32, 8), mChrome);
+    hub.rotation.z = Math.PI/2;
+    hub.position.set(x, -R, z);
+    g.add(hub);
+  }
+
+  function addDouble(x, zOuter) {
+    addWheel(x, zOuter);
+    addWheel(x, zOuter + TW + 8);
+  }
+
+  // 3 ejes traseros
+  const e1 = CL*0.70, e2 = e1+138, e3 = e2+138;
+  for (const ex of [e1, e2, e3]) {
+    addDouble(ex, -(TW*2+10));
+    addDouble(ex, CW+10);
+  }
+
+  // Chasis
+  [-28, CW+28].forEach(zc => {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(CL+10, 22, 14), mChassis);
+    m.position.set(CL/2, -11, zc);
+    g.add(m);
+  });
+  for (let tx = 0; tx <= CL; tx += 170) {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(10, 22, CW+56+14), mChassis);
+    m.position.set(tx, -11, CW/2);
     g.add(m);
   }
 
-  // ── QUINTA RUEDA ──
-  const kp = new THREE.Mesh(new THREE.CylinderGeometry(46, 46, 8, 20), mChrome);
-  kp.position.set(CL * 0.10, 4, CW/2);
-  g.add(kp);
-  const kpBase = new THREE.Mesh(new THREE.BoxGeometry(110, 14, 120), mChassis);
-  kpBase.position.set(CL * 0.10, -7, CW/2);
-  g.add(kpBase);
+  scene.add(g);
+}
 
-  // ── CABINA tipo Actros ──
-  // Proporciones: alto ~290cm, largo ~200cm, ancho = CW
-  const CabL = 200, CabH = Math.min(CH * 0.92, 290), CabW = CW;
-  const CX = -CabL/2 - 8;  // centro X de la cabina
-  const CY = CabH/2;
-
-  // Cuerpo principal
-  const cabMain = new THREE.Mesh(new THREE.BoxGeometry(CabL, CabH * 0.58, CabW), mBody);
-  cabMain.position.set(CX, CabH * 0.29, CabW/2);
-  g.add(cabMain);
-
-  // Parte superior (levemente más angosta — perfil aerodinámico)
-  const cabTop = new THREE.Mesh(new THREE.BoxGeometry(CabL * 0.92, CabH * 0.42, CabW * 0.94), mBody);
-  cabTop.position.set(CX - CabL*0.04, CabH * 0.71, CabW/2);
-  g.add(cabTop);
-
-  // Frente inferior (capó corto — Actros tiene frente plano bajo)
-  const capot = new THREE.Mesh(new THREE.BoxGeometry(22, CabH * 0.38, CabW * 0.88), mBody);
-  capot.position.set(CX - CabL/2 + 11, CabH * 0.19, CabW/2);
-  g.add(capot);
-
-  // Parabrisas (inclinado ligeramente)
-  const windshield = new THREE.Mesh(new THREE.BoxGeometry(10, CabH * 0.36, CabW * 0.72), mGlass);
-  windshield.position.set(CX - CabL/2 * 0.88, CabH * 0.72, CabW/2);
-  g.add(windshield);
-
-  // Ventana lateral der
-  const winSideR = new THREE.Mesh(new THREE.BoxGeometry(CabL * 0.35, CabH * 0.28, 7), mGlass);
-  winSideR.position.set(CX + CabL * 0.08, CabH * 0.72, CabW - 3);
-  g.add(winSideR);
-  // Ventana lateral izq
-  const winSideL = winSideR.clone();
-  winSideL.position.set(CX + CabL * 0.08, CabH * 0.72, 3);
-  g.add(winSideL);
-
-  // Spoiler / visera sobre el parabrisas
-  const spoiler = new THREE.Mesh(new THREE.BoxGeometry(CabL * 0.72, 16, CabW * 0.84), mBody);
-  spoiler.position.set(CX - CabL * 0.06, CabH + 8, CabW/2);
-  g.add(spoiler);
-
-  // Deflectores laterales del spoiler
-  [-1, 1].forEach(side => {
-    const def = new THREE.Mesh(new THREE.BoxGeometry(CabL * 0.55, CabH * 0.25, 14), mBody);
-    def.position.set(CX - CabL * 0.1, CabH * 0.88, side > 0 ? CabW + 7 : -7);
-    g.add(def);
-  });
-
-  // Parachoques inferior (cromo/gris claro)
-  const bumper = new THREE.Mesh(new THREE.BoxGeometry(18, 44, CabW * 0.86), mBumper);
-  bumper.position.set(CX - CabL/2 + 9, 22, CabW/2);
-  g.add(bumper);
-
-  // Rejilla de ventilación (franjas oscuras en el frente)
-  for (let i = 0; i < 4; i++) {
-    const grill = new THREE.Mesh(new THREE.BoxGeometry(6, 8, CabW * 0.55), mChassis);
-    grill.position.set(CX - CabL/2 + 3, 60 + i * 18, CabW/2);
-    g.add(grill);
-  }
-
-  // Faros (LED-like: forma rectangular baja)
-  [-1,1].forEach(side => {
-    const faro = new THREE.Mesh(new THREE.BoxGeometry(12, 18, 38), mLight);
-    faro.position.set(CX - CabL/2 + 6, 55, side > 0 ? CabW - 22 : 22);
-    g.add(faro);
-    // Luz de posición
-    const drl = new THREE.Mesh(new THREE.BoxGeometry(8, 8, CabW * 0.36), mLight);
-    drl.position.set(CX - CabL/2 + 4, 82, side > 0 ? CabW - CabW*0.18 : CabW*0.18);
-    g.add(drl);
-  });
-
-  // Espejos retrovisores
-  [-1,1].forEach(side => {
-    const arm = new THREE.Mesh(new THREE.BoxGeometry(36, 8, 10), mChrome);
-    arm.position.set(CX + CabL/2 - 18, CabH * 0.75, side > 0 ? CabW + 5 : -5);
-    g.add(arm);
-    const mirror = new THREE.Mesh(new THREE.BoxGeometry(8, 28, 18), mGlass);
-    mirror.position.set(CX + CabL/2, CabH * 0.72, side > 0 ? CabW + 14 : -14);
-    g.add(mirror);
-  });
-
-  // Escape (tubo vertical, lado der detrás de cabina)
-  const esc = new THREE.Mesh(new THREE.CylinderGeometry(7, 7, CabH * 0.68, 10), mExhaust);
-  esc.position.set(CX + CabL/2 - 12, CabH * 0.34 + 20, CabW - 20);
-  g.add(esc);
-  // Capuchón del escape
-  const escCap = new THREE.Mesh(new THREE.CylinderGeometry(10, 7, 16, 10), mExhaust);
-  escCap.position.set(CX + CabL/2 - 12, CabH * 0.68 + 28, CabW - 20);
-  g.add(escCap);
-
-  // Escalones (2 peldaños)
-  [20, 50].forEach(hy => {
-    const step = new THREE.Mesh(new THREE.BoxGeometry(28, 12, CabW * 0.5), mChassis);
-    step.position.set(CX + CabL/2 - 14, hy, CabW/2);
-    g.add(step);
-  });
-
+// ── FALLBACK si no carga el GLB ──
+function drawTruckFallback(scene, CL, CW, CH) {
+  drawSemiAxles(scene, CL, CW, CH);
+  // Cabina básica
+  const g = new THREE.Group();
+  const m = new THREE.MeshPhongMaterial({ color:0x1a1f24, shininess:40 });
+  const cab = new THREE.Mesh(new THREE.BoxGeometry(190, CH*0.88, CW), m);
+  cab.position.set(-95, CH*0.44, CW/2);
+  g.add(cab);
   scene.add(g);
 }
 
