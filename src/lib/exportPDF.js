@@ -139,6 +139,92 @@ export function exportShipmentPDF({ containers, currentContainerType, shipmentNa
     });
   }
 
+  // ── Instrucciones de carga ────────────────────────────────────────────────
+  doc.addPage();
+  const pageH2 = doc.internal.pageSize.getHeight();
+
+  doc.setFillColor(141, 121, 102);
+  doc.rect(0, 0, pageW, 18, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(13);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Instrucciones de carga', margin, 12);
+
+  // Calcular datos reales de todos los contenedores
+  const allProducts = containers.flatMap(c => c.products || []);
+  const pallets   = allProducts.filter(p => p.type === 'pallet');
+  const boxes     = allProducts.filter(p => p.type !== 'pallet');
+  const heavy     = [...allProducts].filter(p => p.weight > 0).sort((a, b) => b.weight - a.weight);
+  const byVol     = [...allProducts].sort((a, b) => (b.dims.L*b.dims.W*b.dims.H) - (a.dims.L*a.dims.W*a.dims.H));
+  const withZone  = allProducts.filter(p => p.priorityZone);
+
+  let iy = 28;
+
+  function section(title) {
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(141, 121, 102);
+    doc.text(title, margin, iy);
+    iy += 1;
+    doc.setDrawColor(200, 185, 165);
+    doc.line(margin, iy, pageW - margin, iy);
+    iy += 5;
+  }
+
+  function bullet(icon, text) {
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(60, 50, 40);
+    const lines = doc.splitTextToSize(`${icon}  ${text}`, pageW - margin * 2 - 6);
+    doc.text(lines, margin + 3, iy);
+    iy += lines.length * 5 + 1;
+  }
+
+  // 1. Orden de carga
+  section('1. Orden de carga recomendado');
+  if (pallets.length > 0) {
+    bullet('①', `Cargá primero los ${pallets.length} pallet(s) — van en la base del contenedor por su mayor volumen y peso.`);
+  }
+  if (byVol.length > 0) {
+    const top = byVol.slice(0, 3).map(p => `${p.name} (${p.dims.L}×${p.dims.W}×${p.dims.H} cm)`).join(', ');
+    bullet('②', `Luego las cajas más grandes primero: ${top}.`);
+  }
+  bullet('③', 'Finalizá con los productos más pequeños y livianos, rellenando los espacios vacíos.');
+  if (withZone.length > 0) {
+    const zoneNames = [...new Set(withZone.map(p => p.priorityZone))].join(', ');
+    bullet('⚠', `Respetá las zonas de prioridad configuradas: ${zoneNames}. Estos productos deben ir en el sector indicado.`);
+  }
+  iy += 2;
+
+  // 2. Distribución del peso
+  section('2. Distribución del peso');
+  if (heavy.length > 0) {
+    const top = heavy.slice(0, 3).map(p => `${p.name} (${fmt(p.weight, 1)} kg/u)`).join(', ');
+    bullet('⬇', `Los más pesados van en la parte inferior: ${top}.`);
+  }
+  bullet('↔', 'Distribuí el peso de forma uniforme entre lado izquierdo y derecho del contenedor para evitar vuelcos.');
+  bullet('↑', 'Nunca apilés productos pesados sobre frágiles. Los livianos siempre arriba.');
+  iy += 2;
+
+  // 3. Estiba y seguridad
+  section('3. Estiba y aseguramiento');
+  bullet('📦', 'Usá esquineros de cartón o madera en los cantos de las cajas para proteger bordes durante el transporte.');
+  bullet('🔒', 'Flejá o envolvé con film stretch los pallets antes de introducirlos al contenedor.');
+  bullet('🧱', 'Completá los espacios vacíos con relleno (aire, espuma, papel) para evitar movimiento durante el viaje.');
+  bullet('📋', 'Pegá la lista de contenido (packing list) en el interior de la puerta del contenedor.');
+  iy += 2;
+
+  // 4. Resumen rápido
+  section('4. Resumen del embarque');
+  const totU = allProducts.reduce((s, p) => s + p.qty, 0);
+  const totV = allProducts.reduce((s, p) => s + p.vol * p.qty, 0);
+  const totW = allProducts.reduce((s, p) => s + (p.weight || 0) * p.qty, 0);
+  bullet('📊', `Total: ${totU} unidades · ${fmt(totV)} m³ · ${fmt(totW, 1)} kg en ${containers.length} contenedor(es).`);
+  if (totW > 0) {
+    const densidad = totW / totV;
+    bullet('⚖', `Densidad promedio de carga: ${fmt(densidad, 1)} kg/m³.`);
+  }
+
   // ── Footer en todas las páginas ────────────────────────────────────────────
   const pageH = doc.internal.pageSize.getHeight();
   const totalPages = doc.getNumberOfPages();
