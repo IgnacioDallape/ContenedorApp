@@ -45,7 +45,7 @@ export function exportShipmentPDF({ containers, currentContainerType, shipmentNa
   doc.setTextColor(60, 50, 40);
   doc.setFontSize(15);
   doc.setFont('helvetica', 'bold');
-  doc.text(shipmentName || 'Resumen de embarque', margin, y);
+  doc.text(ascii(shipmentName || 'Resumen de embarque'), margin, y);
   y += 8;
 
   // ── Por cada contenedor ────────────────────────────────────────────────────
@@ -63,7 +63,7 @@ export function exportShipmentPDF({ containers, currentContainerType, shipmentNa
     doc.setFontSize(10);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(141, 121, 102);
-    doc.text(`Contenedor ${ci + 1} — ${CONTAINER_LABELS[cont.type] || cont.type}`, margin, y);
+    doc.text(ascii(`Contenedor ${ci + 1} - ${CONTAINER_LABELS[cont.type] || cont.type}`), margin, y);
     y += 5;
 
     // Stats row
@@ -76,16 +76,16 @@ export function exportShipmentPDF({ containers, currentContainerType, shipmentNa
       `Peso: ${fmt(totalWeight, 1)} kg`,
       `Valor: ${usd(totalValue)}`,
     ];
-    doc.text(stats.join('     '), margin, y);
+    doc.text(ascii(stats.join('     ')), margin, y);
     y += 6;
 
     // Products table
     autoTable(doc, {
       startY: y,
       margin: { left: margin, right: margin },
-      head: [['Producto', 'Tipo', 'Dims (cm)', 'Cant.', 'Vol. total (m³)', 'Peso tot. (kg)', 'Precio/u', 'Subtotal']],
+      head: [['Producto', 'Tipo', 'Dims (cm)', 'Cant.', 'Vol. total (m3)', 'Peso tot. (kg)', 'Precio/u', 'Subtotal']],
       body: products.map(p => [
-        p.name,
+        ascii(p.name),
         p.type === 'pallet' ? 'Pallet' : 'Caja',
         `${p.dims.L}×${p.dims.W}×${p.dims.H}`,
         p.qty,
@@ -134,13 +134,13 @@ export function exportShipmentPDF({ containers, currentContainerType, shipmentNa
       doc.setTextColor(255, 255, 255);
       doc.setFontSize(8);
       doc.setFont('helvetica', 'bold');
-      doc.text('ImportaPro — Visualización 3D', margin, 7);
+      doc.text('ImportaPro - Visualizacion 3D', margin, 7);
 
       // Label
       doc.setFontSize(13);
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(141, 121, 102);
-      doc.text(v.label, pageW / 2, 22, { align: 'center' });
+      doc.text(ascii(v.label), pageW / 2, 22, { align: 'center' });
 
       // Image centered vertically
       const iy = (pageH - imgH) / 2 - 4;
@@ -150,7 +150,6 @@ export function exportShipmentPDF({ containers, currentContainerType, shipmentNa
 
   // ── Instrucciones de carga ────────────────────────────────────────────────
   doc.addPage();
-  const pageH2 = doc.internal.pageSize.getHeight();
 
   doc.setFillColor(141, 121, 102);
   doc.rect(0, 0, pageW, 18, 'F');
@@ -159,80 +158,121 @@ export function exportShipmentPDF({ containers, currentContainerType, shipmentNa
   doc.setFont('helvetica', 'bold');
   doc.text('Instrucciones de carga', margin, 12);
 
-  // Calcular datos reales de todos los contenedores
+  // Datos reales
   const allProducts = containers.flatMap(c => c.products || []);
-  const pallets   = allProducts.filter(p => p.type === 'pallet');
-  const boxes     = allProducts.filter(p => p.type !== 'pallet');
-  const heavy     = [...allProducts].filter(p => p.weight > 0).sort((a, b) => b.weight - a.weight);
-  const byVol     = [...allProducts].sort((a, b) => (b.dims.L*b.dims.W*b.dims.H) - (a.dims.L*a.dims.W*a.dims.H));
-  const withZone  = allProducts.filter(p => p.priorityZone);
+  const pallets  = allProducts.filter(p => p.type === 'pallet');
+  const boxes    = allProducts.filter(p => p.type !== 'pallet');
+  const heavy    = [...allProducts].filter(p => p.weight > 0).sort((a, b) => b.weight - a.weight);
+  const byVol    = [...allProducts].sort((a, b) => (b.dims.L*b.dims.W*b.dims.H) - (a.dims.L*a.dims.W*a.dims.H));
+  const withZone = allProducts.filter(p => p.priorityZone);
+  const totU = allProducts.reduce((s, p) => s + p.qty, 0);
+  const totV = allProducts.reduce((s, p) => s + p.vol * p.qty, 0);
+  const totW = allProducts.reduce((s, p) => s + (p.weight || 0) * p.qty, 0);
 
   let iy = 28;
 
   function section(title) {
+    if (iy > 240) { doc.addPage(); iy = 20; }
     doc.setFontSize(10);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(141, 121, 102);
-    doc.text(title, margin, iy);
+    doc.text(ascii(title), margin, iy);
     iy += 1;
     doc.setDrawColor(200, 185, 165);
     doc.line(margin, iy, pageW - margin, iy);
     iy += 5;
   }
 
-  function bullet(icon, text) {
+  function bullet(prefix, text) {
+    if (iy > 265) { doc.addPage(); iy = 20; }
     doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(60, 50, 40);
-    const lines = doc.splitTextToSize(`${icon}  ${text}`, pageW - margin * 2 - 6);
+    const full = ascii(`${prefix}  ${text}`);
+    const lines = doc.splitTextToSize(full, pageW - margin * 2 - 6);
     doc.text(lines, margin + 3, iy);
-    iy += lines.length * 5 + 1;
+    iy += lines.length * 5 + 2;
   }
 
-  // 1. Orden de carga
+  function note(text) {
+    if (iy > 265) { doc.addPage(); iy = 20; }
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'italic');
+    doc.setTextColor(120, 100, 80);
+    const lines = doc.splitTextToSize(ascii(text), pageW - margin * 2 - 6);
+    doc.text(lines, margin + 3, iy);
+    iy += lines.length * 4.5 + 2;
+  }
+
+  // ── 1. Orden de carga ────────────────────────────────────────────────────
   section('1. Orden de carga recomendado');
+
+  let step = 1;
   if (pallets.length > 0) {
-    bullet('①', `Cargá primero los ${pallets.length} pallet(s) — van en la base del contenedor por su mayor volumen y peso.`);
+    const palletNames = pallets.map(p => p.name).join(', ');
+    bullet(`${step++}.`, `PRIMERO: Los pallets (${palletNames}). Son los bultos mas grandes y pesados — entran primero, bien asentados en el piso del contenedor.`);
   }
   if (byVol.length > 0) {
-    const top = byVol.slice(0, 3).map(p => `${p.name} (${p.dims.L}×${p.dims.W}×${p.dims.H} cm)`).join(', ');
-    bullet('②', `Luego las cajas más grandes primero: ${top}.`);
+    const bigBoxes = byVol.filter(p => p.type !== 'pallet').slice(0, 3);
+    if (bigBoxes.length > 0) {
+      const names = bigBoxes.map(p => `${p.name} (${p.dims.L}x${p.dims.W}x${p.dims.H} cm)`).join(' / ');
+      bullet(`${step++}.`, `SEGUNDO: Las cajas mas grandes y pesadas al fondo. Empeza con: ${names}.`);
+    }
   }
-  bullet('③', 'Finalizá con los productos más pequeños y livianos, rellenando los espacios vacíos.');
+  const smallBoxes = byVol.filter(p => p.type !== 'pallet').slice(-Math.min(3, boxes.length));
+  if (smallBoxes.length > 0) {
+    const names = smallBoxes.map(p => p.name).join(', ');
+    bullet(`${step++}.`, `ULTIMO: Productos mas pequenos al final y arriba: ${names}. Usalos para rellenar huecos.`);
+  }
   if (withZone.length > 0) {
-    const zoneNames = [...new Set(withZone.map(p => p.priorityZone))].join(', ');
-    bullet('⚠', `Respetá las zonas de prioridad configuradas: ${zoneNames}. Estos productos deben ir en el sector indicado.`);
+    const zoneProds = withZone.map(p => p.name).join(', ');
+    bullet('!', `ATENCION — Zona de prioridad: ${zoneProds}. Estos productos tienen posicion fija segun la configuracion del embarque. No moverlos de su sector.`);
   }
   iy += 2;
 
-  // 2. Distribución del peso
-  section('2. Distribución del peso');
+  // ── 2. Distribución del peso ─────────────────────────────────────────────
+  section('2. Distribucion del peso');
+
   if (heavy.length > 0) {
-    const top = heavy.slice(0, 3).map(p => `${p.name} (${fmt(p.weight, 1)} kg/u)`).join(', ');
-    bullet('⬇', `Los más pesados van en la parte inferior: ${top}.`);
+    const top3 = heavy.slice(0, 3).map(p => `${p.name} (${fmt(p.weight, 1)} kg/u)`).join(', ');
+    bullet('-', `Los productos mas pesados siempre en la parte INFERIOR: ${top3}.`);
+    bullet('-', 'Nunca apiles productos pesados sobre cajas livianas o fragiles.');
+  } else {
+    bullet('-', 'No se cargo informacion de peso. Colocar manualmente los productos mas densos en la parte inferior.');
   }
-  bullet('↔', 'Distribuí el peso de forma uniforme entre lado izquierdo y derecho del contenedor para evitar vuelcos.');
-  bullet('↑', 'Nunca apilés productos pesados sobre frágiles. Los livianos siempre arriba.');
-  iy += 2;
 
-  // 3. Estiba y seguridad
-  section('3. Estiba y aseguramiento');
-  bullet('📦', 'Usá esquineros de cartón o madera en los cantos de las cajas para proteger bordes durante el transporte.');
-  bullet('🔒', 'Flejá o envolvé con film stretch los pallets antes de introducirlos al contenedor.');
-  bullet('🧱', 'Completá los espacios vacíos con relleno (aire, espuma, papel) para evitar movimiento durante el viaje.');
-  bullet('📋', 'Pegá la lista de contenido (packing list) en el interior de la puerta del contenedor.');
-  iy += 2;
-
-  // 4. Resumen rápido
-  section('4. Resumen del embarque');
-  const totU = allProducts.reduce((s, p) => s + p.qty, 0);
-  const totV = allProducts.reduce((s, p) => s + p.vol * p.qty, 0);
-  const totW = allProducts.reduce((s, p) => s + (p.weight || 0) * p.qty, 0);
-  bullet('📊', `Total: ${totU} unidades · ${fmt(totV)} m³ · ${fmt(totW, 1)} kg en ${containers.length} contenedor(es).`);
   if (totW > 0) {
-    const densidad = totW / totV;
-    bullet('⚖', `Densidad promedio de carga: ${fmt(densidad, 1)} kg/m³.`);
+    const weightPct = totW;
+    bullet('-', `Peso total del embarque: ${fmt(totW, 0)} kg. Distribuirlo de forma uniforme entre lado izquierdo y derecho para evitar ladeo durante el transporte.`);
+    if (totW > 20000) {
+      bullet('!', `AVISO: El peso total supera las 20 toneladas. Verificar el limite de carga del contenedor antes de cerrar.`);
+    }
+  } else {
+    bullet('-', 'Distribuir el peso de forma uniforme entre lado izquierdo y derecho del contenedor.');
   }
+  iy += 2;
+
+  // ── 3. Estiba ────────────────────────────────────────────────────────────
+  section('3. Estiba y aseguramiento');
+  bullet('-', 'Usar esquineros de carton o madera en los cantos de las cajas para proteger bordes.');
+  bullet('-', 'Flejar o envolver con film stretch cada pallet antes de ingresarlo al contenedor.');
+  bullet('-', 'Rellenar todos los espacios vacios con relleno (bolsas de aire, espuma o papel kraft) para evitar movimiento durante la navegacion.');
+  bullet('-', 'Si hay cajas de distintos tamanos, intercalar capas para lograr una pared solida sin huecos verticales.');
+  note('Tip: una carga bien estibada no se mueve. Si al sacudir el contenedor se escucha movimiento, agregar mas relleno.');
+  iy += 2;
+
+  // ── 4. Resumen ───────────────────────────────────────────────────────────
+  section('4. Resumen del embarque');
+  bullet('>', `${containers.length} contenedor(es) | ${totU} unidades | ${fmt(totV)} m3 | ${fmt(totW, 0)} kg`);
+  if (totW > 0 && totV > 0) {
+    const dens = totW / totV;
+    let densLabel = 'baja (carga liviana o con mucho aire)';
+    if (dens > 300) densLabel = 'media';
+    if (dens > 600) densLabel = 'alta (carga densa)';
+    bullet('>', `Densidad de carga: ${fmt(dens, 0)} kg/m3 — ${densLabel}.`);
+  }
+  bullet('>', 'Pegar el packing list en el interior de la puerta del contenedor antes de cerrar.');
+  iy += 2;
 
   // ── Footer en todas las páginas ────────────────────────────────────────────
   const pageH = doc.internal.pageSize.getHeight();
