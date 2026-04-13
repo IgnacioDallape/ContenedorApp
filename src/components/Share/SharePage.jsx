@@ -51,26 +51,15 @@ export default function SharePage({ shipmentId }) {
   return (
     <div style={{ minHeight: '100vh', background: '#F8F4EE', fontFamily: "'Jost', sans-serif" }}>
       {/* Header */}
-      <div style={{ background: '#8D7966', color: '#fff', padding: '16px 32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
-        <div>
-          <div style={{ fontSize: 11, fontFamily: "'DM Mono', monospace", letterSpacing: 2, opacity: 0.8, marginBottom: 4 }}>IMPORTAPRO — EMBARQUE COMPARTIDO</div>
-          <div style={{ fontSize: 22, fontWeight: 700 }}>{shipment.name}</div>
-          <div style={{ fontSize: 11, opacity: 0.7, marginTop: 4, fontFamily: "'DM Mono', monospace" }}>{date}</div>
-        </div>
-        {/* Status badge — prominent */}
-        <div style={{
-          background: st.bg, border: `2px solid ${st.color}`,
-          borderRadius: 14, padding: '10px 20px',
-          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, minWidth: 130,
-        }}>
-          <span style={{ fontSize: 24 }}>{st.icon}</span>
-          <span style={{ fontSize: 12, fontWeight: 700, color: st.color, fontFamily: "'DM Mono', monospace", letterSpacing: '0.5px', textAlign: 'center' }}>{st.label.toUpperCase()}</span>
-        </div>
+      <div style={{ background: '#8D7966', color: '#fff', padding: '16px 32px' }}>
+        <div style={{ fontSize: 11, fontFamily: "'DM Mono', monospace", letterSpacing: 2, opacity: 0.8, marginBottom: 4 }}>IMPORTAPRO — EMBARQUE COMPARTIDO</div>
+        <div style={{ fontSize: 22, fontWeight: 700 }}>{shipment.name}</div>
+        <div style={{ fontSize: 11, opacity: 0.7, marginTop: 4, fontFamily: "'DM Mono', monospace" }}>{date}</div>
       </div>
 
       <div style={{ maxWidth: 900, margin: '0 auto', padding: '24px 20px' }}>
         {/* Stats */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 24 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 16 }}>
           {[
             ['Contenedores', containers.length],
             ['Unidades', totU],
@@ -82,6 +71,20 @@ export default function SharePage({ shipmentId }) {
               <div style={{ fontSize: 20, fontWeight: 700, color: '#4a3d35' }}>{val}</div>
             </div>
           ))}
+        </div>
+
+        {/* Status bar */}
+        <div style={{
+          background: st.bg, border: `1.5px solid ${st.color}40`,
+          borderLeft: `5px solid ${st.color}`,
+          borderRadius: 10, padding: '14px 20px', marginBottom: 24,
+          display: 'flex', alignItems: 'center', gap: 14,
+        }}>
+          <span style={{ fontSize: 28 }}>{st.icon}</span>
+          <div>
+            <div style={{ fontSize: 10, fontFamily: "'DM Mono', monospace", color: st.color, letterSpacing: 1, marginBottom: 2 }}>ESTADO DEL EMBARQUE</div>
+            <div style={{ fontSize: 18, fontWeight: 700, color: st.color }}>{st.label}</div>
+          </div>
         </div>
 
         {/* Per container */}
