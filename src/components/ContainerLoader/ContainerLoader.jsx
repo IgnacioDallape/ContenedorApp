@@ -56,6 +56,7 @@ export default function ContainerLoader() {
   const [overwriteName, setOverwriteName] = useState('');
   const [showDeleteShip, setShowDeleteShip] = useState(false);
   const [deleteShipId,   setDeleteShipId]  = useState(null);
+  const [openStatusId,   setOpenStatusId]  = useState(null);
 
   // ── Capacity modal ──
   const [capModal, setCapModal] = useState(null); // { body, stats, product }
@@ -846,12 +847,13 @@ export default function ContainerLoader() {
                 const totalConts = s.containers?.length || 1;
                 const totalProds = s.containers?.reduce((acc, c) => acc + (c.products?.length || 0), 0) || 0;
                 const STATUS_CONFIG = {
-                  preparacion: { label: 'En preparación', color: '#8D7966' },
-                  embarcado:   { label: 'Embarcado',      color: '#5B8FA8' },
-                  en_puerto:   { label: 'En puerto',      color: '#E0A028' },
-                  entregado:   { label: 'Entregado',      color: '#6B8C6B' },
+                  preparacion: { label: 'En preparación', color: '#C0614A', bg: '#FDF0ED', icon: '🔴' },
+                  embarcado:   { label: 'Embarcado',      color: '#2E7DC0', bg: '#EBF4FD', icon: '🚢' },
+                  en_puerto:   { label: 'En puerto',      color: '#C08A1A', bg: '#FDF6E3', icon: '🟡' },
+                  entregado:   { label: 'Entregado',      color: '#3A8C52', bg: '#EDF7F1', icon: '✅' },
                 };
                 const st = STATUS_CONFIG[s.status] || STATUS_CONFIG.preparacion;
+                const isOpen = openStatusId === s.id;
                 return (
                   <div key={s.id} style={{
                     background: '#fff',
@@ -859,51 +861,68 @@ export default function ContainerLoader() {
                     border: '1px solid #E8E0D8',
                     borderLeft: `4px solid ${st.color}`,
                     marginBottom: 10,
-                    overflow: 'hidden',
+                    overflow: 'visible',
                     boxShadow: '0 1px 4px rgba(0,0,0,0.05)',
+                    position: 'relative',
                   }}>
                     {/* Top row */}
                     <div style={{ padding: '12px 14px 10px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontWeight: 700, fontSize: 14, color: '#3d2e24', marginBottom: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.name}</div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                           <span style={{ fontSize: 10, color: '#9a8778', fontFamily: "'DM Mono', monospace" }}>{date}</span>
                           <span style={{ width: 3, height: 3, borderRadius: '50%', background: '#C8B8A8', flexShrink: 0 }} />
-                          <span style={{ fontSize: 10, color: '#9a8778', fontFamily: "'DM Mono', monospace" }}>
-                            {totalConts} cont{totalConts > 1 ? 's' : ''}
-                          </span>
+                          <span style={{ fontSize: 10, color: '#9a8778', fontFamily: "'DM Mono', monospace" }}>{totalConts} cont{totalConts > 1 ? 's' : ''}</span>
                           <span style={{ width: 3, height: 3, borderRadius: '50%', background: '#C8B8A8', flexShrink: 0 }} />
-                          <span style={{ fontSize: 10, color: '#9a8778', fontFamily: "'DM Mono', monospace" }}>
-                            {totalProds} prod{totalProds !== 1 ? 's' : ''}
-                          </span>
+                          <span style={{ fontSize: 10, color: '#9a8778', fontFamily: "'DM Mono', monospace" }}>{totalProds} prod{totalProds !== 1 ? 's' : ''}</span>
                         </div>
                       </div>
-                      <span style={{
-                        fontSize: 10, padding: '3px 9px', borderRadius: 20, flexShrink: 0,
-                        background: st.color + '18', color: st.color,
-                        fontFamily: "'DM Mono', monospace", letterSpacing: '0.4px', fontWeight: 600,
-                        border: `1px solid ${st.color}40`,
-                      }}>{st.label}</span>
+                      {/* Status badge — clickable */}
+                      <button onClick={() => setOpenStatusId(isOpen ? null : s.id)} style={{
+                        flexShrink: 0, cursor: 'pointer', border: `1.5px solid ${st.color}55`,
+                        borderRadius: 20, padding: '4px 10px', background: st.bg,
+                        color: st.color, fontFamily: "'DM Mono', monospace", fontSize: 10,
+                        fontWeight: 700, letterSpacing: '0.3px', display: 'flex', alignItems: 'center', gap: 5,
+                      }}>
+                        <span>{st.icon}</span>
+                        <span>{st.label}</span>
+                        <span style={{ fontSize: 8, opacity: 0.6 }}>▾</span>
+                      </button>
                     </div>
+
+                    {/* Status picker dropdown */}
+                    {isOpen && (
+                      <div style={{
+                        position: 'absolute', top: 44, right: 14, zIndex: 50,
+                        background: '#fff', borderRadius: 10, border: '1px solid #E8E0D8',
+                        boxShadow: '0 4px 16px rgba(0,0,0,0.12)', padding: 6, display: 'flex', flexDirection: 'column', gap: 3, minWidth: 160,
+                      }}>
+                        {Object.entries(STATUS_CONFIG).map(([key, cfg]) => (
+                          <button key={key} onClick={() => { updateShipmentStatus(s.id, key); setOpenStatusId(null); }} style={{
+                            background: (s.status || 'preparacion') === key ? cfg.bg : 'transparent',
+                            border: `1.5px solid ${(s.status || 'preparacion') === key ? cfg.color + '55' : 'transparent'}`,
+                            borderRadius: 7, padding: '6px 10px', cursor: 'pointer', textAlign: 'left',
+                            color: cfg.color, fontFamily: "'DM Mono', monospace", fontSize: 10, fontWeight: 600,
+                            display: 'flex', alignItems: 'center', gap: 7,
+                          }}>
+                            <span>{cfg.icon}</span>
+                            <span>{cfg.label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
 
                     {/* Bottom actions */}
                     <div style={{ borderTop: '1px solid #F0EBE3', padding: '8px 14px', display: 'flex', alignItems: 'center', gap: 6, background: '#FAFAF8', flexWrap: 'wrap' }}>
-                      <select value={s.status || 'preparacion'} onChange={e => updateShipmentStatus(s.id, e.target.value)}
-                        style={{ fontSize: 10, padding: '4px 8px', borderRadius: 6, border: '1px solid #D8CFC6', background: '#fff', color: '#5a4a3e', fontFamily: "'DM Mono', monospace", cursor: 'pointer', flex: 1, minWidth: 100, maxWidth: 150 }}>
-                        <option value="preparacion">En preparación</option>
-                        <option value="embarcado">Embarcado</option>
-                        <option value="en_puerto">En puerto</option>
-                        <option value="entregado">Entregado</option>
-                      </select>
-                      <div style={{ flex: 1 }} />
                       <button onClick={() => toggleShipmentPublic(s.id, s.is_public)} style={{
                         padding: '4px 10px', fontSize: 10, fontFamily: "'DM Mono', monospace", borderRadius: 6, cursor: 'pointer',
-                        border: `1px solid ${s.is_public ? '#6B8C6B' : '#D8CFC6'}`,
-                        color: s.is_public ? '#6B8C6B' : '#9a8778',
-                        background: s.is_public ? '#6B8C6B18' : 'transparent',
+                        border: `1px solid ${s.is_public ? '#3A8C52' : '#D8CFC6'}`,
+                        color: s.is_public ? '#3A8C52' : '#9a8778',
+                        background: s.is_public ? '#EDF7F1' : 'transparent',
                       }}>
-                        {s.is_public ? '🔗 Activo' : '🔗 Compartir'}
+                        {s.is_public ? '🔗 Link activo' : '🔗 Compartir'}
                       </button>
+                      <div style={{ flex: 1 }} />
                       <button onClick={() => loadShipment(s.id)} style={{
                         padding: '4px 14px', fontSize: 10, fontFamily: "'DM Mono', monospace", borderRadius: 6,
                         border: '1.5px solid #8D7966', color: '#fff', background: '#8D7966', cursor: 'pointer', fontWeight: 600,

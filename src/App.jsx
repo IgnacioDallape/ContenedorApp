@@ -19,18 +19,21 @@ export default function App() {
   const [authMode, setAuthMode] = useState('login');
   const shareId = getShareId();
 
-  // If share URL, render SharePage without auth
-  if (shareId) return <SharePage shipmentId={shareId} />;
-
+  // Hooks must always be called — early return is AFTER all hooks
   useEffect(() => {
+    if (shareId) return;
     init().then(mode => {
       if (mode === 'recovery') setAuthMode('recovery');
     });
   }, []);
 
   useEffect(() => {
-    if (user) loadCatalog();
+    if (shareId || !user) return;
+    loadCatalog();
   }, [user]);
+
+  // If share URL, render SharePage without auth
+  if (shareId) return <SharePage shipmentId={shareId} />;
 
   if (loading) {
     return (
