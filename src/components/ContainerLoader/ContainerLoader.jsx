@@ -189,6 +189,66 @@ export default function ContainerLoader() {
     showToast(`✓ ${product.qty} ${label} distribuidas en ${created + 1} contenedor${created > 0 ? 'es' : ''}`, 'success');
   }
 
+  // ── Change container type + auto-consolidate if multiple containers ──
+  function handleChangeContainerType(newType) {
+    const synced = syncActiveContainer();
+    const allProducts = synced.flatMap(c => c.products || []);
+
+    // If only 1 container or no products, just change type normally
+    if (synced.length <= 1 || allProducts.length === 0) {
+      setContainerType(newType);
+      return;
+    }
+
+    const ct = CONTAINER_TYPES[newType];
+    if (!ct) return;
+
+    // Apply new dimensions to packing engine so runPacking uses the right container
+    window.CONT_L = ct.L; window.CONT_W = ct.W; window.CONT_H = ct.H; window.CONTAINER_VOL = ct.vol;
+
+    // Redistribute all products across minimum containers of the new type
+    const newContainers = [];
+    let remaining = allProducts.map(p => ({ ...p }));
+    let safety = 0;
+
+    while (remaining.length > 0 && safety < 30) {
+      safety++;
+      invalidatePackingCache();
+      const { placed } = runPacking(remaining);
+
+      const containerProds = [];
+      const nextRemaining = [];
+      for (const p of remaining) {
+        const qty = placed[String(p.id)] || 0;
+        if (qty > 0) containerProds.push({ ...p, qty });
+        if (qty < p.qty) nextRemaining.push({ ...p, qty: p.qty - qty });
+      }
+
+      if (containerProds.length === 0) {
+        // nothing fits — add remaining as-is to last container to not lose products
+        if (newContainers.length > 0) newContainers[newContainers.length - 1].products.push(...remaining);
+        else newContainers.push({ id: 1, type: newType, products: remaining, priorityZones: [null,null,null], instanceManualPos: {}, instanceLockedOri: {} });
+        break;
+      }
+
+      newContainers.push({
+        id: newContainers.length + 1,
+        type: newType,
+        products: containerProds,
+        priorityZones: [null, null, null],
+        instanceManualPos: {},
+        instanceLockedOri: {},
+      });
+      remaining = nextRemaining;
+    }
+
+    if (newContainers.length === 0) { setContainerType(newType); return; }
+
+    const totalUnits = allProducts.reduce((s, p) => s + p.qty, 0);
+    loadShipmentData({ id: currentShipmentId, name: currentShipmentName, containers: newContainers });
+    showToast(`✓ ${totalUnits} unidades consolidadas en ${newContainers.length} cont. ${ct.label}`, 'success');
+  }
+
   // ── Rotation ──
   function rotateSelected(axis) {
     if (!inspector) return;
@@ -585,7 +645,7 @@ export default function ContainerLoader() {
                 ['semi155', '🚛', 'Semi 15.5m',   '15.5×2.44×2.70m'],
               ].map(([type, icon, label, dims]) => (
                 <button key={type} className={`cont-type-btn${currentContainerType === type ? ' active' : ''}`}
-                  onClick={() => setContainerType(type)}>
+                  onClick={() => handleChangeContainerType(type)}>
                   <span>{icon}</span>{label}<br/><small style={{ fontSize: 9, opacity: 0.7 }}>{dims}</small>
                 </button>
               ))}
