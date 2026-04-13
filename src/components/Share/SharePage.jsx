@@ -59,16 +59,16 @@ export default function SharePage({ shipmentId }) {
 
       <div style={{ maxWidth: 900, margin: '0 auto', padding: '24px 20px' }}>
         {/* Stats */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 16 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 10, marginBottom: 16 }}>
           {[
             ['Contenedores', containers.length],
             ['Unidades', totU],
             ['Volumen', fmt(totV) + ' m³'],
             ['Valor', 'U$S ' + fmt(totVal)],
           ].map(([label, val]) => (
-            <div key={label} style={{ background: '#fff', borderRadius: 10, padding: '14px 16px', border: '1px solid #E8E0D8', textAlign: 'center' }}>
-              <div style={{ fontSize: 10, fontFamily: "'DM Mono', monospace", color: '#8D7966', letterSpacing: 1, marginBottom: 4 }}>{label.toUpperCase()}</div>
-              <div style={{ fontSize: 20, fontWeight: 700, color: '#4a3d35' }}>{val}</div>
+            <div key={label} style={{ background: '#fff', borderRadius: 10, padding: '12px 10px', border: '1px solid #E8E0D8', textAlign: 'center' }}>
+              <div style={{ fontSize: 9, fontFamily: "'DM Mono', monospace", color: '#8D7966', letterSpacing: 1, marginBottom: 4 }}>{label.toUpperCase()}</div>
+              <div style={{ fontSize: 17, fontWeight: 700, color: '#4a3d35' }}>{val}</div>
             </div>
           ))}
         </div>
