@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { CONTAINER_TYPES, COLORS, WEIGHT_LIMITS } from '../lib/constants.js';
 import { setContainerDimensions, invalidatePackingCache, runPacking } from '../lib/packing.js';
+import { _sb } from '../lib/supabase.js';
 
 const GRID_RES = 5;
 
@@ -37,6 +38,7 @@ const useContainerStore = create((set, get) => ({
   catalog: JSON.parse(localStorage.getItem('cl_catalog') || '[]'),
   selectedCatalogItems: {},
   selectedCatalogZones: {},
+  catalogLoaded: false,
 
   // Pending capacity overflow
   pendingProduct: null,
@@ -316,9 +318,36 @@ const useContainerStore = create((set, get) => ({
   setSemiWeightLimit(val) { set({ semiWeightLimit: parseInt(val) || 28000 }); },
 
   // Catalog
+  async loadCatalog() {
+    try {
+      const { data: { user } } = await _sb.auth.getUser();
+      if (!user) return;
+      const { data } = await _sb
+        .from('user_catalog')
+        .select('items')
+        .eq('user_id', user.id)
+        .single();
+      if (data?.items?.length) {
+        localStorage.setItem('cl_catalog', JSON.stringify(data.items));
+        set({ catalog: data.items });
+      }
+    } catch { /* usa localStorage como fallback */ }
+    set({ catalogLoaded: true });
+  },
+
   saveCatalog(newCatalog) {
     localStorage.setItem('cl_catalog', JSON.stringify(newCatalog));
     set({ catalog: newCatalog });
+    _sb.auth.getUser().then(({ data: { user } }) => {
+      if (!user) return;
+      _sb.from('user_catalog').upsert({
+        user_id: user.id,
+        items: newCatalog,
+        updated_at: new Date().toISOString(),
+      }).then(({ error }) => {
+        if (error) console.warn('Catalog sync error:', error);
+      });
+    });
   },
 
   addToCatalog(item) {

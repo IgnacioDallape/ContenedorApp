@@ -6,6 +6,7 @@ import { fmt } from '../../lib/formatters.js';
 import { runPacking, runPackingCached, invalidatePackingCache } from '../../lib/packing.js';
 import ThreeCanvas from './ThreeCanvas.jsx';
 import { _sb } from '../../lib/supabase.js';
+import { exportShipmentPDF } from '../../lib/exportPDF.js';
 
 export default function ContainerLoader() {
   const {
@@ -490,6 +491,15 @@ export default function ContainerLoader() {
               <button onClick={handleLoadShipments}
                 style={{ padding: '6px 14px', fontSize: 11, fontFamily: "'DM Mono', monospace", letterSpacing: '0.5px', borderRadius: 6, cursor: 'pointer', border: '1px solid var(--border)', color: 'var(--muted)', background: 'transparent', whiteSpace: 'nowrap' }}>
                 📂 Mis embarques
+              </button>
+              <button
+                onClick={() => {
+                  const containers = syncActiveContainer();
+                  exportShipmentPDF({ containers, currentContainerType, shipmentName: currentShipmentId ? undefined : undefined });
+                }}
+                disabled={loadedProducts.length === 0}
+                style={{ padding: '6px 14px', fontSize: 11, fontFamily: "'DM Mono', monospace", letterSpacing: '0.5px', borderRadius: 6, cursor: loadedProducts.length === 0 ? 'not-allowed' : 'pointer', border: '1px solid var(--border)', color: loadedProducts.length === 0 ? 'var(--muted)' : 'var(--text)', background: 'transparent', whiteSpace: 'nowrap', opacity: loadedProducts.length === 0 ? 0.5 : 1 }}>
+                📄 Exportar PDF
               </button>
             </div>
 

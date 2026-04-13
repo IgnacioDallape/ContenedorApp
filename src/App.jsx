@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react';
 import useAuthStore from './stores/authStore.js';
 import useAppStore from './stores/appStore.js';
+import useContainerStore from './stores/containerStore.js';
 import LoginPage from './components/Auth/LoginPage.jsx';
 import AppShell from './components/Layout/AppShell.jsx';
 import Toast from './components/Toast.jsx';
 
 export default function App() {
   const { user, loading, init } = useAuthStore();
+  const { loadCatalog } = useContainerStore();
   const [authMode, setAuthMode] = useState('login'); // 'login' | 'recovery'
 
   useEffect(() => {
@@ -14,6 +16,10 @@ export default function App() {
       if (mode === 'recovery') setAuthMode('recovery');
     });
   }, []);
+
+  useEffect(() => {
+    if (user) loadCatalog();
+  }, [user]);
 
   if (loading) {
     return (
