@@ -5,10 +5,10 @@ import { CONTAINER_TYPES } from '../../lib/constants.js';
 const fmt = (n, dec = 2) => Number(n).toLocaleString('es-AR', { minimumFractionDigits: dec, maximumFractionDigits: dec });
 
 const STATUS_CONFIG = {
-  preparacion: { label: 'En preparación', color: '#8D7966' },
-  embarcado:   { label: 'Embarcado',      color: '#5B8FA8' },
-  en_puerto:   { label: 'En puerto',      color: '#E0A028' },
-  entregado:   { label: 'Entregado',      color: '#6B8C6B' },
+  preparacion: { label: 'En preparación', color: '#C0614A', bg: '#FDF0ED', icon: '🔴' },
+  embarcado:   { label: 'Embarcado',      color: '#2E7DC0', bg: '#EBF4FD', icon: '🚢' },
+  en_puerto:   { label: 'En puerto',      color: '#C08A1A', bg: '#FDF6E3', icon: '⚓' },
+  entregado:   { label: 'Entregado',      color: '#3A8C52', bg: '#EDF7F1', icon: '✅' },
 };
 
 export default function SharePage({ shipmentId }) {
@@ -51,14 +51,20 @@ export default function SharePage({ shipmentId }) {
   return (
     <div style={{ minHeight: '100vh', background: '#F8F4EE', fontFamily: "'Jost', sans-serif" }}>
       {/* Header */}
-      <div style={{ background: '#8D7966', color: '#fff', padding: '16px 32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <div style={{ background: '#8D7966', color: '#fff', padding: '16px 32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
         <div>
           <div style={{ fontSize: 11, fontFamily: "'DM Mono', monospace", letterSpacing: 2, opacity: 0.8, marginBottom: 4 }}>IMPORTAPRO — EMBARQUE COMPARTIDO</div>
           <div style={{ fontSize: 22, fontWeight: 700 }}>{shipment.name}</div>
+          <div style={{ fontSize: 11, opacity: 0.7, marginTop: 4, fontFamily: "'DM Mono', monospace" }}>{date}</div>
         </div>
-        <div style={{ textAlign: 'right' }}>
-          <span style={{ fontSize: 11, padding: '4px 12px', borderRadius: 20, background: st.color, color: '#fff', fontFamily: "'DM Mono', monospace" }}>{st.label}</span>
-          <div style={{ fontSize: 11, opacity: 0.7, marginTop: 6, fontFamily: "'DM Mono', monospace" }}>{date}</div>
+        {/* Status badge — prominent */}
+        <div style={{
+          background: st.bg, border: `2px solid ${st.color}`,
+          borderRadius: 14, padding: '10px 20px',
+          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, minWidth: 130,
+        }}>
+          <span style={{ fontSize: 24 }}>{st.icon}</span>
+          <span style={{ fontSize: 12, fontWeight: 700, color: st.color, fontFamily: "'DM Mono', monospace", letterSpacing: '0.5px', textAlign: 'center' }}>{st.label.toUpperCase()}</span>
         </div>
       </div>
 
