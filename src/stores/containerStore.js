@@ -43,6 +43,10 @@ const useContainerStore = create((set, get) => ({
   // Pending capacity overflow
   pendingProduct: null,
 
+  // Current shipment name (for PDF title)
+  currentShipmentName: null,
+  setCurrentShipmentName: (name) => set({ currentShipmentName: name }),
+
   setContainerType(type) {
     const ct = CONTAINER_TYPES[type];
     if (!ct) return;
@@ -100,6 +104,7 @@ const useContainerStore = create((set, get) => ({
       weight: productData.weight || 0,
       vol:   (productData.dims.L * productData.dims.W * productData.dims.H) / 1e6,
       color: COLORS[loadedProducts.length % COLORS.length],
+      notes: productData.notes || '',
       imgUrl: productData.imgUrl || null,
       priorityZone: productData.priorityZone || zone,
       priorityZoneSlot: productData.priorityZoneSlot != null ? productData.priorityZoneSlot : null,
@@ -299,7 +304,7 @@ const useContainerStore = create((set, get) => ({
   },
 
   loadShipmentData(data) {
-    set({ currentShipmentId: data.id, shipmentContainers: data.containers, activeContainerIdx: 0 });
+    set({ currentShipmentId: data.id, currentShipmentName: data.name, shipmentContainers: data.containers, activeContainerIdx: 0 });
     const first = data.containers[0];
     set({
       loadedProducts: [...first.products],

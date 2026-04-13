@@ -1,5 +1,6 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import QRCode from 'qrcode';
 
 const CONTAINER_LABELS = {
   '20ft':    '20\' Dry  (5.89 × 2.35 × 2.39 m)',
@@ -23,30 +24,89 @@ function ascii(str) {
     .replace(/¿/g,'').replace(/¡/g,'');
 }
 
-export function exportShipmentPDF({ containers, currentContainerType, shipmentName, views = [] }) {
+export async function exportShipmentPDF({ containers, currentContainerType, shipmentName, shipmentId, views = [] }) {
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
   const pageW = doc.internal.pageSize.getWidth();
+  const pageH0 = doc.internal.pageSize.getHeight();
   const margin = 16;
   let y = margin;
 
-  // ── Header ─────────────────────────────────────────────────────────────────
-  doc.setFillColor(141, 121, 102);
-  doc.rect(0, 0, pageW, 18, 'F');
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(13);
-  doc.setFont('helvetica', 'bold');
-  doc.text('ImportaPro', margin, 12);
-  doc.setFontSize(9);
-  doc.setFont('helvetica', 'normal');
-  const dateStr = new Date().toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
-  doc.text(dateStr, pageW - margin, 12, { align: 'right' });
+  // ── QR code (generate before first page) ──────────────────────────────────
+  let qrDataUrl = null;
+  if (shipmentId) {
+    const shareUrl = `https://fleetloader.vercel.app/share/${shipmentId}`;
+    try { qrDataUrl = await QRCode.toDataURL(shareUrl, { width: 120, margin: 1 }); } catch {}
+  }
 
-  y = 26;
-  doc.setTextColor(60, 50, 40);
-  doc.setFontSize(15);
+  // ── Portada ────────────────────────────────────────────────────────────────
+  // Full cover background
+  doc.setFillColor(245, 240, 233);
+  doc.rect(0, 0, pageW, pageH0, 'F');
+
+  // Top accent bar
+  doc.setFillColor(141, 121, 102);
+  doc.rect(0, 0, pageW, 42, 'F');
+
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(22);
   doc.setFont('helvetica', 'bold');
-  doc.text(ascii(shipmentName || 'Resumen de embarque'), margin, y);
-  y += 8;
+  doc.text('ImportaPro', margin, 20);
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'normal');
+  doc.text('Sistema de gestion de importacion y contenedores', margin, 30);
+  doc.text('fleetloader.vercel.app', pageW - margin, 30, { align: 'right' });
+
+  // Shipment name
+  doc.setTextColor(60, 50, 40);
+  doc.setFontSize(26);
+  doc.setFont('helvetica', 'bold');
+  const titleText = ascii(shipmentName || 'Resumen de embarque');
+  doc.text(titleText, pageW / 2, 80, { align: 'center' });
+
+  // Date and summary
+  const dateStr = new Date().toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  const allPCover = containers.flatMap(c => c.products || []);
+  const totUCover = allPCover.reduce((s, p) => s + p.qty, 0);
+  const totVCover = allPCover.reduce((s, p) => s + p.vol * p.qty, 0);
+
+  doc.setFontSize(11);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(120, 100, 80);
+  doc.text(`Fecha: ${dateStr}`, pageW / 2, 95, { align: 'center' });
+  doc.text(ascii(`${containers.length} contenedor(es)  |  ${totUCover} unidades  |  ${fmt(totVCover)} m3`), pageW / 2, 104, { align: 'center' });
+
+  // Divider
+  doc.setDrawColor(200, 185, 165);
+  doc.line(margin * 2, 112, pageW - margin * 2, 112);
+
+  // QR code on cover
+  if (qrDataUrl) {
+    const qrSize = 36;
+    doc.addImage(qrDataUrl, 'PNG', pageW / 2 - qrSize / 2, 120, qrSize, qrSize);
+    doc.setFontSize(8);
+    doc.setTextColor(160, 140, 120);
+    doc.text('Escanea para ver este embarque online', pageW / 2, 160, { align: 'center' });
+  }
+
+  // Footer on cover
+  doc.setFontSize(8);
+  doc.setTextColor(180, 165, 150);
+  doc.text('Generado por ImportaPro', margin, pageH0 - 10);
+  doc.text('fleetloader.vercel.app', pageW - margin, pageH0 - 10, { align: 'right' });
+
+  // ── Página 2+: detalle por contenedor ────────────────────────────────────
+  doc.addPage();
+  y = margin;
+
+  // Header reusable
+  doc.setFillColor(141, 121, 102);
+  doc.rect(0, 0, pageW, 14, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'bold');
+  doc.text('ImportaPro', margin, 10);
+  doc.text(ascii(shipmentName || 'Resumen de embarque'), pageW - margin, 10, { align: 'right' });
+  y = 22;
 
   // ── Por cada contenedor ────────────────────────────────────────────────────
   containers.forEach((cont, ci) => {
@@ -83,36 +143,38 @@ export function exportShipmentPDF({ containers, currentContainerType, shipmentNa
     autoTable(doc, {
       startY: y,
       margin: { left: margin, right: margin },
-      head: [['Producto', 'Tipo', 'Dims (cm)', 'Cant.', 'Vol. total (m3)', 'Peso tot. (kg)', 'Precio/u', 'Subtotal']],
+      head: [['Producto', 'Tipo', 'Dims (cm)', 'Cant.', 'Vol. (m3)', 'Peso (kg)', 'Precio/u', 'Subtotal', 'Notas']],
       body: products.map(p => [
         ascii(p.name),
         p.type === 'pallet' ? 'Pallet' : 'Caja',
-        `${p.dims.L}×${p.dims.W}×${p.dims.H}`,
+        `${p.dims.L}x${p.dims.W}x${p.dims.H}`,
         p.qty,
         fmt(p.vol * p.qty),
         fmt((p.weight || 0) * p.qty, 1),
-        p.price ? usd(p.price) : '—',
-        p.price ? usd(p.price * p.qty) : '—',
+        p.price ? usd(p.price) : '-',
+        p.price ? usd(p.price * p.qty) : '-',
+        ascii(p.notes || ''),
       ]),
       foot: [[
         'TOTAL', '', '', totalUnits,
         fmt(totalVol),
         fmt(totalWeight, 1),
-        '', usd(totalValue),
+        '', usd(totalValue), '',
       ]],
-      styles: { fontSize: 8, cellPadding: 2.5, textColor: [60, 50, 40] },
-      headStyles: { fillColor: [141, 121, 102], textColor: 255, fontStyle: 'bold', fontSize: 7.5 },
-      footStyles: { fillColor: [230, 220, 210], textColor: [60, 50, 40], fontStyle: 'bold', fontSize: 7.5 },
+      styles: { fontSize: 7.5, cellPadding: 2.5, textColor: [60, 50, 40] },
+      headStyles: { fillColor: [141, 121, 102], textColor: 255, fontStyle: 'bold', fontSize: 7 },
+      footStyles: { fillColor: [230, 220, 210], textColor: [60, 50, 40], fontStyle: 'bold', fontSize: 7 },
       alternateRowStyles: { fillColor: [250, 247, 243] },
       columnStyles: {
-        0: { cellWidth: 42 },
-        1: { cellWidth: 14, halign: 'center' },
-        2: { cellWidth: 28, halign: 'center' },
-        3: { cellWidth: 12, halign: 'center' },
-        4: { cellWidth: 22, halign: 'right' },
-        5: { cellWidth: 22, halign: 'right' },
-        6: { cellWidth: 20, halign: 'right' },
-        7: { cellWidth: 20, halign: 'right' },
+        0: { cellWidth: 36 },
+        1: { cellWidth: 13, halign: 'center' },
+        2: { cellWidth: 24, halign: 'center' },
+        3: { cellWidth: 10, halign: 'center' },
+        4: { cellWidth: 16, halign: 'right' },
+        5: { cellWidth: 16, halign: 'right' },
+        6: { cellWidth: 18, halign: 'right' },
+        7: { cellWidth: 18, halign: 'right' },
+        8: { cellWidth: 27 },
       },
     });
 
@@ -147,6 +209,65 @@ export function exportShipmentPDF({ containers, currentContainerType, shipmentNa
       doc.addImage(v.dataUrl, 'JPEG', margin, iy, imgW, imgH);
     });
   }
+
+  // ── Documentacion aduanera ────────────────────────────────────────────────
+  doc.addPage();
+  doc.setFillColor(141, 121, 102);
+  doc.rect(0, 0, pageW, 14, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(9); doc.setFont('helvetica', 'bold');
+  doc.text('ImportaPro', margin, 10);
+  doc.text(ascii(shipmentName || 'Resumen de embarque'), pageW - margin, 10, { align: 'right' });
+
+  y = 22;
+  const isSemiDoc = containers.some(c => c.type && c.type.startsWith('semi'));
+  const hasValue  = containers.flatMap(c => c.products || []).some(p => p.price > 0);
+
+  function docSection(title) {
+    if (y > 240) { doc.addPage(); y = 20; }
+    doc.setFontSize(10); doc.setFont('helvetica', 'bold'); doc.setTextColor(141, 121, 102);
+    doc.text(ascii(title), margin, y); y += 1;
+    doc.setDrawColor(200, 185, 165); doc.line(margin, y, pageW - margin, y); y += 5;
+  }
+  function docBullet(required, text, detail) {
+    if (y > 262) { doc.addPage(); y = 20; }
+    const tag = required ? '[OBLIGATORIO]' : '[RECOMENDADO]';
+    const tagColor = required ? [184, 92, 92] : [100, 140, 100];
+    doc.setFontSize(8); doc.setFont('helvetica', 'bold'); doc.setTextColor(...tagColor);
+    doc.text(tag, margin + 3, y);
+    const tagW = doc.getTextWidth(tag) + 4;
+    doc.setFont('helvetica', 'normal'); doc.setTextColor(60, 50, 40);
+    const mainLines = doc.splitTextToSize(ascii(text), pageW - margin * 2 - tagW - 6);
+    doc.text(mainLines, margin + 3 + tagW, y);
+    y += mainLines.length * 4.5;
+    if (detail) {
+      doc.setFontSize(7.5); doc.setTextColor(120, 100, 80); doc.setFont('helvetica', 'italic');
+      const dLines = doc.splitTextToSize(ascii(detail), pageW - margin * 2 - 10);
+      doc.text(dLines, margin + 8, y);
+      y += dLines.length * 4 + 1;
+    }
+    y += 2;
+  }
+
+  docSection('Documentos requeridos para la importacion');
+  docBullet(true,  'Factura Comercial (Commercial Invoice)', 'Debe incluir: descripcion detallada de la mercaderia, valor FOB, incoterm, datos del vendedor y comprador, pais de origen.');
+  docBullet(true,  'Packing List', 'Lista detallada de bultos, dimensiones, pesos y contenido. Este PDF puede servir como base.');
+  docBullet(true,  'Conocimiento de Embarque (Bill of Lading / Air Waybill)', isSemiDoc ? 'Para semis terrestres: Carta de Porte (CMR o similar segun el pais de origen).' : 'Emitido por la naviera. Debe coincidir con la factura comercial.');
+  docBullet(true,  'Declaracion Aduanera (SIM/SIMI o equivalente)', 'Tramitar con el despachante de aduana antes del arribo de la mercaderia.');
+  docBullet(true,  'Certificado de Origen', 'Necesario para aplicar preferencias arancelarias (Mercosur, acuerdos bilaterales). Emitido en el pais exportador.');
+  if (hasValue) {
+    docBullet(true, 'Comprobante de pago / Swift bancario', 'Respaldo del pago al proveedor. Requerido por ARCA (ex-AFIP) para la liquidacion de divisas.');
+  }
+  docBullet(false, 'Seguro de carga (Certificate of Insurance)', 'Recomendado para embarques con valor alto. Cubre perdidas o danos durante el transporte.');
+  docBullet(false, 'Certificados de calidad o conformidad', 'Puede ser exigido segun el tipo de producto (electronica, alimentos, textiles, etc.).');
+  y += 2;
+
+  docSection('Aranceles estimados (China - Argentina)');
+  docBullet(false, 'Derecho de Importacion (DI): 20% sobre valor CIF', 'Variable segun posicion arancelaria NCM. Verificar con tu despachante.');
+  docBullet(false, 'IVA importacion: 21% (o 10.5% para ciertos productos)', 'Se calcula sobre valor CIF + DI.');
+  docBullet(false, 'Tasa estadistica: 3% sobre valor CIF', 'Aplicable a la mayoria de las importaciones.');
+  docBullet(false, 'Gastos de despachante + agente maritimo', 'Variable. Estimar entre USD 300 y USD 800 para un contenedor estandar.');
+  y += 4;
 
   // ── Instrucciones de carga ────────────────────────────────────────────────
   doc.addPage();

@@ -19,7 +19,7 @@ export default function ContainerLoader() {
     setContainerType, addNewContainer, switchToContainer, removeContainer, syncActiveContainer,
     setPriorityZone, clearPriorityZones, setSelectedZoneSlot,
     setInstanceManualPos, setInstanceLockedOri, setSelectedInstance, setInteractMode,
-    currentShipmentId, setCurrentShipmentId, resetShipmentId, loadShipmentData,
+    currentShipmentId, currentShipmentName, setCurrentShipmentId, setCurrentShipmentName, resetShipmentId, loadShipmentData,
     setSemiWeightLimit, pendingProduct, setPendingProduct,
   } = useContainerStore();
   const { showToast } = useAppStore();
@@ -29,6 +29,7 @@ export default function ContainerLoader() {
 
   // ── Form state ──
   const [formType,    setFormType]    = useState('box');
+  const [prodNotes,   setProdNotes]   = useState('');
   const [prodName,    setProdName]    = useState('');
   const [qty,         setQty]         = useState('');
   const [price,       setPrice]       = useState('');
@@ -92,8 +93,8 @@ export default function ContainerLoader() {
     }
     const w = parseFloat(weight) || 0;
     const p2 = parseFloat(price) || 0;
-    checkAndAdd({ name: prodName.trim(), type: formType, dims, qty: q, price: p2, weight: w });
-    setProdName(''); setQty(''); setPrice(''); setWeight('');
+    checkAndAdd({ name: prodName.trim(), type: formType, dims, qty: q, price: p2, weight: w, notes: prodNotes.trim() });
+    setProdName(''); setQty(''); setPrice(''); setWeight(''); setProdNotes('');
     setBoxL(''); setBoxW(''); setBoxH('');
   }
 
@@ -247,8 +248,10 @@ export default function ContainerLoader() {
       setOverwriteId(existing[0].id); setOverwriteName(saveName.trim());
       setShowSave(false); setShowOverwrite(true); return;
     }
-    const { error } = await _sb.from('shipments').insert({ user_id: session.user.id, name: saveName.trim(), containers });
+    const { data: inserted, error } = await _sb.from('shipments').insert({ user_id: session.user.id, name: saveName.trim(), containers, status: 'preparacion' }).select('id').single();
     if (error) { showToast('Error al guardar: ' + error.message, 'error'); return; }
+    setCurrentShipmentId(inserted.id);
+    setCurrentShipmentName(saveName.trim());
     setShowSave(false);
     showToast(`Embarque guardado: "${saveName.trim()}"`, 'success');
   }
@@ -270,7 +273,7 @@ export default function ContainerLoader() {
     let session;
     try { ({ data: { session } } = await _sb.auth.getSession()); }
     catch { setShipmentsLoading(false); return showToast('Error de conexión', 'error'); }
-    const { data, error } = await _sb.from('shipments').select('id,name,created_at,containers').order('created_at', { ascending: false }).limit(20);
+    const { data, error } = await _sb.from('shipments').select('id,name,created_at,containers,status,is_public').order('created_at', { ascending: false }).limit(20);
     setShipmentsLoading(false);
     if (error) return showToast('Error al cargar embarques: ' + error.message, 'error');
     setShipmentsList(data || []);
@@ -283,6 +286,24 @@ export default function ContainerLoader() {
     loadShipmentData(data);
     setShowShipments(false);
     showToast(`✓ Embarque "${data.name}" cargado`, 'success');
+  }
+
+  async function updateShipmentStatus(id, status) {
+    await _sb.from('shipments').update({ status }).eq('id', id);
+    setShipmentsList(prev => prev.map(s => s.id === id ? { ...s, status } : s));
+  }
+
+  async function toggleShipmentPublic(id, currentPublic) {
+    const is_public = !currentPublic;
+    await _sb.from('shipments').update({ is_public }).eq('id', id);
+    setShipmentsList(prev => prev.map(s => s.id === id ? { ...s, is_public } : s));
+    if (is_public) {
+      const url = `https://fleetloader.vercel.app/share/${id}`;
+      navigator.clipboard.writeText(url).catch(() => {});
+      showToast('Link copiado al portapapeles', 'success');
+    } else {
+      showToast('Link desactivado', 'success');
+    }
   }
 
   async function deleteShipment() {
@@ -410,6 +431,11 @@ export default function ContainerLoader() {
             <input type="number" value={weight} placeholder="0.00" min="0" step="0.1" onChange={e => setWeight(e.target.value)} />
           </div>
 
+          <div className="form-group">
+            <label>Notas <span style={{ color: 'var(--c2)', fontSize: 9 }}>opcional</span></label>
+            <input type="text" value={prodNotes} placeholder="Ej: frágil, este lado arriba..." onChange={e => setProdNotes(e.target.value)} />
+          </div>
+
           <button className="btn-primary" onClick={handleAddProduct}>+ Agregar al Contenedor</button>
 
           <hr className="divider" />
@@ -499,7 +525,7 @@ export default function ContainerLoader() {
                 onClick={async () => {
                   const containers = syncActiveContainer();
                   const views = canvasRef.current ? await canvasRef.current.captureViews() : [];
-                  exportShipmentPDF({ containers, currentContainerType, views });
+                  await exportShipmentPDF({ containers, currentContainerType, views, shipmentName: currentShipmentName, shipmentId: currentShipmentId });
                 }}
                 disabled={loadedProducts.length === 0}
                 style={{ padding: '6px 14px', fontSize: 11, fontFamily: "'DM Mono', monospace", letterSpacing: '0.5px', borderRadius: 6, cursor: loadedProducts.length === 0 ? 'not-allowed' : 'pointer', border: '1px solid var(--border)', color: loadedProducts.length === 0 ? 'var(--muted)' : 'var(--text)', background: 'transparent', whiteSpace: 'nowrap', opacity: loadedProducts.length === 0 ? 0.5 : 1 }}>
@@ -819,15 +845,36 @@ export default function ContainerLoader() {
                 const date = new Date(s.created_at).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
                 const totalConts = s.containers?.length || 1;
                 const totalProds = s.containers?.reduce((acc, c) => acc + (c.products?.length || 0), 0) || 0;
+                const STATUS_CONFIG = {
+                  preparacion: { label: 'En preparación', color: '#8D7966' },
+                  embarcado:   { label: 'Embarcado',      color: '#5B8FA8' },
+                  en_puerto:   { label: 'En puerto',      color: '#E0A028' },
+                  entregado:   { label: 'Entregado',      color: '#6B8C6B' },
+                };
+                const st = STATUS_CONFIG[s.status] || STATUS_CONFIG.preparacion;
                 return (
-                  <div key={s.id} style={{ padding: '14px 16px', border: '1px solid var(--border)', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 8 }}>
-                    <div>
-                      <div style={{ fontWeight: 600, fontSize: 14, color: 'var(--text)', marginBottom: 3 }}>{s.name}</div>
-                      <div style={{ fontSize: 11, color: 'var(--muted)', fontFamily: "'DM Mono', monospace" }}>{date} · {totalConts} contenedor{totalConts>1?'es':''} · {totalProds} producto{totalProds!==1?'s':''}</div>
+                  <div key={s.id} style={{ padding: '14px 16px', border: '1px solid var(--border)', borderRadius: 8, marginBottom: 8 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 8 }}>
+                      <div>
+                        <div style={{ fontWeight: 600, fontSize: 14, color: 'var(--text)', marginBottom: 3 }}>{s.name}</div>
+                        <div style={{ fontSize: 11, color: 'var(--muted)', fontFamily: "'DM Mono', monospace" }}>{date} · {totalConts} contenedor{totalConts>1?'es':''} · {totalProds} producto{totalProds!==1?'s':''}</div>
+                      </div>
+                      <span style={{ fontSize: 10, padding: '3px 8px', borderRadius: 10, background: st.color + '22', color: st.color, fontFamily: "'DM Mono', monospace", whiteSpace: 'nowrap' }}>{st.label}</span>
                     </div>
-                    <div style={{ display: 'flex', gap: 6 }}>
-                      <button onClick={() => loadShipment(s.id)} style={{ padding: '7px 14px', fontSize: 11, fontFamily: "'DM Mono', monospace", borderRadius: 6, border: '1.5px solid var(--c1)', color: 'var(--c1)', background: 'transparent', cursor: 'pointer' }}>Cargar →</button>
-                      <button onClick={() => { setDeleteShipId(s.id); setShowDeleteShip(true); }} style={{ padding: '7px 14px', fontSize: 11, fontFamily: "'DM Mono', monospace", borderRadius: 6, border: '1px solid rgba(184,92,92,0.35)', color: 'var(--danger)', background: 'transparent', cursor: 'pointer' }}>Eliminar</button>
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+                      <select value={s.status || 'preparacion'} onChange={e => updateShipmentStatus(s.id, e.target.value)}
+                        style={{ fontSize: 10, padding: '4px 8px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', fontFamily: "'DM Mono', monospace", cursor: 'pointer' }}>
+                        <option value="preparacion">En preparación</option>
+                        <option value="embarcado">Embarcado</option>
+                        <option value="en_puerto">En puerto</option>
+                        <option value="entregado">Entregado</option>
+                      </select>
+                      <button onClick={() => toggleShipmentPublic(s.id, s.is_public)}
+                        style={{ padding: '4px 10px', fontSize: 10, fontFamily: "'DM Mono', monospace", borderRadius: 6, border: `1px solid ${s.is_public ? '#6B8C6B' : 'var(--border)'}`, color: s.is_public ? '#6B8C6B' : 'var(--muted)', background: 'transparent', cursor: 'pointer' }}>
+                        {s.is_public ? '🔗 Link activo' : '🔗 Compartir'}
+                      </button>
+                      <button onClick={() => loadShipment(s.id)} style={{ padding: '4px 12px', fontSize: 10, fontFamily: "'DM Mono', monospace", borderRadius: 6, border: '1.5px solid var(--c1)', color: 'var(--c1)', background: 'transparent', cursor: 'pointer' }}>Cargar →</button>
+                      <button onClick={() => { setDeleteShipId(s.id); setShowDeleteShip(true); }} style={{ padding: '4px 10px', fontSize: 10, fontFamily: "'DM Mono', monospace", borderRadius: 6, border: '1px solid rgba(184,92,92,0.35)', color: 'var(--danger)', background: 'transparent', cursor: 'pointer' }}>Eliminar</button>
                     </div>
                   </div>
                 );
