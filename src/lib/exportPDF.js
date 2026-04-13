@@ -14,6 +14,15 @@ function fmt(n, dec = 2) {
 }
 function usd(n) { return 'U$S ' + fmt(n); }
 
+// jsPDF helvetica no soporta tildes/ñ — convertir a ASCII
+function ascii(str) {
+  return str
+    .replace(/á/g,'a').replace(/é/g,'e').replace(/í/g,'i').replace(/ó/g,'o').replace(/ú/g,'u')
+    .replace(/Á/g,'A').replace(/É/g,'E').replace(/Í/g,'I').replace(/Ó/g,'O').replace(/Ú/g,'U')
+    .replace(/ñ/g,'n').replace(/Ñ/g,'N').replace(/ü/g,'u').replace(/Ü/g,'U')
+    .replace(/¿/g,'').replace(/¡/g,'');
+}
+
 export function exportShipmentPDF({ containers, currentContainerType, shipmentName, views = [] }) {
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
   const pageW = doc.internal.pageSize.getWidth();
