@@ -4,5 +4,9 @@
       "path": "/api/ping",
       "schedule": "0 12 */5 * *"
     }
+  ],
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "/api/$1" },
+    { "source": "/(.*)", "destination": "/index.html" }
   ]
 }

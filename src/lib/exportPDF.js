@@ -56,36 +56,46 @@ export async function exportShipmentPDF({ containers, currentContainerType, ship
   doc.text('Sistema de gestion de importacion y contenedores', margin, 30);
   doc.text('fleetloader.vercel.app', pageW - margin, 30, { align: 'right' });
 
-  // Shipment name
-  doc.setTextColor(60, 50, 40);
-  doc.setFontSize(26);
-  doc.setFont('helvetica', 'bold');
-  const titleText = ascii(shipmentName || 'Resumen de embarque');
-  doc.text(titleText, pageW / 2, 80, { align: 'center' });
-
-  // Date and summary
+  // Shipment name — centered below header
   const dateStr = new Date().toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
   const allPCover = containers.flatMap(c => c.products || []);
   const totUCover = allPCover.reduce((s, p) => s + p.qty, 0);
   const totVCover = allPCover.reduce((s, p) => s + p.vol * p.qty, 0);
 
-  doc.setFontSize(11);
+  doc.setTextColor(60, 50, 40);
+  doc.setFontSize(26);
+  doc.setFont('helvetica', 'bold');
+  const titleText = ascii(shipmentName || 'Resumen de embarque');
+  doc.text(titleText, pageW / 2, 60, { align: 'center' });
+
+  doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(120, 100, 80);
-  doc.text(`Fecha: ${dateStr}`, pageW / 2, 95, { align: 'center' });
-  doc.text(ascii(`${containers.length} contenedor(es)  |  ${totUCover} unidades  |  ${fmt(totVCover)} m3`), pageW / 2, 104, { align: 'center' });
+  doc.text(`Fecha: ${dateStr}`, pageW / 2, 71, { align: 'center' });
+  doc.text(ascii(`${containers.length} contenedor(es)  |  ${totUCover} unidades  |  ${fmt(totVCover)} m3`), pageW / 2, 79, { align: 'center' });
 
   // Divider
   doc.setDrawColor(200, 185, 165);
-  doc.line(margin * 2, 112, pageW - margin * 2, 112);
+  doc.line(margin * 2, 85, pageW - margin * 2, 85);
 
-  // QR code on cover
+  // 3D view — perspective — centered in the cover
+  const coverView = views.length > 0 ? views[0] : null;
+  if (coverView) {
+    const imgW = pageW - margin * 2;
+    const imgH = imgW * 0.58;
+    const imgY = 90;
+    doc.addImage(coverView.dataUrl, 'JPEG', margin, imgY, imgW, imgH);
+  }
+
+  // QR code — bottom-right corner
   if (qrDataUrl) {
-    const qrSize = 36;
-    doc.addImage(qrDataUrl, 'PNG', pageW / 2 - qrSize / 2, 120, qrSize, qrSize);
-    doc.setFontSize(8);
+    const qrSize = 28;
+    const qrX = pageW - margin - qrSize;
+    const qrY = pageH0 - margin - qrSize - 10;
+    doc.addImage(qrDataUrl, 'PNG', qrX, qrY, qrSize, qrSize);
+    doc.setFontSize(7);
     doc.setTextColor(160, 140, 120);
-    doc.text('Escanea para ver este embarque online', pageW / 2, 160, { align: 'center' });
+    doc.text('Ver online', qrX + qrSize / 2, qrY + qrSize + 4, { align: 'center' });
   }
 
   // Footer on cover

@@ -853,28 +853,65 @@ export default function ContainerLoader() {
                 };
                 const st = STATUS_CONFIG[s.status] || STATUS_CONFIG.preparacion;
                 return (
-                  <div key={s.id} style={{ padding: '14px 16px', border: '1px solid var(--border)', borderRadius: 8, marginBottom: 8 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 8 }}>
-                      <div>
-                        <div style={{ fontWeight: 600, fontSize: 14, color: 'var(--text)', marginBottom: 3 }}>{s.name}</div>
-                        <div style={{ fontSize: 11, color: 'var(--muted)', fontFamily: "'DM Mono', monospace" }}>{date} · {totalConts} contenedor{totalConts>1?'es':''} · {totalProds} producto{totalProds!==1?'s':''}</div>
+                  <div key={s.id} style={{
+                    background: '#fff',
+                    borderRadius: 10,
+                    border: '1px solid #E8E0D8',
+                    borderLeft: `4px solid ${st.color}`,
+                    marginBottom: 10,
+                    overflow: 'hidden',
+                    boxShadow: '0 1px 4px rgba(0,0,0,0.05)',
+                  }}>
+                    {/* Top row */}
+                    <div style={{ padding: '12px 14px 10px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontWeight: 700, fontSize: 14, color: '#3d2e24', marginBottom: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.name}</div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                          <span style={{ fontSize: 10, color: '#9a8778', fontFamily: "'DM Mono', monospace" }}>{date}</span>
+                          <span style={{ width: 3, height: 3, borderRadius: '50%', background: '#C8B8A8', flexShrink: 0 }} />
+                          <span style={{ fontSize: 10, color: '#9a8778', fontFamily: "'DM Mono', monospace" }}>
+                            {totalConts} cont{totalConts > 1 ? 's' : ''}
+                          </span>
+                          <span style={{ width: 3, height: 3, borderRadius: '50%', background: '#C8B8A8', flexShrink: 0 }} />
+                          <span style={{ fontSize: 10, color: '#9a8778', fontFamily: "'DM Mono', monospace" }}>
+                            {totalProds} prod{totalProds !== 1 ? 's' : ''}
+                          </span>
+                        </div>
                       </div>
-                      <span style={{ fontSize: 10, padding: '3px 8px', borderRadius: 10, background: st.color + '22', color: st.color, fontFamily: "'DM Mono', monospace", whiteSpace: 'nowrap' }}>{st.label}</span>
+                      <span style={{
+                        fontSize: 10, padding: '3px 9px', borderRadius: 20, flexShrink: 0,
+                        background: st.color + '18', color: st.color,
+                        fontFamily: "'DM Mono', monospace", letterSpacing: '0.4px', fontWeight: 600,
+                        border: `1px solid ${st.color}40`,
+                      }}>{st.label}</span>
                     </div>
-                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+
+                    {/* Bottom actions */}
+                    <div style={{ borderTop: '1px solid #F0EBE3', padding: '8px 14px', display: 'flex', alignItems: 'center', gap: 6, background: '#FAFAF8', flexWrap: 'wrap' }}>
                       <select value={s.status || 'preparacion'} onChange={e => updateShipmentStatus(s.id, e.target.value)}
-                        style={{ fontSize: 10, padding: '4px 8px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', fontFamily: "'DM Mono', monospace", cursor: 'pointer' }}>
+                        style={{ fontSize: 10, padding: '4px 8px', borderRadius: 6, border: '1px solid #D8CFC6', background: '#fff', color: '#5a4a3e', fontFamily: "'DM Mono', monospace", cursor: 'pointer', flex: 1, minWidth: 100, maxWidth: 150 }}>
                         <option value="preparacion">En preparación</option>
                         <option value="embarcado">Embarcado</option>
                         <option value="en_puerto">En puerto</option>
                         <option value="entregado">Entregado</option>
                       </select>
-                      <button onClick={() => toggleShipmentPublic(s.id, s.is_public)}
-                        style={{ padding: '4px 10px', fontSize: 10, fontFamily: "'DM Mono', monospace", borderRadius: 6, border: `1px solid ${s.is_public ? '#6B8C6B' : 'var(--border)'}`, color: s.is_public ? '#6B8C6B' : 'var(--muted)', background: 'transparent', cursor: 'pointer' }}>
-                        {s.is_public ? '🔗 Link activo' : '🔗 Compartir'}
+                      <div style={{ flex: 1 }} />
+                      <button onClick={() => toggleShipmentPublic(s.id, s.is_public)} style={{
+                        padding: '4px 10px', fontSize: 10, fontFamily: "'DM Mono', monospace", borderRadius: 6, cursor: 'pointer',
+                        border: `1px solid ${s.is_public ? '#6B8C6B' : '#D8CFC6'}`,
+                        color: s.is_public ? '#6B8C6B' : '#9a8778',
+                        background: s.is_public ? '#6B8C6B18' : 'transparent',
+                      }}>
+                        {s.is_public ? '🔗 Activo' : '🔗 Compartir'}
                       </button>
-                      <button onClick={() => loadShipment(s.id)} style={{ padding: '4px 12px', fontSize: 10, fontFamily: "'DM Mono', monospace", borderRadius: 6, border: '1.5px solid var(--c1)', color: 'var(--c1)', background: 'transparent', cursor: 'pointer' }}>Cargar →</button>
-                      <button onClick={() => { setDeleteShipId(s.id); setShowDeleteShip(true); }} style={{ padding: '4px 10px', fontSize: 10, fontFamily: "'DM Mono', monospace", borderRadius: 6, border: '1px solid rgba(184,92,92,0.35)', color: 'var(--danger)', background: 'transparent', cursor: 'pointer' }}>Eliminar</button>
+                      <button onClick={() => loadShipment(s.id)} style={{
+                        padding: '4px 14px', fontSize: 10, fontFamily: "'DM Mono', monospace", borderRadius: 6,
+                        border: '1.5px solid #8D7966', color: '#fff', background: '#8D7966', cursor: 'pointer', fontWeight: 600,
+                      }}>Cargar →</button>
+                      <button onClick={() => { setDeleteShipId(s.id); setShowDeleteShip(true); }} style={{
+                        padding: '4px 8px', fontSize: 12, borderRadius: 6, border: '1px solid #E8E0D8',
+                        color: '#b85c5c', background: 'transparent', cursor: 'pointer', lineHeight: 1,
+                      }}>✕</button>
                     </div>
                   </div>
                 );
