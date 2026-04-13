@@ -1,7 +1,7 @@
 {
   "name": "contenedorapp",
-  "version": "1.0.0",
-  "description": "",
+  "version": "2.0.0",
+  "description": "ImportaPro + Container Loader — React",
   "homepage": "https://github.com/IgnacioDallape/ContenedorApp#readme",
   "bugs": {
     "url": "https://github.com/IgnacioDallape/ContenedorApp/issues"
@@ -13,11 +13,21 @@
   "license": "ISC",
   "author": "Ignacio Dallape",
   "type": "module",
-  "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.82.0"
+    "@anthropic-ai/sdk": "^0.82.0",
+    "@supabase/supabase-js": "^2.49.4",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "three": "^0.175.0",
+    "zustand": "^5.0.3"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.4",
+    "vite": "^6.3.1"
   }
 }
