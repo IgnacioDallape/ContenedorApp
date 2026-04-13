@@ -143,10 +143,50 @@ export default function ContainerLoader() {
         weightExceeds ? ['Límite del contenedor', `${(weightLimit/1000).toFixed(1)} t`] : null,
         weightExceeds ? ['Exceso de peso', `+${(overWt/1000).toFixed(2)} t`, true] : null,
       ].filter(Boolean);
-      setCapModal({ body, stats, product: productData });
+      setCapModal({ body, stats, product: productData, fitsQty: placedQty });
       return;
     }
     addProduct(productData);
+  }
+
+  // ── Distribute overflow across containers ──
+  function handleDistribute() {
+    const { product, fitsQty } = capModal;
+    setCapModal(null);
+
+    const vol = (product.dims.L * product.dims.W * product.dims.H) / 1e6;
+
+    // 1. Add the units that fit to the current container
+    if (fitsQty > 0) {
+      addProduct({ ...product, qty: fitsQty });
+    }
+
+    let remaining = product.qty - fitsQty;
+    if (remaining <= 0) return;
+
+    // 2. Test how many fit in a *fresh* empty container of the same type
+    invalidatePackingCache();
+    const testProd = { id: 'fresh_test', name: product.name, type: product.type, dims: product.dims, qty: remaining, vol, color: '#999', priorityZone: null, packedItems: null, palletBase: null };
+    const { placed } = runPacking([testProd]);
+    const perContainer = placed['fresh_test'] || 0;
+
+    if (perContainer === 0) {
+      showToast('El producto no cabe en ningún contenedor de este tipo', 'error');
+      return;
+    }
+
+    // 3. Create as many containers as needed
+    let created = 0;
+    while (remaining > 0 && created < 20) {
+      addNewContainer();
+      const toAdd = Math.min(remaining, perContainer);
+      addProduct({ ...product, qty: toAdd });
+      remaining -= toAdd;
+      created++;
+    }
+
+    const label = product.type === 'pallet' ? 'pallets' : 'cajas';
+    showToast(`✓ ${product.qty} ${label} distribuidas en ${created + 1} contenedor${created > 0 ? 'es' : ''}`, 'success');
   }
 
   // ── Rotation ──
@@ -782,7 +822,7 @@ export default function ContainerLoader() {
             <div className="cap-footer">
               <button className="btn-secondary" onClick={() => setCapModal(null)}>Cancelar</button>
               <button className="btn-primary" style={{ width: 'auto', padding: '10px 24px', background: 'var(--c1)' }}
-                onClick={() => { const p = capModal.product; setCapModal(null); addNewContainer(); addProduct(p); showToast(`✓ Producto enviado al Contenedor ${shipmentContainers.length}`, 'success'); }}>
+                onClick={handleDistribute}>
                 + Nuevo contenedor →
               </button>
               <button className="btn-primary" style={{ width: 'auto', padding: '10px 24px', background: 'var(--danger)' }}
