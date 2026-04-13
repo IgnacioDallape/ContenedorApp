@@ -3,7 +3,7 @@ import useContainerStore from '../../stores/containerStore.js';
 import useAppStore from '../../stores/appStore.js';
 import { CONTAINER_TYPES, PALLET_SIZES, ZONE_COLORS_HEX, ZONE_LABELS, WEIGHT_LIMITS } from '../../lib/constants.js';
 import { fmt } from '../../lib/formatters.js';
-import { runPacking, runPackingCached, invalidatePackingCache } from '../../lib/packing.js';
+import { runPacking, runPackingCached, invalidatePackingCache, setContainerDimensions } from '../../lib/packing.js';
 import ThreeCanvas from './ThreeCanvas.jsx';
 import { _sb } from '../../lib/supabase.js';
 import { exportShipmentPDF } from '../../lib/exportPDF.js';
@@ -203,8 +203,14 @@ export default function ContainerLoader() {
     const ct = CONTAINER_TYPES[newType];
     if (!ct) return;
 
-    // Apply new dimensions to packing engine so runPacking uses the right container
+    // Update packing engine internal dimensions (critical — uses local vars, not window globals)
+    setContainerDimensions(ct.L, ct.W, ct.H, ct.vol);
+    // Also clear stale positioning data that could interfere with fresh simulation
     window.CONT_L = ct.L; window.CONT_W = ct.W; window.CONT_H = ct.H; window.CONTAINER_VOL = ct.vol;
+    window._instanceManualPos = {};
+    window._instanceLockedOri = {};
+    window._priorityZones = [null, null, null];
+    window._palletsWithNoSpace = [];
 
     // Redistribute all products across minimum containers of the new type
     const newContainers = [];
