@@ -110,38 +110,33 @@ export function exportShipmentPDF({ containers, currentContainerType, shipmentNa
     y = doc.lastAutoTable.finalY + 8;
   });
 
-  // ── Vistas 3D ─────────────────────────────────────────────────────────────
+  // ── Vistas 3D — una página por vista ──────────────────────────────────────
   if (views.length > 0) {
-    // Add new page for views
-    doc.addPage();
-    y = margin;
+    const pageH = doc.internal.pageSize.getHeight();
+    const imgW = pageW - margin * 2;
+    const imgH = imgW * 0.58;
 
-    doc.setFontSize(11);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(141, 121, 102);
-    doc.text('Visualización 3D del contenedor', margin, y);
-    y += 8;
+    views.forEach(v => {
+      doc.addPage();
 
-    // 2x2 grid of images
-    const imgW = (pageW - margin * 2 - 6) / 2;
-    const imgH = imgW * 0.55;
-
-    views.forEach((v, i) => {
-      const col = i % 2;
-      const row = Math.floor(i / 2);
-      const x = margin + col * (imgW + 6);
-      const iy = y + row * (imgH + 14);
-
-      doc.addImage(v.dataUrl, 'JPEG', x, iy, imgW, imgH);
-
-      // Label below image
+      // Mini header
+      doc.setFillColor(141, 121, 102);
+      doc.rect(0, 0, pageW, 10, 'F');
+      doc.setTextColor(255, 255, 255);
       doc.setFontSize(8);
-      doc.setFont('helvetica', 'normal');
-      doc.setTextColor(120, 100, 80);
-      doc.text(v.label, x + imgW / 2, iy + imgH + 5, { align: 'center' });
-    });
+      doc.setFont('helvetica', 'bold');
+      doc.text('ImportaPro — Visualización 3D', margin, 7);
 
-    y += Math.ceil(views.length / 2) * (imgH + 14) + 4;
+      // Label
+      doc.setFontSize(13);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(141, 121, 102);
+      doc.text(v.label, pageW / 2, 22, { align: 'center' });
+
+      // Image centered vertically
+      const iy = (pageH - imgH) / 2 - 4;
+      doc.addImage(v.dataUrl, 'JPEG', margin, iy, imgW, imgH);
+    });
   }
 
   // ── Footer en todas las páginas ────────────────────────────────────────────
