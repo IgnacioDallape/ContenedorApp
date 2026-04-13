@@ -14,7 +14,7 @@ function fmt(n, dec = 2) {
 }
 function usd(n) { return 'U$S ' + fmt(n); }
 
-export function exportShipmentPDF({ containers, currentContainerType, shipmentName }) {
+export function exportShipmentPDF({ containers, currentContainerType, shipmentName, views = [] }) {
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
   const pageW = doc.internal.pageSize.getWidth();
   const margin = 16;
@@ -110,13 +110,52 @@ export function exportShipmentPDF({ containers, currentContainerType, shipmentNa
     y = doc.lastAutoTable.finalY + 8;
   });
 
-  // ── Footer ─────────────────────────────────────────────────────────────────
+  // ── Vistas 3D ─────────────────────────────────────────────────────────────
+  if (views.length > 0) {
+    // Add new page for views
+    doc.addPage();
+    y = margin;
+
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(141, 121, 102);
+    doc.text('Visualización 3D del contenedor', margin, y);
+    y += 8;
+
+    // 2x2 grid of images
+    const imgW = (pageW - margin * 2 - 6) / 2;
+    const imgH = imgW * 0.55;
+
+    views.forEach((v, i) => {
+      const col = i % 2;
+      const row = Math.floor(i / 2);
+      const x = margin + col * (imgW + 6);
+      const iy = y + row * (imgH + 14);
+
+      doc.addImage(v.dataUrl, 'JPEG', x, iy, imgW, imgH);
+
+      // Label below image
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(120, 100, 80);
+      doc.text(v.label, x + imgW / 2, iy + imgH + 5, { align: 'center' });
+    });
+
+    y += Math.ceil(views.length / 2) * (imgH + 14) + 4;
+  }
+
+  // ── Footer en todas las páginas ────────────────────────────────────────────
   const pageH = doc.internal.pageSize.getHeight();
-  doc.setFontSize(7.5);
-  doc.setTextColor(180, 165, 150);
-  doc.setFont('helvetica', 'normal');
-  doc.text('Generado por ImportaPro', margin, pageH - 8);
-  doc.text('fleetloader.vercel.app', pageW - margin, pageH - 8, { align: 'right' });
+  const totalPages = doc.getNumberOfPages();
+  for (let p = 1; p <= totalPages; p++) {
+    doc.setPage(p);
+    doc.setFontSize(7.5);
+    doc.setTextColor(180, 165, 150);
+    doc.setFont('helvetica', 'normal');
+    doc.text('Generado por ImportaPro', margin, pageH - 8);
+    doc.text('fleetloader.vercel.app', pageW - margin, pageH - 8, { align: 'right' });
+    doc.text(`${p} / ${totalPages}`, pageW / 2, pageH - 8, { align: 'center' });
+  }
 
   const filename = (shipmentName || 'embarque').replace(/\s+/g, '_').toLowerCase() + '.pdf';
   doc.save(filename);

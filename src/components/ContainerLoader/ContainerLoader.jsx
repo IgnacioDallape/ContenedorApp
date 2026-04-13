@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import useContainerStore from '../../stores/containerStore.js';
 import useAppStore from '../../stores/appStore.js';
 import { CONTAINER_TYPES, PALLET_SIZES, ZONE_COLORS_HEX, ZONE_LABELS, WEIGHT_LIMITS } from '../../lib/constants.js';
@@ -23,6 +23,9 @@ export default function ContainerLoader() {
     setSemiWeightLimit, pendingProduct, setPendingProduct,
   } = useContainerStore();
   const { showToast } = useAppStore();
+
+  // ── Canvas ref (for PDF screenshot capture) ──
+  const canvasRef = useRef(null);
 
   // ── Form state ──
   const [formType,    setFormType]    = useState('box');
@@ -493,9 +496,10 @@ export default function ContainerLoader() {
                 📂 Mis embarques
               </button>
               <button
-                onClick={() => {
+                onClick={async () => {
                   const containers = syncActiveContainer();
-                  exportShipmentPDF({ containers, currentContainerType, shipmentName: currentShipmentId ? undefined : undefined });
+                  const views = canvasRef.current ? await canvasRef.current.captureViews() : [];
+                  exportShipmentPDF({ containers, currentContainerType, views });
                 }}
                 disabled={loadedProducts.length === 0}
                 style={{ padding: '6px 14px', fontSize: 11, fontFamily: "'DM Mono', monospace", letterSpacing: '0.5px', borderRadius: 6, cursor: loadedProducts.length === 0 ? 'not-allowed' : 'pointer', border: '1px solid var(--border)', color: loadedProducts.length === 0 ? 'var(--muted)' : 'var(--text)', background: 'transparent', whiteSpace: 'nowrap', opacity: loadedProducts.length === 0 ? 0.5 : 1 }}>
@@ -564,6 +568,7 @@ export default function ContainerLoader() {
             {/* 3D canvas wrapper */}
             <div className="canvas-wrap" id="canvasWrap" style={{ position: 'relative', overflow: 'hidden', borderRadius: 6 }}>
               <ThreeCanvas
+                ref={canvasRef}
                 onSelectInstance={info => {
                   setInspector(info);
                   if (info) setSelectedInstance(info.instanceId);

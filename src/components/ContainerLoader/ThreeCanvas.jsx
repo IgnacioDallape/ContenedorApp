@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useImperativeHandle, forwardRef } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import useContainerStore from '../../stores/containerStore.js';
@@ -19,7 +19,7 @@ function makeBoxMaterials(hex) {
   ];
 }
 
-export default function ThreeCanvas({ onSelectInstance, onSetZone, onClearZone }) {
+function ThreeCanvas({ onSelectInstance, onSetZone, onClearZone }, ref) {
   const wrapRef = useRef(null);
   const threeRef = useRef(null); // { scene, camera, renderer, controls, containerGroup, priorityGroup, floorMesh }
 
@@ -38,7 +38,7 @@ export default function ThreeCanvas({ onSelectInstance, onSetZone, onClearZone }
     const W = wrap.clientWidth  || 700;
     const H = wrap.clientHeight || 380;
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.setSize(W, H);
     renderer.shadowMap.enabled = true;
@@ -158,6 +158,48 @@ export default function ThreeCanvas({ onSelectInstance, onSetZone, onClearZone }
     drawContainer();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadedProducts, CONT_L, CONT_W, CONT_H, currentContainerType, instanceLockedOri, instanceManualPos]);
+
+  // ─── Expose captureViews to parent via ref ───
+  useImperativeHandle(ref, () => ({
+    async captureViews() {
+      const t = threeRef.current;
+      if (!t) return [];
+      const { camera, renderer, scene, controls } = t;
+
+      // Save current camera state
+      const origPos = camera.position.clone();
+      const origTarget = controls.target.clone();
+      controls.enabled = false;
+
+      const cx = CONT_L / 2, cy = CONT_H / 2, cz = CONT_W / 2;
+      const d = Math.max(CONT_L, CONT_W, CONT_H);
+
+      const views = [
+        { label: 'Perspectiva', pos: [cx + d * 0.9, cy + d * 0.8, cz + d * 1.1] },
+        { label: 'Frente',      pos: [cx, cy, cz + d * 1.6] },
+        { label: 'Lateral',     pos: [cx + d * 1.6, cy, cz] },
+        { label: 'Superior',    pos: [cx, cy + d * 1.8, cz] },
+      ];
+
+      const images = [];
+      for (const v of views) {
+        camera.position.set(...v.pos);
+        camera.lookAt(cx, cy, cz);
+        camera.updateProjectionMatrix();
+        renderer.render(scene, camera);
+        images.push({ label: v.label, dataUrl: renderer.domElement.toDataURL('image/jpeg', 0.85) });
+      }
+
+      // Restore camera
+      camera.position.copy(origPos);
+      controls.target.copy(origTarget);
+      controls.enabled = true;
+      controls.update();
+      renderer.render(scene, camera);
+
+      return images;
+    }
+  }), [CONT_L, CONT_W, CONT_H]);
 
   // ─── Re-draw priority markers when zones change ───
   useEffect(() => {
@@ -684,3 +726,5 @@ export default function ThreeCanvas({ onSelectInstance, onSetZone, onClearZone }
     </div>
   );
 }
+
+export default forwardRef(ThreeCanvas);
