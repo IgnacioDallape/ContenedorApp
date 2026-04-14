@@ -56,7 +56,7 @@ function ThreeCanvas({ onSelectInstance, onSetZone, onClearZone }, ref) {
     const H = wrap.clientHeight || 380;
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5)); // cap at 1.5 for average PCs
     renderer.setSize(W, H);
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -111,12 +111,19 @@ function ThreeCanvas({ onSelectInstance, onSetZone, onClearZone }, ref) {
     const priorityGroup = new THREE.Group();
     scene.add(priorityGroup);
 
+    // ── On-demand rendering: only render when something changed (saves ~80% GPU on idle) ──
+    let _needsRender = true;
+    threeRef.current._requestRender = () => { _needsRender = true; };
+    controls.addEventListener('change', () => { _needsRender = true; });
+
     function animate() {
       requestAnimationFrame(animate);
       controls.update();
 
       let needsShadowUpdate = false;
-      if (threeRef.current?._animItems?.length > 0) {
+      const hasAnim = threeRef.current?._animItems?.length > 0;
+      if (hasAnim) {
+        _needsRender = true;
         const elapsed = Date.now() - (threeRef.current._animStartTime || 0);
         let allDone = true;
         for (const item of threeRef.current._animItems) {
@@ -128,15 +135,20 @@ function ThreeCanvas({ onSelectInstance, onSetZone, onClearZone }, ref) {
           item.mesh.position.y = progress >= 1 ? item.targetY : startY + (item.targetY - startY) * eased;
           if (progress < 1) allDone = false;
         }
-        if (allDone) threeRef.current._animItems = [];
+        if (allDone) { threeRef.current._animItems = []; }
         needsShadowUpdate = true;
       }
-      if (needsShadowUpdate || threeRef.current?._shadowDirty) {
-        renderer.shadowMap.needsUpdate = true;
+      if (threeRef.current?._shadowDirty) {
+        needsShadowUpdate = true;
         threeRef.current._shadowDirty = false;
+        _needsRender = true;
       }
+      if (needsShadowUpdate) renderer.shadowMap.needsUpdate = true;
 
-      renderer.render(scene, camera);
+      if (_needsRender) {
+        renderer.render(scene, camera);
+        _needsRender = false;
+      }
     }
     animate();
 
@@ -243,6 +255,7 @@ function ThreeCanvas({ onSelectInstance, onSetZone, onClearZone }, ref) {
     t.camera.lookAt(CONT_L / 2, CONT_H * 0.4, CONT_W / 2);
     t.controls.target.set(CONT_L / 2, CONT_H * 0.4, CONT_W / 2);
     t.controls.update();
+    threeRef.current?._requestRender?.();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentContainerType, CONT_L, CONT_W, CONT_H]);
 
@@ -283,6 +296,7 @@ function ThreeCanvas({ onSelectInstance, onSetZone, onClearZone }, ref) {
       sprite.position.set(pz.x, displayY + CONT_H * 0.45, pz.z);
       pg.add(sprite);
     });
+    threeRef.current?._requestRender?.();
   }
 
   function drawContainer() {
@@ -483,6 +497,7 @@ function ThreeCanvas({ onSelectInstance, onSetZone, onClearZone }, ref) {
     drawAllPriorityMarkers();
 
     if (drawOverlay) drawOverlay.style.display = 'none';
+    threeRef.current?._requestRender?.();
     })); // end double rAF phase 2
   }
 

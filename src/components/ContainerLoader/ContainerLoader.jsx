@@ -5,6 +5,7 @@ import { CONTAINER_TYPES, PALLET_SIZES, ZONE_COLORS_HEX, ZONE_LABELS, WEIGHT_LIM
 import { fmt } from '../../lib/formatters.js';
 import { runPacking, runPackingCached, invalidatePackingCache, setContainerDimensions } from '../../lib/packing.js';
 import ThreeCanvas from './ThreeCanvas.jsx';
+import ThreeErrorBoundary from './ThreeErrorBoundary.jsx';
 import { _sb } from '../../lib/supabase.js';
 import { exportShipmentPDF } from '../../lib/exportPDF.js';
 
@@ -40,6 +41,7 @@ export default function ContainerLoader() {
   const [boxH,        setBoxH]        = useState('');
   const [palletType,  setPalletType]  = useState('euro');
   const [palletHeight, setPalletHeight] = useState(120);
+  const [formError,   setFormError]   = useState('');
 
   // ── Inspector state ──
   const [inspector,   setInspector]   = useState(null); // { instanceId, label, unitIdx, type, dims, weight }
@@ -59,6 +61,7 @@ export default function ContainerLoader() {
   const [shipmentsFilter, setShipmentsFilter] = useState('');
   const [showDeleteShip, setShowDeleteShip] = useState(false);
   const [deleteShipId,   setDeleteShipId]  = useState(null);
+  const [isSaving,       setIsSaving]      = useState(false);
   const [openStatusId,   setOpenStatusId]  = useState(null);
   const [dragTabIdx,    setDragTabIdx]    = useState(null);
   const [dragOverTabIdx, setDragOverTabIdx] = useState(null);
@@ -82,28 +85,35 @@ export default function ContainerLoader() {
 
   // ── Add product (manual) ──
   function handleAddProduct() {
-    if (!prodName.trim()) return showToast('Ingresá el nombre del producto', 'error');
-    const q = parseInt(qty); if (!q || q < 1) return showToast('Ingresá una cantidad válida', 'error');
-    if (q > 500) return showToast('Máximo 500 unidades por producto', 'error');
+    setFormError('');
+    if (!prodName.trim()) { setFormError('Ingresá el nombre del producto'); return; }
+    const q = parseInt(qty);
+    if (!q || q < 1) { setFormError('Ingresá una cantidad válida (mínimo 1)'); return; }
+    if (q > 500) { setFormError('Máximo 500 unidades por producto'); return; }
     let dims;
     if (formType === 'box') {
       const L = parseFloat(boxL), W = parseFloat(boxW), H = parseFloat(boxH);
-      if (!L || !W || !H) return showToast('Ingresá las dimensiones', 'error');
+      if (!L || !W || !H || L <= 0 || W <= 0 || H <= 0) { setFormError('Ingresá dimensiones válidas (mayores a 0)'); return; }
+      if (L > 1400 || W > 1400 || H > 1400) { setFormError('Dimensiones demasiado grandes (máx. 1400 cm)'); return; }
       const fits = [L,W,H].some((v,i,a) => {
         const rest = a.filter((_,j) => j !== i);
         return v <= 1200 && rest[0] <= 235 && rest[1] <= 269 || v <= 1200 && rest[1] <= 235 && rest[0] <= 269;
       });
-      if (!fits) return showToast('La caja no entra en ninguna orientación válida', 'error');
+      if (!fits) { setFormError('La caja no entra en ninguna orientación posible'); return; }
       dims = { L, W, H };
     } else {
       const sz = PALLET_SIZES[palletType];
-      dims = { L: sz.L, W: sz.W, H: palletHeight };
+      const pH = parseFloat(palletHeight);
+      if (!pH || pH <= 0 || pH > 400) { setFormError('Altura del pallet inválida (1–400 cm)'); return; }
+      dims = { L: sz.L, W: sz.W, H: pH };
     }
     const w = parseFloat(weight) || 0;
     const p2 = parseFloat(price) || 0;
+    if (w < 0 || w > 50000) { setFormError('Peso inválido (0–50,000 kg)'); return; }
+    if (p2 < 0) { setFormError('Precio inválido'); return; }
     checkAndAdd({ name: prodName.trim(), type: formType, dims, qty: q, price: p2, weight: w, notes: prodNotes.trim() });
     setProdName(''); setQty(''); setPrice(''); setWeight(''); setProdNotes('');
-    setBoxL(''); setBoxW(''); setBoxH('');
+    setBoxL(''); setBoxW(''); setBoxH(''); setFormError('');
   }
 
   function checkAndAdd(productData) {
@@ -150,7 +160,19 @@ export default function ContainerLoader() {
         weightExceeds ? ['Límite del contenedor', `${(weightLimit/1000).toFixed(1)} t`] : null,
         weightExceeds ? ['Exceso de peso', `+${(overWt/1000).toFixed(2)} t`, true] : null,
       ].filter(Boolean);
-      setCapModal({ body, stats, product: productData, fitsQty: placedQty });
+      // Build body as structured data (avoids dangerouslySetInnerHTML XSS)
+      const typeLabel = productData.type === 'box' ? 'caja(s)' : 'pallet(s)';
+      let bodyParts;
+      if (weightExceeds && !volExceeds && !physExceeds) {
+        bodyParts = { pre: 'El peso total supera el límite al agregar ', qty: `${productData.qty} ${typeLabel}`, mid: ' de ', name: productData.name, suf: '.' };
+      } else if (placedQty === 0) {
+        bodyParts = { pre: '', qty: `${productData.qty} ${typeLabel}`, mid: ' de ', name: productData.name, suf: ' no tienen espacio físico en el contenedor.' };
+      } else if (placedQty === productData.qty && volExceeds) {
+        bodyParts = { pre: 'El volumen total supera la capacidad al agregar ', qty: `${productData.qty} ${typeLabel}`, mid: ' de ', name: productData.name, suf: '.' };
+      } else {
+        bodyParts = { pre: 'Solo ', qty: `${placedQty} de ${productData.qty}`, mid: ' unidades de ', name: productData.name, suf: `. Las restantes (${productData.qty - placedQty}) no caben.` };
+      }
+      setCapModal({ bodyParts, stats, product: productData, fitsQty: placedQty });
       return;
     }
     addProduct(productData);
@@ -454,37 +476,44 @@ export default function ContainerLoader() {
   }
 
   async function confirmSave() {
-    if (!saveName.trim()) return;
-    let session;
-    try { ({ data: { session } } = await _sb.auth.getSession()); }
-    catch { return showToast('Error de conexión', 'error'); }
-    if (!session) return showToast('Necesitás estar logueado', 'error');
-    const containers = syncActiveContainer();
-    const { data: existing } = await _sb.from('shipments').select('id,name').eq('user_id', session.user.id).ilike('name', saveName.trim());
-    if (existing?.length) {
-      setOverwriteId(existing[0].id); setOverwriteName(saveName.trim());
-      setShowSave(false); setShowOverwrite(true); return;
-    }
-    const payload = { v: 2, notes: shipmentNotes, items: containers };
-    const { data: inserted, error } = await _sb.from('shipments').insert({ user_id: session.user.id, name: saveName.trim(), containers: payload, status: 'preparacion' }).select('id').single();
-    if (error) { showToast('Error al guardar: ' + error.message, 'error'); return; }
-    setCurrentShipmentId(inserted.id);
-    setCurrentShipmentName(saveName.trim());
-    setShowSave(false);
-    showToast(`Embarque guardado: "${saveName.trim()}"`, 'success');
+    if (!saveName.trim() || isSaving) return;
+    setIsSaving(true);
+    try {
+      let session;
+      try { ({ data: { session } } = await _sb.auth.getSession()); }
+      catch { showToast('Error de conexión', 'error'); return; }
+      if (!session) { showToast('Necesitás estar logueado', 'error'); return; }
+      const containers = syncActiveContainer();
+      const { data: existing } = await _sb.from('shipments').select('id,name').eq('user_id', session.user.id).ilike('name', saveName.trim());
+      if (existing?.length) {
+        setOverwriteId(existing[0].id); setOverwriteName(saveName.trim());
+        setShowSave(false); setShowOverwrite(true); return;
+      }
+      const payload = { v: 2, notes: shipmentNotes, items: containers };
+      const { data: inserted, error } = await _sb.from('shipments').insert({ user_id: session.user.id, name: saveName.trim(), containers: payload, status: 'preparacion' }).select('id').single();
+      if (error) { showToast('Error al guardar: ' + error.message, 'error'); return; }
+      setCurrentShipmentId(inserted.id);
+      setCurrentShipmentName(saveName.trim());
+      setShowSave(false);
+      showToast(`Embarque guardado: "${saveName.trim()}"`, 'success');
+    } finally { setIsSaving(false); }
   }
 
   async function confirmOverwrite() {
-    let session;
-    try { ({ data: { session } } = await _sb.auth.getSession()); }
-    catch { return showToast('Error de conexión', 'error'); }
-    const containers = syncActiveContainer();
-    const payload = { v: 2, notes: shipmentNotes, items: containers };
-    const { error } = await _sb.from('shipments').update({ name: overwriteName, containers: payload }).eq('id', overwriteId);
-    if (error) { showToast('Error al guardar: ' + error.message, 'error'); return; }
-    setCurrentShipmentId(overwriteId);
-    setShowOverwrite(false);
-    showToast(`Embarque actualizado: "${overwriteName}"`, 'success');
+    if (isSaving) return;
+    setIsSaving(true);
+    try {
+      let session;
+      try { ({ data: { session } } = await _sb.auth.getSession()); }
+      catch { showToast('Error de conexión', 'error'); return; }
+      const containers = syncActiveContainer();
+      const payload = { v: 2, notes: shipmentNotes, items: containers };
+      const { error } = await _sb.from('shipments').update({ name: overwriteName, containers: payload }).eq('id', overwriteId);
+      if (error) { showToast('Error al guardar: ' + error.message, 'error'); return; }
+      setCurrentShipmentId(overwriteId);
+      setShowOverwrite(false);
+      showToast(`Embarque actualizado: "${overwriteName}"`, 'success');
+    } finally { setIsSaving(false); }
   }
 
   async function handleLoadShipments() {
@@ -543,6 +572,21 @@ export default function ContainerLoader() {
     showToast('Embarque eliminado');
     handleLoadShipments();
   }
+
+  // ── Escape key closes any open modal ──
+  useEffect(() => {
+    function onEscape(e) {
+      if (e.key !== 'Escape') return;
+      if (capModal)        { setCapModal(null); return; }
+      if (showSave)        { setShowSave(false); return; }
+      if (showOverwrite)   { setShowOverwrite(false); return; }
+      if (showShipments)   { setShowShipments(false); return; }
+      if (showDeleteShip)  { setShowDeleteShip(false); return; }
+    }
+    window.addEventListener('keydown', onEscape);
+    return () => window.removeEventListener('keydown', onEscape);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [capModal, showSave, showOverwrite, showShipments, showDeleteShip]);
 
   // ── Handle pallet exported from PalletBuilder ──
   useEffect(() => {
@@ -665,7 +709,7 @@ export default function ContainerLoader() {
 
           <div className="form-group">
             <label>Nombre del producto</label>
-            <input type="text" value={prodName} placeholder="Ej: Zapatillas Running" onChange={e => setProdName(e.target.value)} />
+            <input type="text" value={prodName} placeholder="Ej: Zapatillas Running" autoComplete="off" onChange={e => { setFormError(''); setProdName(e.target.value); }} />
           </div>
 
           <div className="form-group">
@@ -729,6 +773,11 @@ export default function ContainerLoader() {
             <input type="text" value={prodNotes} placeholder="Ej: frágil, este lado arriba..." onChange={e => setProdNotes(e.target.value)} />
           </div>
 
+          {formError && (
+            <div style={{ color: 'var(--error, #c0392b)', fontSize: 11, fontFamily: "'DM Mono', monospace", marginBottom: 8, padding: '6px 10px', background: 'rgba(192,57,43,0.08)', borderRadius: 6, border: '1px solid rgba(192,57,43,0.2)' }}>
+              ⚠ {formError}
+            </div>
+          )}
           <button className="btn-primary" onClick={handleAddProduct}>+ Agregar al Contenedor</button>
 
           <hr className="divider" />
@@ -769,6 +818,12 @@ export default function ContainerLoader() {
                       style={{ background: activeZoneCount > 0 ? ZONE_COLORS_HEX[selectedZoneSlot] + '22' : 'none', border: `1px solid ${activeZoneCount > 0 ? ZONE_COLORS_HEX[selectedZoneSlot] : 'var(--border)'}`, borderRadius: 3, padding: '2px 5px', fontSize: 9, color: activeZoneCount > 0 ? ZONE_COLORS_HEX[selectedZoneSlot] : 'var(--muted)', cursor: 'pointer', fontFamily: "'DM Mono', monospace" }}>
                       {activeZoneCount > 0 ? `Z${selectedZoneSlot+1}` : 'Z'}
                     </button>
+                    {/* Inline qty adjustment */}
+                    <button onClick={() => p.qty > 1 ? updateProductQty(p.id, p.qty - 1) : removeProduct(p.id)} title="Reducir cantidad"
+                      style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 3, padding: '2px 6px', fontSize: 12, color: 'var(--muted)', cursor: 'pointer', lineHeight: 1 }}>−</button>
+                    <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, minWidth: 18, textAlign: 'center', color: 'var(--text)' }}>{p.qty}</span>
+                    <button onClick={() => updateProductQty(p.id, p.qty + 1)} title="Aumentar cantidad"
+                      style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 3, padding: '2px 6px', fontSize: 12, color: 'var(--muted)', cursor: 'pointer', lineHeight: 1 }}>+</button>
                     <button className="btn-remove" onClick={() => removeProduct(p.id)} title="Eliminar">×</button>
                   </div>
                 </div>
@@ -927,16 +982,18 @@ export default function ContainerLoader() {
 
             {/* 3D canvas wrapper */}
             <div className="canvas-wrap" id="canvasWrap" style={{ position: 'relative', overflow: 'hidden', borderRadius: 6 }}>
-              <ThreeCanvas
-                ref={canvasRef}
-                onSelectInstance={info => {
-                  setInspector(info);
-                  if (info) setSelectedInstance(info.instanceId);
-                  else setSelectedInstance(null);
-                }}
-                onSetZone={(slot, pos) => setPriorityZone(slot, pos)}
-                onClearZone={slot => setPriorityZone(slot, null)}
-              />
+              <ThreeErrorBoundary>
+                <ThreeCanvas
+                  ref={canvasRef}
+                  onSelectInstance={info => {
+                    setInspector(info);
+                    if (info) setSelectedInstance(info.instanceId);
+                    else setSelectedInstance(null);
+                  }}
+                  onSetZone={(slot, pos) => setPriorityZone(slot, pos)}
+                  onClearZone={slot => setPriorityZone(slot, null)}
+                />
+              </ThreeErrorBoundary>
 
               {/* Inspector panel */}
               {inspector && (
@@ -1086,7 +1143,15 @@ export default function ContainerLoader() {
                             <td><span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: 2, background: p.color, marginRight: 8, verticalAlign: 'middle' }} />{p.name}</td>
                             <td>{p.type === 'box' ? '📦 Caja' : '🟫 Pallet'}</td>
                             <td className="td-mono">{p.dims.L}×{p.dims.W}×{p.dims.H}</td>
-                            <td className="td-mono">{p.qty}</td>
+                            <td className="td-mono">
+                              <input type="number" min="1" max="500"
+                                key={`${p.id}_${p.qty}`}
+                                defaultValue={p.qty}
+                                style={{ width: 54, padding: '2px 6px', fontFamily: "'DM Mono', monospace", fontSize: 12, border: '1px solid var(--border)', borderRadius: 4, background: 'var(--bg)', color: 'var(--text)', textAlign: 'center' }}
+                                onBlur={e => { const v = Math.max(1, Math.min(500, parseInt(e.target.value) || 1)); updateProductQty(p.id, v); }}
+                                onKeyDown={e => { if (e.key === 'Enter') { const v = Math.max(1, Math.min(500, parseInt(e.target.value) || 1)); updateProductQty(p.id, v); e.target.blur(); } }}
+                              />
+                            </td>
                             <td className="td-mono">{p.weight > 0 ? p.weight.toFixed(2)+' kg' : '—'}</td>
                             <td className="td-mono" style={{ color: wt > 0 ? 'var(--text)' : 'var(--muted)' }}>{wt > 0 ? wt.toFixed(1)+' kg' : '—'}</td>
                             <td className="td-mono">{vt.toFixed(3)} m³</td>
@@ -1122,7 +1187,11 @@ export default function ContainerLoader() {
           <div className="cap-modal">
             <div className="cap-icon">⚠️</div>
             <div className="cap-title">Capacidad Excedida</div>
-            <div className="cap-body" dangerouslySetInnerHTML={{ __html: capModal.body }} />
+            <div className="cap-body">
+              {capModal.bodyParts
+                ? <>{capModal.bodyParts.pre}<b>{capModal.bodyParts.qty}</b>{capModal.bodyParts.mid}<b>"{capModal.bodyParts.name}"</b>{capModal.bodyParts.suf}</>
+                : capModal.body}
+            </div>
             <div className="cap-stats">
               {capModal.stats.map(([label, val, isDanger, isSuccess], i) => (
                 <div key={i} className="cap-stat-row">
@@ -1166,7 +1235,7 @@ export default function ContainerLoader() {
             </div>
             <div className="cap-footer">
               <button className="btn-secondary" onClick={() => setShowSave(false)}>Cancelar</button>
-              <button className="btn-primary" style={{ width: 'auto', padding: '10px 28px' }} onClick={confirmSave}>Guardar →</button>
+              <button className="btn-primary" style={{ width: 'auto', padding: '10px 28px', opacity: isSaving ? 0.6 : 1 }} onClick={confirmSave} disabled={isSaving}>{isSaving ? 'Guardando...' : 'Guardar →'}</button>
             </div>
           </div>
         </div>
@@ -1181,7 +1250,7 @@ export default function ContainerLoader() {
             <div className="cap-body">¿Sobreescribir <b>"{overwriteName}"</b> con el estado actual?</div>
             <div className="cap-footer">
               <button className="btn-secondary" onClick={() => setShowOverwrite(false)}>Cancelar</button>
-              <button className="btn-primary" style={{ width: 'auto', padding: '10px 28px' }} onClick={confirmOverwrite}>Sobreescribir →</button>
+              <button className="btn-primary" style={{ width: 'auto', padding: '10px 28px', opacity: isSaving ? 0.6 : 1 }} onClick={confirmOverwrite} disabled={isSaving}>{isSaving ? 'Guardando...' : 'Sobreescribir →'}</button>
             </div>
           </div>
         </div>
