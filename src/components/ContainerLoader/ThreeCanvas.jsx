@@ -6,19 +6,15 @@ import useAppStore from '../../stores/appStore.js';
 import { ZONE_COLORS, ZONE_COLORS_HEX, ZONE_LABELS } from '../../lib/constants.js';
 import { runPacking, runPackingCached, invalidatePackingCache, hmGetMax } from '../../lib/packing.js';
 
-// ── Per-face box materials ──
+// ── Material cache: one template per hex color, cloned per mesh ──
+const _matTemplates = new Map();
 function makeBoxMaterials(hex) {
   let h = (hex || '#8D7966').replace('#', '');
   if (h.length === 3) h = h[0]+h[0]+h[1]+h[1]+h[2]+h[2];
-  const col = new THREE.Color(parseInt(h, 16));
-  return [
-    new THREE.MeshPhongMaterial({ color: col.clone().multiplyScalar(0.90), shininess: 10, specular: 0x080808 }),
-    new THREE.MeshPhongMaterial({ color: col.clone().multiplyScalar(0.75), shininess: 6,  specular: 0x060606 }),
-    new THREE.MeshPhongMaterial({ color: col.clone().multiplyScalar(1.18), shininess: 28, specular: 0x181818 }),
-    new THREE.MeshPhongMaterial({ color: col.clone().multiplyScalar(0.65), shininess: 4,  specular: 0x040404 }),
-    new THREE.MeshPhongMaterial({ color: col.clone().multiplyScalar(1.0),  shininess: 14, specular: 0x0c0c0c }),
-    new THREE.MeshPhongMaterial({ color: col.clone().multiplyScalar(0.82), shininess: 8,  specular: 0x080808 }),
-  ];
+  if (!_matTemplates.has(h)) {
+    _matTemplates.set(h, new THREE.MeshPhongMaterial({ color: parseInt(h, 16), shininess: 14, specular: 0x111111 }));
+  }
+  return _matTemplates.get(h).clone();
 }
 
 function ThreeCanvas({ onSelectInstance, onSetZone, onClearZone }, ref) {
@@ -45,6 +41,7 @@ function ThreeCanvas({ onSelectInstance, onSetZone, onClearZone }, ref) {
     renderer.setSize(W, H);
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.shadowMap.autoUpdate = false;
     renderer.setClearColor(0xEDE6DA, 1);
     wrap.appendChild(renderer.domElement);
 
@@ -59,8 +56,8 @@ function ThreeCanvas({ onSelectInstance, onSetZone, onClearZone }, ref) {
     const sun = new THREE.DirectionalLight(0xFFF4E0, 1.2);
     sun.position.set(600, 1000, 500);
     sun.castShadow = true;
-    sun.shadow.mapSize.width = 2048;
-    sun.shadow.mapSize.height = 2048;
+    sun.shadow.mapSize.width = 1024;
+    sun.shadow.mapSize.height = 1024;
     sun.shadow.camera.near = 10; sun.shadow.camera.far = 5000;
     sun.shadow.camera.left = -800; sun.shadow.camera.right = 1400;
     sun.shadow.camera.top = 800; sun.shadow.camera.bottom = -800;
@@ -99,6 +96,7 @@ function ThreeCanvas({ onSelectInstance, onSetZone, onClearZone }, ref) {
       requestAnimationFrame(animate);
       controls.update();
 
+      let needsShadowUpdate = false;
       if (threeRef.current?._animItems?.length > 0) {
         const elapsed = Date.now() - (threeRef.current._animStartTime || 0);
         let allDone = true;
@@ -112,6 +110,11 @@ function ThreeCanvas({ onSelectInstance, onSetZone, onClearZone }, ref) {
           if (progress < 1) allDone = false;
         }
         if (allDone) threeRef.current._animItems = [];
+        needsShadowUpdate = true;
+      }
+      if (needsShadowUpdate || threeRef.current?._shadowDirty) {
+        renderer.shadowMap.needsUpdate = true;
+        threeRef.current._shadowDirty = false;
       }
 
       renderer.render(scene, camera);
@@ -156,8 +159,10 @@ function ThreeCanvas({ onSelectInstance, onSetZone, onClearZone }, ref) {
   }, []);
 
   // ─── Re-render when products, container type, or manual positioning changes ───
+  const _drawTimer = useRef(null);
   useEffect(() => {
-    drawContainer();
+    if (_drawTimer.current) clearTimeout(_drawTimer.current);
+    _drawTimer.current = setTimeout(drawContainer, 40);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadedProducts, CONT_L, CONT_W, CONT_H, currentContainerType, instanceLockedOri, instanceManualPos]);
 
@@ -306,12 +311,14 @@ function ThreeCanvas({ onSelectInstance, onSetZone, onClearZone }, ref) {
 
     // Pack and draw
     const { packed } = runPacking(state.loadedProducts);
+    const totalItems = packed.length;
+    const skipAnim = totalItems > 40;
     const animItems = [];
 
     for (const b of packed) {
       const gap = 0.2;
-      const baseDelay = Math.min(animItems.length * 6, 400);
-      const stackDelay = b.y > 1 ? 300 : 0;
+      const baseDelay = skipAnim ? 0 : Math.min(animItems.length * 6, 400);
+      const stackDelay = (!skipAnim && b.y > 1) ? 300 : 0;
       const delay = baseDelay + stackDelay;
 
       if (b.type === 'pallet') {
@@ -325,51 +332,43 @@ function ThreeCanvas({ onSelectInstance, onSetZone, onClearZone }, ref) {
           const pg = new THREE.BoxGeometry(plankW, baseH * 0.75, b.dZ - gap);
           const plank = new THREE.Mesh(pg, new THREE.MeshPhongMaterial({ color: shade, shininess: 10, specular: 0x0c0a04 }));
           const ty = b.y + baseH * 0.375;
-          plank.position.set(b.x + plankW/2 + pi*(plankW+1) + 0.5, ty + CH * 1.5, b.z + b.dZ/2);
+          plank.position.set(b.x + plankW/2 + pi*(plankW+1) + 0.5, skipAnim ? ty : ty + CH * 1.5, b.z + b.dZ/2);
           plank.castShadow = true; plank.receiveShadow = true;
           plank.userData = { instanceId: iid, productId: b.productId, label: b.name, type: b.type, dims: b.dims, pct: b.pct };
-          animItems.push({ mesh: plank, targetY: ty, delay });
+          if (!skipAnim) animItems.push({ mesh: plank, targetY: ty, delay });
           containerGroup.add(plank);
         });
 
         [0.1, 0.5, 0.9].forEach(t2 => {
           const sl = new THREE.Mesh(new THREE.BoxGeometry(b.dX - gap, baseH, Math.max(6, b.dZ * 0.12)), new THREE.MeshPhongMaterial({ color: 0x8B6030, shininess: 5, specular: 0x060400 }));
           const ty = b.y + baseH/2;
-          sl.position.set(b.x + b.dX/2, ty + CH * 1.5, b.z + t2 * b.dZ);
+          sl.position.set(b.x + b.dX/2, skipAnim ? ty : ty + CH * 1.5, b.z + t2 * b.dZ);
           sl.castShadow = true; sl.userData = { instanceId: iid, productId: b.productId };
-          animItems.push({ mesh: sl, targetY: ty, delay });
+          if (!skipAnim) animItems.push({ mesh: sl, targetY: ty, delay });
           containerGroup.add(sl);
         });
-
-        const dg = new THREE.EdgesGeometry(new THREE.BoxGeometry(b.dX - gap, baseH, b.dZ - gap));
-        const dl = new THREE.LineSegments(dg, new THREE.LineBasicMaterial({ color: 0x4A2E10, transparent: true, opacity: 0.25 }));
-        const dty = b.y + baseH/2;
-        dl.position.set(b.x + b.dX/2, dty + CH * 1.5, b.z + b.dZ/2);
-        dl.userData = { instanceId: iid, productId: b.productId };
-        animItems.push({ mesh: dl, targetY: dty, delay });
-        containerGroup.add(dl);
 
         if (b.packedItems?.length) {
           const palL = b.palletBase?.L || b.dX;
           const palW = b.palletBase?.W || b.dZ;
           for (const box of b.packedItems) {
-            const bDelay = delay + Math.min(box.y * 2, 200);
+            const bDelay = skipAnim ? 0 : delay + Math.min(box.y * 2, 200);
             const bGeo = new THREE.BoxGeometry(Math.max(0.1, box.dX * b.dX / palL - 0.2), Math.max(0.1, box.dY - 0.2), Math.max(0.1, box.dZ * b.dZ / palW - 0.2));
             const bMesh = new THREE.Mesh(bGeo, makeBoxMaterials(box.color || b.color));
             const ty = b.y + baseH + box.y + box.dY / 2;
-            bMesh.position.set(b.x + box.x * b.dX / palL + box.dX * b.dX / palL / 2, ty + CH * 1.5, b.z + box.z * b.dZ / palW + box.dZ * b.dZ / palW / 2);
+            bMesh.position.set(b.x + box.x * b.dX / palL + box.dX * b.dX / palL / 2, skipAnim ? ty : ty + CH * 1.5, b.z + box.z * b.dZ / palW + box.dZ * b.dZ / palW / 2);
             bMesh.castShadow = true; bMesh.receiveShadow = true;
             bMesh.userData = { label: b.name, type: b.type, dims: b.dims, pct: b.pct, productId: b.productId, instanceId: iid };
-            animItems.push({ mesh: bMesh, targetY: ty, delay: bDelay });
+            if (!skipAnim) animItems.push({ mesh: bMesh, targetY: ty, delay: bDelay });
             containerGroup.add(bMesh);
           }
         } else if (cargoH > 2) {
           const cmesh = new THREE.Mesh(new THREE.BoxGeometry(b.dX - gap, cargoH - gap, b.dZ - gap), makeBoxMaterials(b.color));
           const ty = b.y + baseH + cargoH/2;
-          cmesh.position.set(b.x + b.dX/2, ty + CH * 1.5, b.z + b.dZ/2);
+          cmesh.position.set(b.x + b.dX/2, skipAnim ? ty : ty + CH * 1.5, b.z + b.dZ/2);
           cmesh.castShadow = true; cmesh.receiveShadow = true;
           cmesh.userData = { label: b.name, type: b.type, dims: b.dims, pct: b.pct, productId: b.productId, instanceId: iid };
-          animItems.push({ mesh: cmesh, targetY: ty, delay });
+          if (!skipAnim) animItems.push({ mesh: cmesh, targetY: ty, delay });
           containerGroup.add(cmesh);
         }
         continue;
@@ -379,20 +378,16 @@ function ThreeCanvas({ onSelectInstance, onSetZone, onClearZone }, ref) {
       const geo = new THREE.BoxGeometry(b.dX - gap, b.dY - gap, b.dZ - gap);
       const mesh = new THREE.Mesh(geo, makeBoxMaterials(b.color));
       const targetY = b.y + b.dY/2;
-      mesh.position.set(b.x + b.dX/2, targetY + CH * 1.5, b.z + b.dZ/2);
+      mesh.position.set(b.x + b.dX/2, skipAnim ? targetY : targetY + CH * 1.5, b.z + b.dZ/2);
       mesh.castShadow = true; mesh.receiveShadow = true;
       mesh.userData = { label: b.name, type: b.type, dims: b.dims, pct: b.pct, productId: b.productId, instanceId: b.instanceId };
-      animItems.push({ mesh, targetY, delay });
+      if (!skipAnim) animItems.push({ mesh, targetY, delay });
       containerGroup.add(mesh);
-
-      const el = new THREE.LineSegments(new THREE.EdgesGeometry(geo), new THREE.LineBasicMaterial({ color: 0x100808, transparent: true, opacity: 0.06 }));
-      el.position.set(b.x + b.dX/2, targetY + CH * 1.5, b.z + b.dZ/2);
-      animItems.push({ mesh: el, targetY, delay });
-      containerGroup.add(el);
     }
 
     t._animItems = animItems;
     t._animStartTime = Date.now();
+    t._shadowDirty = true;
 
     // Dimension labels
     function makeLabel(text, pos) {
