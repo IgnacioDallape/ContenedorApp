@@ -1,6 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, lazy, Suspense } from 'react';
 import { _sb } from '../../lib/supabase.js';
 import { CONTAINER_TYPES } from '../../lib/constants.js';
+import useContainerStore from '../../stores/containerStore.js';
+
+const ThreeCanvas = lazy(() => import('../ContainerLoader/ThreeCanvas.jsx'));
 
 const fmt = (n, dec = 2) => Number(n).toLocaleString('es-AR', { minimumFractionDigits: dec, maximumFractionDigits: dec });
 
@@ -15,6 +18,10 @@ export default function SharePage({ shipmentId }) {
   const [shipment, setShipment] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [show3d, setShow3d] = useState(false);
+  const [active3d, setActive3d] = useState(0);
+
+  const { loadShipmentData, switchToContainer } = useContainerStore();
 
   useEffect(() => {
     _sb.from('shipments').select('*').eq('id', shipmentId).eq('is_public', true).single()
@@ -24,6 +31,23 @@ export default function SharePage({ shipmentId }) {
         setLoading(false);
       });
   }, [shipmentId]);
+
+  function handle3d(conts) {
+    const loadable = conts.map((c, i) => ({
+      id: i + 1,
+      type: c.type || '20ft',
+      products: (c.products || []).map(p => ({
+        ...p,
+        vol: p.vol || ((p.dims?.L || 0) * (p.dims?.W || 0) * (p.dims?.H || 0)) / 1e6,
+      })),
+      priorityZones: c.priorityZones || [null, null, null],
+      instanceManualPos: c.instanceManualPos || {},
+      instanceLockedOri: c.instanceLockedOri || {},
+    }));
+    loadShipmentData({ id: shipmentId, name: shipment?.name || '', containers: loadable });
+    setActive3d(0);
+    setShow3d(true);
+  }
 
   if (loading) return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', fontFamily: "'DM Mono', monospace", fontSize: 12, color: '#8D7966', letterSpacing: 2 }}>
@@ -39,7 +63,9 @@ export default function SharePage({ shipmentId }) {
     </div>
   );
 
-  const containers = shipment.containers || [];
+  const rawC = shipment.containers || [];
+  const containers = Array.isArray(rawC) ? rawC : (rawC?.items || []);
+  const shipNotes = Array.isArray(rawC) ? '' : (rawC?.notes || '');
   const allProds = containers.flatMap(c => c.products || []);
   const totU = allProds.reduce((s, p) => s + p.qty, 0);
   const totV = allProds.reduce((s, p) => s + p.vol * p.qty, 0);
@@ -77,15 +103,51 @@ export default function SharePage({ shipmentId }) {
         <div style={{
           background: st.bg, border: `1.5px solid ${st.color}40`,
           borderLeft: `5px solid ${st.color}`,
-          borderRadius: 10, padding: '14px 20px', marginBottom: 24,
+          borderRadius: 10, padding: '14px 20px', marginBottom: shipNotes ? 10 : 24,
           display: 'flex', alignItems: 'center', gap: 14,
         }}>
           <span style={{ fontSize: 28 }}>{st.icon}</span>
-          <div>
+          <div style={{ flex: 1 }}>
             <div style={{ fontSize: 10, fontFamily: "'DM Mono', monospace", color: st.color, letterSpacing: 1, marginBottom: 2 }}>ESTADO DEL EMBARQUE</div>
             <div style={{ fontSize: 18, fontWeight: 700, color: st.color }}>{st.label}</div>
           </div>
+          {allProds.length > 0 && (
+            <button
+              onClick={() => show3d ? setShow3d(false) : handle3d(containers)}
+              style={{ padding: '8px 16px', background: show3d ? '#8D7966' : '#fff', color: show3d ? '#fff' : '#8D7966', border: '1.5px solid #8D7966', borderRadius: 8, cursor: 'pointer', fontFamily: "'DM Mono', monospace", fontSize: 11, letterSpacing: 1, whiteSpace: 'nowrap' }}>
+              {show3d ? '× Cerrar 3D' : '🧊 Ver en 3D'}
+            </button>
+          )}
         </div>
+
+        {/* Notes */}
+        {shipNotes && (
+          <div style={{ background: '#fff', border: '1px solid #E8E0D8', borderRadius: 8, padding: '10px 16px', marginBottom: 16, fontSize: 13, color: '#5a4a3e', lineHeight: 1.6 }}>
+            📝 {shipNotes}
+          </div>
+        )}
+
+        {/* 3D View */}
+        {show3d && (
+          <div style={{ marginBottom: 20, background: '#fff', border: '1px solid #E8E0D8', borderRadius: 10, overflow: 'hidden' }}>
+            <div style={{ background: '#F0EBE3', padding: '10px 16px', display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+              <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: '#8D7966', letterSpacing: 1 }}>VISTA 3D</span>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                {containers.map((c, i) => (
+                  <button key={i} onClick={() => { switchToContainer(i); setActive3d(i); }}
+                    style={{ padding: '4px 10px', fontSize: 11, fontFamily: "'DM Mono', monospace", borderRadius: 5, cursor: 'pointer', border: `1.5px solid ${active3d === i ? '#8D7966' : '#E8E0D8'}`, background: active3d === i ? '#8D7966' : 'transparent', color: active3d === i ? '#fff' : '#8D7966' }}>
+                    Cont. {i + 1}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div style={{ height: 380, position: 'relative' }}>
+              <Suspense fallback={<div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', fontFamily: "'DM Mono', monospace", fontSize: 11, color: '#8D7966', letterSpacing: 2 }}>Cargando 3D...</div>}>
+                <ThreeCanvas />
+              </Suspense>
+            </div>
+          </div>
+        )}
 
         {/* Per container */}
         {containers.map((cont, ci) => {

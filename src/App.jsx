@@ -33,7 +33,7 @@ export default function App() {
   }, [user]);
 
   // If share URL, render SharePage without auth
-  if (shareId) return <SharePage shipmentId={shareId} />;
+  if (shareId) return <><SharePage shipmentId={shareId} /><Toast /></>;
 
   if (loading) {
     return (

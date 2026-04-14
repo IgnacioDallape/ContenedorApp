@@ -62,6 +62,8 @@ export default function ContainerLoader() {
   const [openStatusId,   setOpenStatusId]  = useState(null);
   const [dragTabIdx,    setDragTabIdx]    = useState(null);
   const [dragOverTabIdx, setDragOverTabIdx] = useState(null);
+  const [showWeightMap, setShowWeightMap] = useState(false);
+  const weightCanvasRef = useRef(null);
 
   // ── Capacity modal ──
   const [capModal, setCapModal] = useState(null); // { body, stats, product }
@@ -561,6 +563,61 @@ export default function ContainerLoader() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // ── Weight heatmap drawing ──
+  useEffect(() => {
+    if (!showWeightMap || !weightCanvasRef.current || loadedProducts.length === 0) return;
+    const canvas = weightCanvasRef.current;
+    const ctx = canvas.getContext('2d');
+    const { placed } = runPackingCached(loadedProducts);
+    const weightById = {};
+    loadedProducts.forEach(p => { weightById[p.id] = p.weight || 0; });
+
+    const COLS = 40, ROWS = Math.round(COLS * (CONT_W / CONT_L));
+    const cellL = CONT_L / COLS, cellW = CONT_W / ROWS;
+    const grid = new Float32Array(COLS * ROWS);
+
+    for (const item of placed) {
+      const wPerArea = (weightById[item.productId] || 0) / (item.dX * item.dZ || 1);
+      const c0 = Math.max(0, Math.floor(item.x / cellL));
+      const c1 = Math.min(COLS, Math.ceil((item.x + item.dX) / cellL));
+      const r0 = Math.max(0, Math.floor(item.z / cellW));
+      const r1 = Math.min(ROWS, Math.ceil((item.z + item.dZ) / cellW));
+      for (let r = r0; r < r1; r++)
+        for (let c = c0; c < c1; c++) {
+          const overlapL = Math.min((c + 1) * cellL, item.x + item.dX) - Math.max(c * cellL, item.x);
+          const overlapW = Math.min((r + 1) * cellW, item.z + item.dZ) - Math.max(r * cellW, item.z);
+          grid[r * COLS + c] += wPerArea * Math.max(0, overlapL) * Math.max(0, overlapW);
+        }
+    }
+
+    const maxW = Math.max(...grid, 0.001);
+    const cw = canvas.width / COLS, ch = canvas.height / ROWS;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Draw cells
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        const t = grid[r * COLS + c] / maxW;
+        const R = Math.round(255 * Math.min(1, t * 2));
+        const G = Math.round(255 * Math.max(0, 1 - t * 1.5));
+        ctx.fillStyle = t < 0.01 ? '#F0EBE3' : `rgb(${R},${G},40)`;
+        ctx.fillRect(c * cw, r * ch, cw - 0.5, ch - 0.5);
+      }
+    }
+
+    // Draw container outline
+    ctx.strokeStyle = '#8D7966';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(1, 1, canvas.width - 2, canvas.height - 2);
+
+    // Legend: direction label
+    ctx.fillStyle = '#8D7966';
+    ctx.font = '10px DM Mono, monospace';
+    ctx.fillText('← frente', 4, canvas.height - 6);
+    ctx.fillText(`Max ${maxW.toFixed(1)} kg/m²`, canvas.width - 80, 14);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showWeightMap, loadedProducts, CONT_L, CONT_W]);
+
   const activeZoneCount = priorityZones.filter(z => z !== null).length;
 
   return (
@@ -727,7 +784,16 @@ export default function ContainerLoader() {
           <div className="section">
             <div className="section-header">
               <div className="section-title">Visualización del Contenedor {ct.label}</div>
-              <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--muted)' }}>{ct.dims}</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--muted)' }}>{ct.dims}</span>
+                {loadedProducts.some(p => p.weight > 0) && (
+                  <button
+                    onClick={() => setShowWeightMap(v => !v)}
+                    style={{ padding: '3px 9px', fontSize: 11, fontFamily: "'DM Mono', monospace", borderRadius: 5, cursor: 'pointer', border: `1px solid ${showWeightMap ? 'var(--c1)' : 'var(--border)'}`, background: showWeightMap ? 'var(--c1)15' : 'transparent', color: showWeightMap ? 'var(--c1)' : 'var(--muted)' }}>
+                    🌡 Peso
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* Container tabs */}
@@ -962,6 +1028,25 @@ export default function ContainerLoader() {
                 🖱 ROTAR · SCROLL ZOOM · CLIC = SELECCIONAR · DOBLE CLIC = FIJAR ZONA
               </div>
             </div>
+
+            {/* Weight heatmap */}
+            {showWeightMap && loadedProducts.some(p => p.weight > 0) && (
+              <div style={{ marginTop: 12, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, padding: '12px 14px' }}>
+                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--muted)', letterSpacing: 2, marginBottom: 8, textTransform: 'uppercase' }}>Distribución de peso — vista planta</div>
+                <canvas ref={weightCanvasRef} width={600} height={Math.round(600 * (CONT_W / CONT_L))} style={{ width: '100%', height: 'auto', borderRadius: 4, display: 'block' }} />
+                <div style={{ display: 'flex', gap: 16, marginTop: 8, alignItems: 'center', justifyContent: 'flex-end' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'var(--muted)', fontFamily: "'DM Mono', monospace" }}>
+                    <span style={{ display: 'inline-block', width: 14, height: 14, background: '#F0EBE3', border: '1px solid var(--border)', borderRadius: 2 }} /> Sin peso
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'var(--muted)', fontFamily: "'DM Mono', monospace" }}>
+                    <span style={{ display: 'inline-block', width: 14, height: 14, background: 'rgb(255,200,40)', borderRadius: 2 }} /> Bajo
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'var(--muted)', fontFamily: "'DM Mono', monospace" }}>
+                    <span style={{ display: 'inline-block', width: 14, height: 14, background: 'rgb(255,80,40)', borderRadius: 2 }} /> Alto
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Legend */}
             <div className="legend">
