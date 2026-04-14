@@ -1,6 +1,7 @@
 import { useEffect, useRef, useCallback, useImperativeHandle, forwardRef } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import useContainerStore from '../../stores/containerStore.js';
 import useAppStore from '../../stores/appStore.js';
 import { ZONE_COLORS, ZONE_COLORS_HEX, ZONE_LABELS } from '../../lib/constants.js';
@@ -316,83 +317,128 @@ function ThreeCanvas({ onSelectInstance, onSetZone, onClearZone }, ref) {
     requestAnimationFrame(() => requestAnimationFrame(() => {
       if (!threeRef.current) return;
       const { packed } = runPackingCached(products);
-    const totalItems = packed.length;
-    const skipAnim = totalItems > 40;
-    const animItems = [];
+      const totalItems = packed.length;
+      const heavy = totalItems > 40;  // heavy mode: merge geos, skip anim, simplify pallets
+      const animItems = [];
 
-    for (const b of packed) {
-      const gap = 0.2;
-      const baseDelay = skipAnim ? 0 : Math.min(animItems.length * 6, 400);
-      const stackDelay = (!skipAnim && b.y > 1) ? 300 : 0;
-      const delay = baseDelay + stackDelay;
+      // ── Heavy mode: merge all box geometries by color (1 draw call per color) ──
+      if (heavy) {
+        const geosByColor = new Map(); // color → [{geo, userData}]
 
-      if (b.type === 'pallet') {
-        const iid = b.instanceId;
-        const baseH = Math.min(14, b.dY * 0.13);
-        const cargoH = b.dY - baseH;
+        for (const b of packed) {
+          const gap = 0.2;
+          if (b.type === 'pallet') {
+            const iid = b.instanceId;
+            const baseH = Math.min(14, b.dY * 0.13);
+            const cargoH = b.dY - baseH;
+            // Simplified pallet base (single box, no planks/slats)
+            const baseGeo = new THREE.BoxGeometry(b.dX - gap, baseH, b.dZ - gap);
+            baseGeo.translate(b.x + b.dX/2, b.y + baseH/2, b.z + b.dZ/2);
+            const baseMesh = new THREE.Mesh(baseGeo, new THREE.MeshPhongMaterial({ color: 0xC9985C, shininess: 8 }));
+            baseMesh.userData = { instanceId: iid, productId: b.productId, label: b.name, type: b.type, dims: b.dims, pct: b.pct };
+            containerGroup.add(baseMesh);
 
-        [0, 1, 2].forEach(pi => {
-          const shade = [0xC9985C, 0xDAB870, 0xB07840][pi];
-          const plankW = (b.dX - gap - 2) / 3;
-          const pg = new THREE.BoxGeometry(plankW, baseH * 0.75, b.dZ - gap);
-          const plank = new THREE.Mesh(pg, new THREE.MeshPhongMaterial({ color: shade, shininess: 10, specular: 0x0c0a04 }));
-          const ty = b.y + baseH * 0.375;
-          plank.position.set(b.x + plankW/2 + pi*(plankW+1) + 0.5, skipAnim ? ty : ty + CH * 1.5, b.z + b.dZ/2);
-          plank.castShadow = true; plank.receiveShadow = true;
-          plank.userData = { instanceId: iid, productId: b.productId, label: b.name, type: b.type, dims: b.dims, pct: b.pct };
-          if (!skipAnim) animItems.push({ mesh: plank, targetY: ty, delay });
-          containerGroup.add(plank);
-        });
-
-        [0.1, 0.5, 0.9].forEach(t2 => {
-          const sl = new THREE.Mesh(new THREE.BoxGeometry(b.dX - gap, baseH, Math.max(6, b.dZ * 0.12)), new THREE.MeshPhongMaterial({ color: 0x8B6030, shininess: 5, specular: 0x060400 }));
-          const ty = b.y + baseH/2;
-          sl.position.set(b.x + b.dX/2, skipAnim ? ty : ty + CH * 1.5, b.z + t2 * b.dZ);
-          sl.castShadow = true; sl.userData = { instanceId: iid, productId: b.productId };
-          if (!skipAnim) animItems.push({ mesh: sl, targetY: ty, delay });
-          containerGroup.add(sl);
-        });
-
-        if (b.packedItems?.length) {
-          const palL = b.palletBase?.L || b.dX;
-          const palW = b.palletBase?.W || b.dZ;
-          for (const box of b.packedItems) {
-            const bDelay = skipAnim ? 0 : delay + Math.min(box.y * 2, 200);
-            const bGeo = new THREE.BoxGeometry(Math.max(0.1, box.dX * b.dX / palL - 0.2), Math.max(0.1, box.dY - 0.2), Math.max(0.1, box.dZ * b.dZ / palW - 0.2));
-            const bMesh = new THREE.Mesh(bGeo, makeBoxMaterials(box.color || b.color));
-            const ty = b.y + baseH + box.y + box.dY / 2;
-            bMesh.position.set(b.x + box.x * b.dX / palL + box.dX * b.dX / palL / 2, skipAnim ? ty : ty + CH * 1.5, b.z + box.z * b.dZ / palW + box.dZ * b.dZ / palW / 2);
-            bMesh.castShadow = true; bMesh.receiveShadow = true;
-            bMesh.userData = { label: b.name, type: b.type, dims: b.dims, pct: b.pct, productId: b.productId, instanceId: iid };
-            if (!skipAnim) animItems.push({ mesh: bMesh, targetY: ty, delay: bDelay });
-            containerGroup.add(bMesh);
+            if (cargoH > 2) {
+              const color = b.color || '#8D7966';
+              if (!geosByColor.has(color)) geosByColor.set(color, { geos: [], ud: { label: b.name, type: b.type, dims: b.dims, pct: b.pct, productId: b.productId, instanceId: iid } });
+              const cg = new THREE.BoxGeometry(b.dX - gap, cargoH - gap, b.dZ - gap);
+              cg.translate(b.x + b.dX/2, b.y + baseH + cargoH/2, b.z + b.dZ/2);
+              geosByColor.get(color).geos.push(cg);
+            }
+            continue;
           }
-        } else if (cargoH > 2) {
-          const cmesh = new THREE.Mesh(new THREE.BoxGeometry(b.dX - gap, cargoH - gap, b.dZ - gap), makeBoxMaterials(b.color));
-          const ty = b.y + baseH + cargoH/2;
-          cmesh.position.set(b.x + b.dX/2, skipAnim ? ty : ty + CH * 1.5, b.z + b.dZ/2);
-          cmesh.castShadow = true; cmesh.receiveShadow = true;
-          cmesh.userData = { label: b.name, type: b.type, dims: b.dims, pct: b.pct, productId: b.productId, instanceId: iid };
-          if (!skipAnim) animItems.push({ mesh: cmesh, targetY: ty, delay });
-          containerGroup.add(cmesh);
+          // Regular box
+          const color = b.color || '#8D7966';
+          if (!geosByColor.has(color)) geosByColor.set(color, { geos: [], ud: { label: b.name, type: b.type, dims: b.dims, pct: b.pct, productId: b.productId, instanceId: b.instanceId } });
+          const g = new THREE.BoxGeometry(b.dX - gap, b.dY - gap, b.dZ - gap);
+          g.translate(b.x + b.dX/2, b.y + b.dY/2, b.z + b.dZ/2);
+          geosByColor.get(color).geos.push(g);
         }
-        continue;
+
+        for (const [color, { geos, ud }] of geosByColor) {
+          if (!geos.length) continue;
+          const merged = mergeGeometries(geos);
+          geos.forEach(g => g.dispose());
+          const mesh = new THREE.Mesh(merged, makeBoxMaterials(color));
+          mesh.castShadow = true; mesh.receiveShadow = true;
+          mesh.userData = ud;
+          containerGroup.add(mesh);
+        }
+
+      } else {
+        // ── Light mode: individual meshes with animation ──
+        for (const b of packed) {
+          const gap = 0.2;
+          const baseDelay = Math.min(animItems.length * 6, 400);
+          const stackDelay = b.y > 1 ? 300 : 0;
+          const delay = baseDelay + stackDelay;
+
+          if (b.type === 'pallet') {
+            const iid = b.instanceId;
+            const baseH = Math.min(14, b.dY * 0.13);
+            const cargoH = b.dY - baseH;
+
+            [0, 1, 2].forEach(pi => {
+              const shade = [0xC9985C, 0xDAB870, 0xB07840][pi];
+              const plankW = (b.dX - gap - 2) / 3;
+              const plank = new THREE.Mesh(new THREE.BoxGeometry(plankW, baseH * 0.75, b.dZ - gap), new THREE.MeshPhongMaterial({ color: shade, shininess: 10, specular: 0x0c0a04 }));
+              const ty = b.y + baseH * 0.375;
+              plank.position.set(b.x + plankW/2 + pi*(plankW+1) + 0.5, ty + CH * 1.5, b.z + b.dZ/2);
+              plank.castShadow = true; plank.receiveShadow = true;
+              plank.userData = { instanceId: iid, productId: b.productId, label: b.name, type: b.type, dims: b.dims, pct: b.pct };
+              animItems.push({ mesh: plank, targetY: ty, delay });
+              containerGroup.add(plank);
+            });
+
+            [0.1, 0.5, 0.9].forEach(t2 => {
+              const sl = new THREE.Mesh(new THREE.BoxGeometry(b.dX - gap, baseH, Math.max(6, b.dZ * 0.12)), new THREE.MeshPhongMaterial({ color: 0x8B6030, shininess: 5, specular: 0x060400 }));
+              const ty = b.y + baseH/2;
+              sl.position.set(b.x + b.dX/2, ty + CH * 1.5, b.z + t2 * b.dZ);
+              sl.castShadow = true; sl.userData = { instanceId: iid, productId: b.productId };
+              animItems.push({ mesh: sl, targetY: ty, delay });
+              containerGroup.add(sl);
+            });
+
+            if (b.packedItems?.length) {
+              const palL = b.palletBase?.L || b.dX;
+              const palW = b.palletBase?.W || b.dZ;
+              for (const box of b.packedItems) {
+                const bGeo = new THREE.BoxGeometry(Math.max(0.1, box.dX * b.dX / palL - 0.2), Math.max(0.1, box.dY - 0.2), Math.max(0.1, box.dZ * b.dZ / palW - 0.2));
+                const bMesh = new THREE.Mesh(bGeo, makeBoxMaterials(box.color || b.color));
+                const ty = b.y + baseH + box.y + box.dY / 2;
+                bMesh.position.set(b.x + box.x * b.dX / palL + box.dX * b.dX / palL / 2, ty + CH * 1.5, b.z + box.z * b.dZ / palW + box.dZ * b.dZ / palW / 2);
+                bMesh.castShadow = true; bMesh.receiveShadow = true;
+                bMesh.userData = { label: b.name, type: b.type, dims: b.dims, pct: b.pct, productId: b.productId, instanceId: iid };
+                animItems.push({ mesh: bMesh, targetY: ty, delay: delay + Math.min(box.y * 2, 200) });
+                containerGroup.add(bMesh);
+              }
+            } else if (cargoH > 2) {
+              const cmesh = new THREE.Mesh(new THREE.BoxGeometry(b.dX - gap, cargoH - gap, b.dZ - gap), makeBoxMaterials(b.color));
+              const ty = b.y + baseH + cargoH/2;
+              cmesh.position.set(b.x + b.dX/2, ty + CH * 1.5, b.z + b.dZ/2);
+              cmesh.castShadow = true; cmesh.receiveShadow = true;
+              cmesh.userData = { label: b.name, type: b.type, dims: b.dims, pct: b.pct, productId: b.productId, instanceId: iid };
+              animItems.push({ mesh: cmesh, targetY: ty, delay });
+              containerGroup.add(cmesh);
+            }
+            continue;
+          }
+
+          // Box
+          const geo = new THREE.BoxGeometry(b.dX - gap, b.dY - gap, b.dZ - gap);
+          const mesh = new THREE.Mesh(geo, makeBoxMaterials(b.color));
+          const targetY = b.y + b.dY/2;
+          mesh.position.set(b.x + b.dX/2, targetY + CH * 1.5, b.z + b.dZ/2);
+          mesh.castShadow = true; mesh.receiveShadow = true;
+          mesh.userData = { label: b.name, type: b.type, dims: b.dims, pct: b.pct, productId: b.productId, instanceId: b.instanceId };
+          animItems.push({ mesh, targetY, delay });
+          containerGroup.add(mesh);
+        }
       }
 
-      // Box
-      const geo = new THREE.BoxGeometry(b.dX - gap, b.dY - gap, b.dZ - gap);
-      const mesh = new THREE.Mesh(geo, makeBoxMaterials(b.color));
-      const targetY = b.y + b.dY/2;
-      mesh.position.set(b.x + b.dX/2, skipAnim ? targetY : targetY + CH * 1.5, b.z + b.dZ/2);
-      mesh.castShadow = true; mesh.receiveShadow = true;
-      mesh.userData = { label: b.name, type: b.type, dims: b.dims, pct: b.pct, productId: b.productId, instanceId: b.instanceId };
-      if (!skipAnim) animItems.push({ mesh, targetY, delay });
-      containerGroup.add(mesh);
-    }
-
-    t._animItems = animItems;
-    t._animStartTime = Date.now();
-    t._shadowDirty = true;
+      t._animItems = animItems;
+      t._animStartTime = Date.now();
+      t._shadowDirty = true;
 
     // Dimension labels
     function makeLabel(text, pos) {
