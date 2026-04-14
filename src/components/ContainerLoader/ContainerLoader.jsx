@@ -3,7 +3,7 @@ import useContainerStore from '../../stores/containerStore.js';
 import useAppStore from '../../stores/appStore.js';
 import { CONTAINER_TYPES, PALLET_SIZES, ZONE_COLORS_HEX, ZONE_LABELS, WEIGHT_LIMITS } from '../../lib/constants.js';
 import { fmt } from '../../lib/formatters.js';
-import { runPacking, runPackingCached, invalidatePackingCache, setContainerDimensions } from '../../lib/packing.js';
+import { runPacking, runPackingCached, invalidatePackingCache } from '../../lib/packing.js';
 import ThreeCanvas from './ThreeCanvas.jsx';
 import { _sb } from '../../lib/supabase.js';
 import { exportShipmentPDF } from '../../lib/exportPDF.js';
@@ -189,70 +189,10 @@ export default function ContainerLoader() {
     showToast(`✓ ${product.qty} ${label} distribuidas en ${created + 1} contenedor${created > 0 ? 'es' : ''}`, 'success');
   }
 
-  // ── Change container type + auto-consolidate if multiple containers ──
+  // ── Change type of active container only ──
   function handleChangeContainerType(newType) {
-    const synced = syncActiveContainer();
-    const allProducts = synced.flatMap(c => c.products || []);
-
-    // If no products, just change type
-    if (allProducts.length === 0) {
-      setContainerType(newType);
-      return;
-    }
-
-    const ct = CONTAINER_TYPES[newType];
-    if (!ct) return;
-
-    // Update packing engine internal dimensions (critical — uses local vars, not window globals)
-    setContainerDimensions(ct.L, ct.W, ct.H, ct.vol);
-    // Also clear stale positioning data that could interfere with fresh simulation
-    window.CONT_L = ct.L; window.CONT_W = ct.W; window.CONT_H = ct.H; window.CONTAINER_VOL = ct.vol;
-    window._instanceManualPos = {};
-    window._instanceLockedOri = {};
-    window._priorityZones = [null, null, null];
-    window._palletsWithNoSpace = [];
-
-    // Redistribute all products across minimum containers of the new type
-    const newContainers = [];
-    let remaining = allProducts.map(p => ({ ...p }));
-    let safety = 0;
-
-    while (remaining.length > 0 && safety < 30) {
-      safety++;
-      invalidatePackingCache();
-      const { placed } = runPacking(remaining);
-
-      const containerProds = [];
-      const nextRemaining = [];
-      for (const p of remaining) {
-        const qty = placed[String(p.id)] || 0;
-        if (qty > 0) containerProds.push({ ...p, qty });
-        if (qty < p.qty) nextRemaining.push({ ...p, qty: p.qty - qty });
-      }
-
-      if (containerProds.length === 0) {
-        // nothing fits — add remaining as-is to last container to not lose products
-        if (newContainers.length > 0) newContainers[newContainers.length - 1].products.push(...remaining);
-        else newContainers.push({ id: 1, type: newType, products: remaining, priorityZones: [null,null,null], instanceManualPos: {}, instanceLockedOri: {} });
-        break;
-      }
-
-      newContainers.push({
-        id: newContainers.length + 1,
-        type: newType,
-        products: containerProds,
-        priorityZones: [null, null, null],
-        instanceManualPos: {},
-        instanceLockedOri: {},
-      });
-      remaining = nextRemaining;
-    }
-
-    if (newContainers.length === 0) { setContainerType(newType); return; }
-
-    const totalUnits = allProducts.reduce((s, p) => s + p.qty, 0);
-    loadShipmentData({ id: currentShipmentId, name: currentShipmentName, containers: newContainers });
-    showToast(`✓ ${totalUnits} unidades consolidadas en ${newContainers.length} cont. ${ct.label}`, 'success');
+    // Just change this container's type — others stay independent
+    setContainerType(newType);
   }
 
   // ── Rotation ──
