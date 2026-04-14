@@ -194,8 +194,8 @@ export default function ContainerLoader() {
     const synced = syncActiveContainer();
     const allProducts = synced.flatMap(c => c.products || []);
 
-    // If only 1 container or no products, just change type normally
-    if (synced.length <= 1 || allProducts.length === 0) {
+    // If no products, just change type
+    if (allProducts.length === 0) {
       setContainerType(newType);
       return;
     }
