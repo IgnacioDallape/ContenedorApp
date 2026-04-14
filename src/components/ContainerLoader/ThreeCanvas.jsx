@@ -720,11 +720,23 @@ function ThreeCanvas({ onSelectInstance, onSetZone, onClearZone }, ref) {
       />
       <div id="three-loading" style={{
         display: 'none', position: 'absolute', inset: 0,
-        background: 'rgba(237,230,218,0.72)', backdropFilter: 'blur(2px)',
+        background: 'rgba(241,236,228,0.82)', backdropFilter: 'blur(3px)',
         alignItems: 'center', justifyContent: 'center', pointerEvents: 'none', zIndex: 5,
+        flexDirection: 'column', gap: 16,
       }}>
-        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: '#8D7966', letterSpacing: 2 }}>
-          CALCULANDO CARGA...
+        <style>{`
+          @keyframes _ship-bob { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-6px)} }
+          @keyframes _bar-fill { 0%{width:0%} 60%{width:75%} 100%{width:95%} }
+          @keyframes _dot-fade { 0%,80%,100%{opacity:0.2} 40%{opacity:1} }
+        `}</style>
+        <div style={{ fontSize: 32, animation: '_ship-bob 1.4s ease-in-out infinite' }}>🚢</div>
+        <div style={{ width: 120, height: 3, background: '#E8E0D5', borderRadius: 99, overflow: 'hidden' }}>
+          <div style={{ height: '100%', background: 'linear-gradient(90deg,#8D7966,#b8906b)', borderRadius: 99, animation: '_bar-fill 1.8s ease-out forwards' }} />
+        </div>
+        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: '#8D7966', letterSpacing: 2, display: 'flex', gap: 3 }}>
+          {'CALCULANDO'.split('').map((ch, i) => (
+            <span key={i} style={{ animation: `_dot-fade 1.4s ${i * 0.08}s ease-in-out infinite` }}>{ch}</span>
+          ))}
         </div>
       </div>
       <div
