@@ -113,7 +113,6 @@ function ThreeCanvas({ onSelectInstance, onSetZone, onClearZone }, ref) {
 
     // ── On-demand rendering: only render when something changed (saves ~80% GPU on idle) ──
     let _needsRender = true;
-    threeRef.current._requestRender = () => { _needsRender = true; };
     controls.addEventListener('change', () => { _needsRender = true; });
 
     function animate() {
@@ -169,6 +168,7 @@ function ThreeCanvas({ onSelectInstance, onSetZone, onClearZone }, ref) {
       _hoveredMesh: null, _raycaster: new THREE.Raycaster(), _mouse: new THREE.Vector2(),
       _isDragging: false, _dragFloorStart: null, _dragInstanceStart: null, _dragCachedDims: null,
       _mouseDownPos: { x: 0, y: 0 }, _mouseDownTime: 0, _lastDblClickTime: 0,
+      _requestRender: () => { _needsRender = true; },
     };
 
     setTimeout(() => {
