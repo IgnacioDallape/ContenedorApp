@@ -8,7 +8,9 @@ import { runPacking, runPackingCached, invalidatePackingCache, hmGetMax } from '
 
 // ── Per-face box materials ──
 function makeBoxMaterials(hex) {
-  const col = new THREE.Color(parseInt(hex.replace('#', ''), 16));
+  let h = (hex || '#8D7966').replace('#', '');
+  if (h.length === 3) h = h[0]+h[0]+h[1]+h[1]+h[2]+h[2];
+  const col = new THREE.Color(parseInt(h, 16));
   return [
     new THREE.MeshPhongMaterial({ color: col.clone().multiplyScalar(0.90), shininess: 10, specular: 0x080808 }),
     new THREE.MeshPhongMaterial({ color: col.clone().multiplyScalar(0.75), shininess: 6,  specular: 0x060606 }),

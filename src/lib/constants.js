@@ -12,8 +12,8 @@ export const PALLET_SIZES = {
 };
 
 export const COLORS = [
-  '#8D7966','#A8906b','#6b7d9b','#9b7966','#6b8c6b',
-  '#b8906b','#7d6b9b','#6b9b8b','#9b8b6b','#8b6b6b'
+  '#8D7966','#A8906b','#b07050','#9b7966','#6b8c6b',
+  '#b8906b','#a07858','#6b9b8b','#9b8b6b','#8b6b6b'
 ];
 
 export const ZONE_COLORS     = [0xc1704a, 0x4a7dc1, 0x4ac16b];
@@ -43,6 +43,6 @@ export const PB_PALLET_TYPES = {
 };
 
 export const PB_COLORS = [
-  '#6b7d9b','#8D7966','#4a7dc1','#9b7966','#4ac16b',
-  '#b8906b','#7d6b9b','#6b9b8b','#c1704a','#8b6b6b'
+  '#b07050','#8D7966','#c1704a','#9b7966','#6b8c6b',
+  '#b8906b','#a07858','#6b9b8b','#A8906b','#8b6b6b'
 ];

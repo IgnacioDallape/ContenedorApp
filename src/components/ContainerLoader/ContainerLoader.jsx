@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import useContainerStore from '../../stores/containerStore.js';
 import useAppStore from '../../stores/appStore.js';
-import { CONTAINER_TYPES, PALLET_SIZES, ZONE_COLORS_HEX, ZONE_LABELS, WEIGHT_LIMITS } from '../../lib/constants.js';
+import { CONTAINER_TYPES, PALLET_SIZES, ZONE_COLORS_HEX, ZONE_LABELS, WEIGHT_LIMITS, COLORS } from '../../lib/constants.js';
 import { fmt } from '../../lib/formatters.js';
 import { runPacking, runPackingCached, invalidatePackingCache, setContainerDimensions } from '../../lib/packing.js';
 import ThreeCanvas from './ThreeCanvas.jsx';
@@ -57,6 +57,8 @@ export default function ContainerLoader() {
   const [showDeleteShip, setShowDeleteShip] = useState(false);
   const [deleteShipId,   setDeleteShipId]  = useState(null);
   const [openStatusId,   setOpenStatusId]  = useState(null);
+  const [dragTabIdx,    setDragTabIdx]    = useState(null);
+  const [dragOverTabIdx, setDragOverTabIdx] = useState(null);
 
   // ── Capacity modal ──
   const [capModal, setCapModal] = useState(null); // { body, stats, product }
@@ -155,7 +157,8 @@ export default function ContainerLoader() {
     setCapModal(null);
 
     const vol = (product.dims.L * product.dims.W * product.dims.H) / 1e6;
-    const newProdBase = { ...product, vol, color: '#999', priorityZone: null, packedItems: null, palletBase: null };
+    const existingColor = loadedProducts.find(p => p.name === product.name && p.type === product.type)?.color;
+    const newProdBase = { ...product, vol, color: existingColor || COLORS[loadedProducts.length % COLORS.length], priorityZone: null, packedItems: null, palletBase: null };
 
     // Save current state and get all containers
     const synced = syncActiveContainer();
@@ -244,38 +247,60 @@ export default function ContainerLoader() {
 
     const activeProds = synced[activeContainerIdx]?.products || [];
 
-    // No other containers — just change type
+    // Always test with new dimensions first
+    setContainerDimensions(ct.L, ct.W, ct.H, ct.vol);
+    invalidatePackingCache();
+
+    // Split active products into fitting / overflow for the new container size
+    const { placed } = runPacking(activeProds);
+    const fittingProds = [];
+    const overflowProds = [];
+    for (const p of activeProds) {
+      const fits = Math.min(placed[String(p.id)] ?? 0, p.qty);
+      if (fits >= p.qty) {
+        fittingProds.push(p);
+      } else if (fits > 0) {
+        fittingProds.push({ ...p, qty: fits });
+        overflowProds.push({ ...p, qty: p.qty - fits });
+      } else {
+        overflowProds.push(p);
+      }
+    }
+
     const otherIdxs = synced.map((_, i) => i).filter(i => i !== activeContainerIdx && synced[i].products.length > 0);
-    if (otherIdxs.length === 0) {
+
+    // No overflow, no other containers — simple type change
+    if (overflowProds.length === 0 && otherIdxs.length === 0) {
       setContainerType(newType);
       return;
     }
 
-    // Set packing engine to new type dimensions
-    setContainerDimensions(ct.L, ct.W, ct.H, ct.vol);
-
-    // Find how many of active products fit in new container
-    invalidatePackingCache();
-    let currentInActive = [...activeProds];
-
-    // Try to pull products from other containers, one container at a time
     const updatedContainers = synced.map(c => ({ ...c, products: [...c.products] }));
+    let currentInActive = [...fittingProds];
     updatedContainers[activeContainerIdx] = { ...updatedContainers[activeContainerIdx], type: newType, products: currentInActive };
 
+    // If overflow and no other containers, auto-create a new container for the overflow
+    if (overflowProds.length > 0 && otherIdxs.length === 0) {
+      updatedContainers.push({ id: updatedContainers.length + 1, type: newType, products: overflowProds });
+      const overflowCount = overflowProds.reduce((s, p) => s + p.qty, 0);
+      loadShipmentData({ id: currentShipmentId, name: currentShipmentName, containers: updatedContainers.map((c, i) => ({ ...c, id: i + 1 })) });
+      showToast(`⚠️ ${overflowCount} unidades no caben en ${ct.label} — movidas a nuevo contenedor`, 'warning');
+      return;
+    }
+
+    // Try to pull products from other containers into active
     for (const oi of otherIdxs) {
       const otherProds = updatedContainers[oi].products;
       if (!otherProds.length) continue;
 
-      // Test how many from this container fit in the active one
       const testId = 'pull_test';
       for (const op of otherProds) {
         const testList = [...currentInActive, { ...op, id: testId }];
         invalidatePackingCache();
-        const { placed } = runPacking(testList);
-        const fits = Math.min(placed[testId] || 0, op.qty);
+        const { placed: p2 } = runPacking(testList);
+        const fits = Math.min(p2[testId] || 0, op.qty);
         if (fits <= 0) continue;
 
-        // Pull `fits` units from other container into active
         currentInActive = [...currentInActive];
         const existingInActive = currentInActive.find(p => p.name === op.name && p.type === op.type);
         if (existingInActive) {
@@ -284,7 +309,6 @@ export default function ContainerLoader() {
           currentInActive = [...currentInActive, { ...op, id: Date.now() + Math.random(), qty: fits }];
         }
 
-        // Remove those units from the other container
         const remaining = op.qty - fits;
         if (remaining <= 0) {
           updatedContainers[oi] = { ...updatedContainers[oi], products: updatedContainers[oi].products.filter(p => p !== op) };
@@ -295,14 +319,29 @@ export default function ContainerLoader() {
       updatedContainers[activeContainerIdx] = { ...updatedContainers[activeContainerIdx], type: newType, products: currentInActive };
     }
 
-    // Remove containers that are now empty
-    const finalContainers = updatedContainers.filter(c => c.products.length > 0 || updatedContainers.indexOf(c) === activeContainerIdx);
+    // If active had overflow, put it in a new container
+    if (overflowProds.length > 0) {
+      updatedContainers.push({ id: updatedContainers.length + 1, type: newType, products: overflowProds });
+    }
 
-    // Restore packing engine to active container dimensions
+    const finalContainers = updatedContainers.filter((c, i) => c.products.length > 0 || i === activeContainerIdx);
+
     setContainerDimensions(ct.L, ct.W, ct.H, ct.vol);
-
     loadShipmentData({ id: currentShipmentId, name: currentShipmentName, containers: finalContainers.map((c, i) => ({ ...c, id: i + 1 })) });
     showToast(`✓ Tipo cambiado a ${ct.label} — espacio optimizado`, 'success');
+  }
+
+  // ── Container tab drag-to-reorder ──
+  function handleTabDrop(fromIdx, toIdx) {
+    if (fromIdx === toIdx) return;
+    const synced = syncActiveContainer();
+    const reordered = [...synced];
+    const [moved] = reordered.splice(fromIdx, 1);
+    reordered.splice(toIdx, 0, moved);
+    const newActiveIdx = toIdx;
+    loadShipmentData({ id: currentShipmentId, name: currentShipmentName, containers: reordered.map((c, i) => ({ ...c, id: i + 1 })) });
+    // Switch to the moved container
+    setTimeout(() => switchToContainer(newActiveIdx), 0);
   }
 
   // ── Rotation ──
@@ -655,12 +694,21 @@ export default function ContainerLoader() {
                   const ctype = CONTAINER_TYPES[c.type] || ct;
                   const cpct  = (contVol / ctype.vol * 100).toFixed(0);
                   const isActive = i === activeContainerIdx;
+                  const isDragging = dragTabIdx === i;
+                  const isDragOver = dragOverTabIdx === i && dragTabIdx !== i;
                   return (
-                    <button key={c.id} onClick={() => switchToContainer(i)}
-                      style={{ padding: '6px 14px', fontSize: 11, fontFamily: "'DM Mono', monospace", letterSpacing: '0.5px', borderRadius: 6, cursor: 'pointer', border: `1.5px solid ${isActive ? 'var(--c1)' : 'var(--border)'}`, background: isActive ? 'var(--c1)' : 'transparent', color: isActive ? 'var(--c5)' : 'var(--muted)', fontWeight: isActive ? 700 : 400, display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <button key={c.id}
+                      draggable
+                      onDragStart={e => { e.dataTransfer.effectAllowed = 'move'; setDragTabIdx(i); }}
+                      onDragOver={e => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setDragOverTabIdx(i); }}
+                      onDrop={e => { e.preventDefault(); handleTabDrop(dragTabIdx, i); setDragTabIdx(null); setDragOverTabIdx(null); }}
+                      onDragEnd={() => { setDragTabIdx(null); setDragOverTabIdx(null); }}
+                      onClick={() => switchToContainer(i)}
+                      style={{ padding: '6px 14px', fontSize: 11, fontFamily: "'DM Mono', monospace", letterSpacing: '0.5px', borderRadius: 6, cursor: isDragging ? 'grabbing' : 'grab', border: `1.5px solid ${isDragOver ? 'var(--c1)' : isActive ? 'var(--c1)' : 'var(--border)'}`, background: isActive ? 'var(--c1)' : isDragOver ? 'var(--c1)22' : 'transparent', color: isActive ? 'var(--c5)' : 'var(--muted)', fontWeight: isActive ? 700 : 400, display: 'flex', alignItems: 'center', gap: 4, opacity: isDragging ? 0.4 : 1, transition: 'border-color 0.15s, background 0.15s, opacity 0.15s', outline: isDragOver ? '2px solid var(--c1)' : 'none', outlineOffset: 1 }}>
+                      <span style={{ opacity: 0.5, fontSize: 10, letterSpacing: 0 }}>⠿</span>
                       🚢 Cont. {c.id} <span style={{ opacity: 0.7 }}>{cpct}%</span>
                       {shipmentContainers.length > 1 && (
-                        <span onClick={e => { e.stopPropagation(); if (!removeContainer(i)) showToast('No podés eliminar el único contenedor', 'error'); }} style={{ marginLeft: 5, opacity: 0.6, fontSize: 12, cursor: 'pointer' }}>×</span>
+                        <span onClick={e => { e.stopPropagation(); if (!removeContainer(i)) showToast('No podés eliminar el único contenedor', 'error'); }} style={{ marginLeft: 3, opacity: 0.6, fontSize: 12, cursor: 'pointer' }}>×</span>
                       )}
                     </button>
                   );
