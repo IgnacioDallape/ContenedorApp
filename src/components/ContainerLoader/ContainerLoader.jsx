@@ -3,7 +3,7 @@ import useContainerStore from '../../stores/containerStore.js';
 import useAppStore from '../../stores/appStore.js';
 import { CONTAINER_TYPES, PALLET_SIZES, ZONE_COLORS_HEX, ZONE_LABELS, WEIGHT_LIMITS } from '../../lib/constants.js';
 import { fmt } from '../../lib/formatters.js';
-import { runPacking, runPackingCached, invalidatePackingCache } from '../../lib/packing.js';
+import { runPacking, runPackingCached, invalidatePackingCache, setContainerDimensions } from '../../lib/packing.js';
 import ThreeCanvas from './ThreeCanvas.jsx';
 import { _sb } from '../../lib/supabase.js';
 import { exportShipmentPDF } from '../../lib/exportPDF.js';
@@ -155,38 +155,85 @@ export default function ContainerLoader() {
     setCapModal(null);
 
     const vol = (product.dims.L * product.dims.W * product.dims.H) / 1e6;
+    const newProdBase = { ...product, vol, color: '#999', priorityZone: null, packedItems: null, palletBase: null };
 
-    // 1. Add the units that fit to the current container
-    if (fitsQty > 0) {
-      addProduct({ ...product, qty: fitsQty });
+    // Save current state and get all containers
+    const synced = syncActiveContainer();
+    let remaining = product.qty;
+
+    // Helper: simulate packing on a container's existing products + N units of new product
+    function testFit(existingProds, qty, ctype) {
+      const ct = CONTAINER_TYPES[ctype] || CONTAINER_TYPES['20ft'];
+      setContainerDimensions(ct.L, ct.W, ct.H, ct.vol);
+      const testId = 'dist_test_' + Math.random();
+      const testList = [...existingProds, { ...newProdBase, id: testId, qty }];
+      invalidatePackingCache();
+      const { placed } = runPacking(testList);
+      const fits = placed[testId] || 0;
+      invalidatePackingCache();
+      return fits;
     }
 
-    let remaining = product.qty - fitsQty;
-    if (remaining <= 0) return;
+    // Build new containers array: fill existing ones first, then create new
+    const newContainers = synced.map((c, i) => {
+      if (remaining <= 0) return c;
+      if (i === activeContainerIdx) {
+        // Add what fits to active container
+        if (fitsQty <= 0) return c;
+        const fits = Math.min(fitsQty, remaining);
+        remaining -= fits;
+        const existingProd = c.products.find(p => p.name === product.name && p.type === product.type);
+        if (existingProd) {
+          return { ...c, products: c.products.map(p => p === existingProd ? { ...p, qty: p.qty + fits } : p) };
+        }
+        return { ...c, products: [...c.products, { ...newProdBase, id: Date.now() + Math.random(), qty: fits }] };
+      }
+      // Try to fill space in other existing containers
+      const ct = CONTAINER_TYPES[c.type] || CONTAINER_TYPES['20ft'];
+      const usedVol = c.products.reduce((s, p) => s + p.vol * p.qty, 0);
+      if (usedVol >= ct.vol * 0.98) return c; // full, skip
+      const fits = testFit(c.products, remaining, c.type);
+      if (fits <= 0) return c;
+      const toAdd = Math.min(fits, remaining);
+      remaining -= toAdd;
+      const existingProd = c.products.find(p => p.name === product.name && p.type === product.type);
+      if (existingProd) {
+        return { ...c, products: c.products.map(p => p === existingProd ? { ...p, qty: p.qty + toAdd } : p) };
+      }
+      return { ...c, products: [...c.products, { ...newProdBase, id: Date.now() + Math.random(), qty: toAdd }] };
+    });
 
-    // 2. Test how many fit in a *fresh* empty container of the same type
-    invalidatePackingCache();
-    const testProd = { id: 'fresh_test', name: product.name, type: product.type, dims: product.dims, qty: remaining, vol, color: '#999', priorityZone: null, packedItems: null, palletBase: null };
-    const { placed } = runPacking([testProd]);
-    const perContainer = placed['fresh_test'] || 0;
-
-    if (perContainer === 0) {
-      showToast('El producto no cabe en ningún contenedor de este tipo', 'error');
-      return;
-    }
-
-    // 3. Create as many containers as needed
+    // Create new containers for whatever's still remaining
     let created = 0;
+    const activeType = synced[activeContainerIdx]?.type || currentContainerType;
     while (remaining > 0 && created < 20) {
-      addNewContainer();
-      const toAdd = Math.min(remaining, perContainer);
-      addProduct({ ...product, qty: toAdd });
+      const ct = CONTAINER_TYPES[activeType];
+      setContainerDimensions(ct.L, ct.W, ct.H, ct.vol);
+      const testId = 'new_cont_test';
+      invalidatePackingCache();
+      const { placed } = runPacking([{ ...newProdBase, id: testId, qty: remaining }]);
+      const perCont = placed[testId] || 0;
+      if (perCont === 0) break;
+      const toAdd = Math.min(remaining, perCont);
+      newContainers.push({
+        id: newContainers.length + 1,
+        type: activeType,
+        products: [{ ...newProdBase, id: Date.now() + Math.random(), qty: toAdd }],
+        priorityZones: [null, null, null],
+        instanceManualPos: {},
+        instanceLockedOri: {},
+      });
       remaining -= toAdd;
       created++;
     }
 
+    // Restore packing engine to active container dimensions
+    const activeCt = CONTAINER_TYPES[activeType];
+    setContainerDimensions(activeCt.L, activeCt.W, activeCt.H, activeCt.vol);
+
+    loadShipmentData({ id: currentShipmentId, name: currentShipmentName, containers: newContainers });
     const label = product.type === 'pallet' ? 'pallets' : 'cajas';
-    showToast(`✓ ${product.qty} ${label} distribuidas en ${created + 1} contenedor${created > 0 ? 'es' : ''}`, 'success');
+    showToast(`✓ ${product.qty} ${label} distribuidas en ${newContainers.length} contenedor${newContainers.length > 1 ? 'es' : ''}`, 'success');
   }
 
   // ── Change type of active container only ──
