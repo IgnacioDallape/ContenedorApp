@@ -338,6 +338,9 @@ function ThreeCanvas({ onSelectInstance, onSetZone, onClearZone }, ref) {
     gridHelper.material.transparent = true; gridHelper.material.opacity = 0.5;
     containerGroup.add(gridHelper);
 
+    // Request render so Phase 1 shell is visible immediately
+    threeRef.current?._requestRender?.();
+
     // ── Phase 2: pack + draw products (deferred so shell renders first) ──
     const products = state.loadedProducts;
     if (!products.length) return;
