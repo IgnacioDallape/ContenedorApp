@@ -279,38 +279,42 @@ function ThreeCanvas({ onSelectInstance, onSetZone, onClearZone }, ref) {
     const state = useContainerStore.getState();
     const CL = state.CONT_L, CW = state.CONT_W, CH = state.CONT_H;
 
-    // Floor plate
+    // ── Phase 1: draw container shell immediately (fast) ──
     const floorPlate = new THREE.Mesh(new THREE.BoxGeometry(CL, 3, CW), new THREE.MeshPhongMaterial({ color: 0x8C7B6A, shininess: 15, specular: 0x222222 }));
     floorPlate.position.set(CL/2, -1.5, CW/2); floorPlate.receiveShadow = true;
     containerGroup.add(floorPlate);
 
-    // Walls (transparent)
     const wallGeo = new THREE.BoxGeometry(CL, CH, CW);
     const wallMesh = new THREE.Mesh(wallGeo, new THREE.MeshPhongMaterial({ color: 0xA89880, transparent: true, opacity: 0.06, side: THREE.BackSide, shininess: 5 }));
     wallMesh.position.set(CL/2, CH/2, CW/2);
     containerGroup.add(wallMesh);
 
-    // Edges
     const edges = new THREE.LineSegments(new THREE.EdgesGeometry(wallGeo), new THREE.LineBasicMaterial({ color: 0x6B5A48, opacity: 0.7, transparent: true }));
     edges.position.copy(wallMesh.position);
     containerGroup.add(edges);
 
-    // Corrugation lines
     for (let i = 0; i <= 8; i++) {
       const y = (CH / 8) * i;
       const lg = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, y, 0), new THREE.Vector3(CL, y, 0)]);
       containerGroup.add(new THREE.Line(lg, new THREE.LineBasicMaterial({ color: 0x7A6A58, transparent: true, opacity: 0.25 })));
     }
 
-    // Grid
     const gridHelper = new THREE.GridHelper(Math.max(CL, CW) * 1.2, 12, 0xC8B8A8, 0xD8CCC0);
     const gridY = state.currentContainerType.startsWith('semi') ? -52 : 0.5;
     gridHelper.position.set(CL/2, gridY, CW/2);
     gridHelper.material.transparent = true; gridHelper.material.opacity = 0.5;
     containerGroup.add(gridHelper);
 
-    // Pack and draw
-    const { packed } = runPacking(state.loadedProducts);
+    // ── Phase 2: pack + draw products (deferred so shell renders first) ──
+    const products = state.loadedProducts;
+    if (!products.length) return;
+
+    const drawOverlay = document.getElementById('three-loading');
+    if (drawOverlay) drawOverlay.style.display = 'flex';
+
+    setTimeout(() => {
+      if (!threeRef.current) return;
+      const { packed } = runPackingCached(products);
     const totalItems = packed.length;
     const skipAnim = totalItems > 40;
     const animItems = [];
@@ -405,6 +409,9 @@ function ThreeCanvas({ onSelectInstance, onSetZone, onClearZone }, ref) {
     makeLabel((CH/100).toFixed(2)+' m', [-50, CH/2, -20]);
 
     drawAllPriorityMarkers();
+
+    if (drawOverlay) drawOverlay.style.display = 'none';
+    }, 0); // end setTimeout phase 2
   }
 
   function drawSemiAxles(group, CL, CW, CH) {
@@ -711,6 +718,15 @@ function ThreeCanvas({ onSelectInstance, onSetZone, onClearZone }, ref) {
         onDoubleClick={handleDblClick}
         onContextMenu={handleContextMenu}
       />
+      <div id="three-loading" style={{
+        display: 'none', position: 'absolute', inset: 0,
+        background: 'rgba(237,230,218,0.72)', backdropFilter: 'blur(2px)',
+        alignItems: 'center', justifyContent: 'center', pointerEvents: 'none', zIndex: 5,
+      }}>
+        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: '#8D7966', letterSpacing: 2 }}>
+          CALCULANDO CARGA...
+        </div>
+      </div>
       <div
         id="tooltip3d"
         style={{
