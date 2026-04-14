@@ -9,7 +9,24 @@ function makeDefaultContainer(id, type = '20ft') {
   return { id, type, products: [], priorityZones: [null, null, null], instanceManualPos: {}, instanceLockedOri: {} };
 }
 
-const useContainerStore = create((set, get) => ({
+// Module-level undo/redo stacks (not reactive state to avoid re-renders)
+let _undoHistory = [];
+let _redoStack   = [];
+const MAX_HISTORY = 50;
+let _setFlags = null; // will be assigned once store is created
+
+function _pushHistory(products) {
+  _undoHistory.push(JSON.parse(JSON.stringify(products)));
+  if (_undoHistory.length > MAX_HISTORY) _undoHistory.shift();
+  _redoStack = [];
+  _setFlags?.({ canUndo: true, canRedo: false });
+}
+
+const useContainerStore = create((set, get) => {
+  _setFlags = set; // allow _pushHistory to update canUndo/canRedo
+  return {
+  canUndo: false,
+  canRedo: false,
   // Container dimensions (synced with packing engine)
   CONT_L: 589, CONT_W: 235, CONT_H: 239,
   CONTAINER_VOL: CONTAINER_TYPES['20ft'].vol,
@@ -112,6 +129,7 @@ const useContainerStore = create((set, get) => ({
       palletBase: productData.palletBase || null,
     };
 
+    _pushHistory(loadedProducts);
     const updated = [...loadedProducts, newProd].sort((a, b) => {
       if (a.type !== b.type) return a.type === 'pallet' ? -1 : 1;
       const pa = a.priorityZone ? 0 : 1, pb = b.priorityZone ? 0 : 1;
@@ -126,6 +144,7 @@ const useContainerStore = create((set, get) => ({
 
   removeProduct(id) {
     const { loadedProducts, instanceManualPos, instanceLockedOri } = get();
+    _pushHistory(loadedProducts);
     const filtered = loadedProducts.filter(p => p.id != id);
     const newManual = { ...instanceManualPos };
     const newLocked = { ...instanceLockedOri };
@@ -138,12 +157,14 @@ const useContainerStore = create((set, get) => ({
 
   updateProductQty(id, newQty) {
     const { loadedProducts } = get();
+    _pushHistory(loadedProducts);
     const updated = loadedProducts.map(p => p.id == id ? { ...p, qty: newQty } : p);
     invalidatePackingCache();
     set({ loadedProducts: updated });
   },
 
   clearAllProducts() {
+    _pushHistory(get().loadedProducts);
     invalidatePackingCache();
     set({ loadedProducts: [], instanceManualPos: {}, instanceLockedOri: {} });
     get()._syncWindowGlobals();
@@ -151,6 +172,7 @@ const useContainerStore = create((set, get) => ({
 
   reorderCargo() {
     const { loadedProducts } = get();
+    _pushHistory(loadedProducts);
     const reordered = [...loadedProducts].map(p => ({ ...p, priorityZone: null, priorityZoneSlot: null, lockedOri: null }))
       .sort((a, b) => {
         if (a.type !== b.type) return a.type === 'pallet' ? -1 : 1;
@@ -378,6 +400,27 @@ const useContainerStore = create((set, get) => ({
   setSelectedCatalogZones(zones) { set({ selectedCatalogZones: zones }); },
   clearCatalogSelection() { set({ selectedCatalogItems: {}, selectedCatalogZones: {} }); },
   setPendingProduct(p) { set({ pendingProduct: p }); },
-}));
+
+  undo() {
+    if (_undoHistory.length === 0) return;
+    const { loadedProducts } = get();
+    _redoStack.push(JSON.parse(JSON.stringify(loadedProducts)));
+    const prev = _undoHistory.pop();
+    invalidatePackingCache();
+    set({ loadedProducts: prev, canUndo: _undoHistory.length > 0, canRedo: true });
+    get()._syncWindowGlobals();
+  },
+
+  redo() {
+    if (_redoStack.length === 0) return;
+    const { loadedProducts } = get();
+    _undoHistory.push(JSON.parse(JSON.stringify(loadedProducts)));
+    const next = _redoStack.pop();
+    invalidatePackingCache();
+    set({ loadedProducts: next, canUndo: true, canRedo: _redoStack.length > 0 });
+    get()._syncWindowGlobals();
+  },
+  }; // end returned object
+});
 
 export default useContainerStore;

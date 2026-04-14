@@ -21,6 +21,7 @@ export default function ContainerLoader() {
     setInstanceManualPos, setInstanceLockedOri, setSelectedInstance, setInteractMode,
     currentShipmentId, currentShipmentName, setCurrentShipmentId, setCurrentShipmentName, resetShipmentId, loadShipmentData,
     setSemiWeightLimit, pendingProduct, setPendingProduct,
+    undo, redo, canUndo, canRedo,
   } = useContainerStore();
   const { showToast } = useAppStore();
 
@@ -54,6 +55,8 @@ export default function ContainerLoader() {
   const [showOverwrite, setShowOverwrite] = useState(false);
   const [overwriteId,   setOverwriteId]  = useState(null);
   const [overwriteName, setOverwriteName] = useState('');
+  const [shipmentNotes, setShipmentNotes] = useState('');
+  const [shipmentsFilter, setShipmentsFilter] = useState('');
   const [showDeleteShip, setShowDeleteShip] = useState(false);
   const [deleteShipId,   setDeleteShipId]  = useState(null);
   const [openStatusId,   setOpenStatusId]  = useState(null);
@@ -419,6 +422,22 @@ export default function ContainerLoader() {
     showToast(`⧉ "${p.name}" duplicado (${p.qty+1} unidades)`, 'success');
   }
 
+  // ── Export CSV ──
+  function handleExportCSV() {
+    const all = syncActiveContainer();
+    const rows = [['Contenedor','Tipo contenedor','Producto','Tipo','L (cm)','W (cm)','H (cm)','Cant.','Volumen (m³)','Peso/u (kg)','Peso total (kg)','Precio/u (USD)','Subtotal (USD)','Notas']];
+    all.forEach((c, ci) => {
+      const ctype = CONTAINER_TYPES[c.type]?.fullLabel || c.type;
+      (c.products || []).forEach(p => {
+        rows.push([ci+1, ctype, p.name, p.type==='pallet'?'Pallet':'Caja', p.dims.L, p.dims.W, p.dims.H, p.qty, (p.vol*p.qty).toFixed(3), p.weight||0, ((p.weight||0)*p.qty).toFixed(1), p.price||0, ((p.price||0)*p.qty).toFixed(2), p.notes||'']);
+      });
+    });
+    const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+    const blob = new Blob(['\uFEFF'+csv], { type: 'text/csv;charset=utf-8;' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+    a.download = `${currentShipmentName || 'embarque'}.csv`; a.click();
+  }
+
   // ── Shipments ──
   async function handleSaveShipment() {
     if (currentShipmentId) {
@@ -444,7 +463,8 @@ export default function ContainerLoader() {
       setOverwriteId(existing[0].id); setOverwriteName(saveName.trim());
       setShowSave(false); setShowOverwrite(true); return;
     }
-    const { data: inserted, error } = await _sb.from('shipments').insert({ user_id: session.user.id, name: saveName.trim(), containers, status: 'preparacion' }).select('id').single();
+    const payload = { v: 2, notes: shipmentNotes, items: containers };
+    const { data: inserted, error } = await _sb.from('shipments').insert({ user_id: session.user.id, name: saveName.trim(), containers: payload, status: 'preparacion' }).select('id').single();
     if (error) { showToast('Error al guardar: ' + error.message, 'error'); return; }
     setCurrentShipmentId(inserted.id);
     setCurrentShipmentName(saveName.trim());
@@ -457,7 +477,8 @@ export default function ContainerLoader() {
     try { ({ data: { session } } = await _sb.auth.getSession()); }
     catch { return showToast('Error de conexión', 'error'); }
     const containers = syncActiveContainer();
-    const { error } = await _sb.from('shipments').update({ name: overwriteName, containers }).eq('id', overwriteId);
+    const payload = { v: 2, notes: shipmentNotes, items: containers };
+    const { error } = await _sb.from('shipments').update({ name: overwriteName, containers: payload }).eq('id', overwriteId);
     if (error) { showToast('Error al guardar: ' + error.message, 'error'); return; }
     setCurrentShipmentId(overwriteId);
     setShowOverwrite(false);
@@ -479,7 +500,15 @@ export default function ContainerLoader() {
   async function loadShipment(id) {
     const { data, error } = await _sb.from('shipments').select('*').eq('id', id).single();
     if (error || !data) return showToast('Error al cargar embarque', 'error');
-    loadShipmentData(data);
+    // Support notes stored in containers JSONB wrapper {v:2, notes, items}
+    const raw = data.containers;
+    if (!Array.isArray(raw) && raw?.v === 2) {
+      setShipmentNotes(raw.notes || '');
+      loadShipmentData({ ...data, containers: raw.items });
+    } else {
+      setShipmentNotes('');
+      loadShipmentData(data);
+    }
     setShowShipments(false);
     showToast(`✓ Embarque "${data.name}" cargado`, 'success');
   }
@@ -520,6 +549,17 @@ export default function ContainerLoader() {
     checkAndAdd(pendingProduct);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pendingProduct]);
+
+  // ── Undo / Redo keyboard shortcuts ──
+  useEffect(() => {
+    function onKey(e) {
+      if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key === 'z') { e.preventDefault(); undo(); }
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.shiftKey && e.key === 'z'))) { e.preventDefault(); redo(); }
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const activeZoneCount = priorityZones.filter(z => z !== null).length;
 
@@ -637,7 +677,11 @@ export default function ContainerLoader() {
           <hr className="divider" />
 
           {loadedProducts.length > 0 && (
-            <button className="btn-secondary" onClick={clearAllProducts} style={{ fontSize: 11, marginBottom: 8 }}>× Vaciar contenedor</button>
+            <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+              <button className="btn-secondary" onClick={clearAllProducts} style={{ fontSize: 11, flex: 1 }}>× Vaciar</button>
+              <button className="btn-secondary" onClick={undo} disabled={!canUndo} title="Deshacer (Ctrl+Z)" style={{ fontSize: 13, padding: '5px 10px', opacity: canUndo ? 1 : 0.35, cursor: canUndo ? 'pointer' : 'default' }}>↩</button>
+              <button className="btn-secondary" onClick={redo} disabled={!canRedo} title="Rehacer (Ctrl+Y)" style={{ fontSize: 13, padding: '5px 10px', opacity: canRedo ? 1 : 0.35, cursor: canRedo ? 'pointer' : 'default' }}>↪</button>
+            </div>
           )}
 
           <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--muted)', letterSpacing: '2px', textTransform: 'uppercase', marginBottom: 14 }}>Productos cargados</div>
@@ -736,7 +780,26 @@ export default function ContainerLoader() {
                 style={{ padding: '6px 14px', fontSize: 11, fontFamily: "'DM Mono', monospace", letterSpacing: '0.5px', borderRadius: 6, cursor: loadedProducts.length === 0 ? 'not-allowed' : 'pointer', border: '1px solid var(--border)', color: loadedProducts.length === 0 ? 'var(--muted)' : 'var(--text)', background: 'transparent', whiteSpace: 'nowrap', opacity: loadedProducts.length === 0 ? 0.5 : 1 }}>
                 📄 Exportar PDF
               </button>
+              <button
+                onClick={handleExportCSV}
+                disabled={loadedProducts.length === 0}
+                style={{ padding: '6px 14px', fontSize: 11, fontFamily: "'DM Mono', monospace", letterSpacing: '0.5px', borderRadius: 6, cursor: loadedProducts.length === 0 ? 'not-allowed' : 'pointer', border: '1px solid var(--border)', color: loadedProducts.length === 0 ? 'var(--muted)' : 'var(--text)', background: 'transparent', whiteSpace: 'nowrap', opacity: loadedProducts.length === 0 ? 0.5 : 1 }}>
+                📊 Exportar CSV
+              </button>
             </div>
+
+            {/* Shipment notes inline */}
+            {currentShipmentId && (
+              <div style={{ marginBottom: 8 }}>
+                <textarea
+                  value={shipmentNotes}
+                  onChange={e => setShipmentNotes(e.target.value)}
+                  placeholder="📝 Notas del embarque..."
+                  rows={1}
+                  style={{ width: '100%', padding: '7px 12px', border: '1px solid var(--border)', borderRadius: 7, fontFamily: "'Jost', sans-serif", fontSize: 12, background: 'var(--surface)', color: 'var(--text)', boxSizing: 'border-box', resize: 'vertical', lineHeight: 1.5, opacity: 0.85 }}
+                />
+              </div>
+            )}
 
             {/* Container type selector */}
             <div className="container-selector">
@@ -1004,11 +1067,17 @@ export default function ContainerLoader() {
           <div className="cap-modal" style={{ maxWidth: 420, width: '90vw' }}>
             <div className="cap-icon">💾</div>
             <div className="cap-title">Guardar embarque</div>
-            <div style={{ marginBottom: 18 }}>
+            <div style={{ marginBottom: 12 }}>
               <input type="text" value={saveName} placeholder="Ej: Embarque China Abril 2026"
                 style={{ width: '100%', padding: '10px 14px', border: '1.5px solid var(--border)', borderRadius: 8, fontFamily: 'var(--font)', fontSize: 14, background: 'var(--surface)', color: 'var(--text)', boxSizing: 'border-box' }}
                 onChange={e => setSaveName(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && confirmSave()} />
+            </div>
+            <div style={{ marginBottom: 18 }}>
+              <textarea value={shipmentNotes} onChange={e => setShipmentNotes(e.target.value)}
+                placeholder="Notas del embarque (opcional)..."
+                rows={3}
+                style={{ width: '100%', padding: '10px 14px', border: '1.5px solid var(--border)', borderRadius: 8, fontFamily: 'var(--font)', fontSize: 13, background: 'var(--surface)', color: 'var(--text)', boxSizing: 'border-box', resize: 'vertical', lineHeight: 1.5 }} />
             </div>
             <div className="cap-footer">
               <button className="btn-secondary" onClick={() => setShowSave(false)}>Cancelar</button>
@@ -1037,19 +1106,28 @@ export default function ContainerLoader() {
       {showShipments && (
         <div className="cap-overlay open" style={{ zIndex: 200 }}>
           <div className="cap-modal" style={{ maxWidth: 560, width: '90vw', maxHeight: '80vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
               <div className="cap-title" style={{ margin: 0 }}>📂 Mis embarques</div>
               <button onClick={() => setShowShipments(false)} style={{ background: 'none', border: 'none', fontSize: 18, cursor: 'pointer', color: 'var(--muted)', lineHeight: 1 }}>×</button>
             </div>
+            <input
+              value={shipmentsFilter} onChange={e => setShipmentsFilter(e.target.value)}
+              placeholder="Buscar por nombre..."
+              style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid var(--border)', fontFamily: "'Jost', sans-serif", fontSize: 13, background: 'var(--bg)', color: 'var(--text)', marginBottom: 12, boxSizing: 'border-box' }}
+            />
             <div style={{ overflowY: 'auto', flex: 1, minHeight: 0 }}>
               {shipmentsLoading ? (
                 <div style={{ textAlign: 'center', color: 'var(--muted)', padding: 24, fontSize: 13 }}>Cargando...</div>
               ) : shipmentsList.length === 0 ? (
                 <div style={{ textAlign: 'center', color: 'var(--muted)', padding: 24, fontSize: 13 }}>No tenés embarques guardados aún.</div>
-              ) : shipmentsList.map(s => {
+              ) : shipmentsList.filter(s => !shipmentsFilter || s.name.toLowerCase().includes(shipmentsFilter.toLowerCase())).map(s => {
                 const date = new Date(s.created_at).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
-                const totalConts = s.containers?.length || 1;
-                const totalProds = s.containers?.reduce((acc, c) => acc + (c.products?.length || 0), 0) || 0;
+                // Support v2 containers format {v:2, notes, items}
+                const rawC = s.containers;
+                const conts = Array.isArray(rawC) ? rawC : (rawC?.items || []);
+                const sNotes = Array.isArray(rawC) ? '' : (rawC?.notes || '');
+                const totalConts = conts.length || 1;
+                const totalProds = conts.reduce((acc, c) => acc + (c.products?.length || 0), 0);
                 const STATUS_CONFIG = {
                   preparacion: { label: 'En preparación', color: '#C0614A', bg: '#FDF0ED', icon: '🔴' },
                   embarcado:   { label: 'Embarcado',      color: '#2E7DC0', bg: '#EBF4FD', icon: '🚢' },
@@ -1080,6 +1158,7 @@ export default function ContainerLoader() {
                           <span style={{ width: 3, height: 3, borderRadius: '50%', background: '#C8B8A8', flexShrink: 0 }} />
                           <span style={{ fontSize: 10, color: '#9a8778', fontFamily: "'DM Mono', monospace" }}>{totalProds} prod{totalProds !== 1 ? 's' : ''}</span>
                         </div>
+                        {sNotes && <div style={{ marginTop: 5, fontSize: 11, color: '#8D7966', fontStyle: 'italic', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>📝 {sNotes}</div>}
                       </div>
                       {/* Status badge — clickable */}
                       <button onClick={() => setOpenStatusId(isOpen ? null : s.id)} style={{
