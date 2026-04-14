@@ -9,6 +9,13 @@ import ThreeErrorBoundary from './ThreeErrorBoundary.jsx';
 import { _sb } from '../../lib/supabase.js';
 import { exportShipmentPDF } from '../../lib/exportPDF.js';
 
+const STATUS_CONFIG = {
+  preparacion: { label: 'En preparación', color: '#C0614A', bg: '#FDF0ED', icon: '🔴' },
+  embarcado:   { label: 'Embarcado',      color: '#2E7DC0', bg: '#EBF4FD', icon: '🚢' },
+  en_puerto:   { label: 'En puerto',      color: '#C08A1A', bg: '#FDF6E3', icon: '🟡' },
+  entregado:   { label: 'Entregado',      color: '#3A8C52', bg: '#EDF7F1', icon: '✅' },
+};
+
 export default function ContainerLoader() {
   const {
     loadedProducts, CONT_L, CONT_W, CONT_H, CONTAINER_VOL,
@@ -63,6 +70,8 @@ export default function ContainerLoader() {
   const [deleteShipId,   setDeleteShipId]  = useState(null);
   const [isSaving,       setIsSaving]      = useState(false);
   const [openStatusId,   setOpenStatusId]  = useState(null);
+  const [currentShipmentStatus, setCurrentShipmentStatus] = useState('preparacion');
+  const [showCurrentStatusPicker, setShowCurrentStatusPicker] = useState(false);
   const [dragTabIdx,    setDragTabIdx]    = useState(null);
   const [dragOverTabIdx, setDragOverTabIdx] = useState(null);
   const [showWeightMap, setShowWeightMap] = useState(false);
@@ -540,6 +549,7 @@ export default function ContainerLoader() {
       setShipmentNotes('');
       loadShipmentData(data);
     }
+    setCurrentShipmentStatus(data.status || 'preparacion');
     setShowShipments(false);
     showToast(`✓ Embarque "${data.name}" cargado`, 'success');
   }
@@ -547,6 +557,24 @@ export default function ContainerLoader() {
   async function updateShipmentStatus(id, status) {
     await _sb.from('shipments').update({ status }).eq('id', id);
     setShipmentsList(prev => prev.map(s => s.id === id ? { ...s, status } : s));
+    if (String(id) === String(currentShipmentId)) setCurrentShipmentStatus(status);
+  }
+
+  // ── Export CSV from stored shipment data (without loading) ──
+  function handleExportShipmentCSV(shipment) {
+    const rawC = shipment.containers;
+    const conts = Array.isArray(rawC) ? rawC : (rawC?.items || []);
+    const rows = [['Contenedor','Tipo contenedor','Producto','Tipo','L (cm)','W (cm)','H (cm)','Cant.','Volumen (m³)','Peso/u (kg)','Peso total (kg)','Precio/u (USD)','Subtotal (USD)','Notas']];
+    conts.forEach((c, ci) => {
+      const ctype = CONTAINER_TYPES[c.type]?.fullLabel || c.type;
+      (c.products || []).forEach(p => {
+        rows.push([ci+1, ctype, p.name, p.type==='pallet'?'Pallet':'Caja', p.dims?.L||0, p.dims?.W||0, p.dims?.H||0, p.qty, ((p.vol||0)*p.qty).toFixed(3), p.weight||0, ((p.weight||0)*p.qty).toFixed(1), p.price||0, ((p.price||0)*p.qty).toFixed(2), p.notes||'']);
+      });
+    });
+    const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+    const blob = new Blob(['\uFEFF'+csv], { type: 'text/csv;charset=utf-8;' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+    a.download = `${shipment.name || 'embarque'}.csv`; a.click();
   }
 
   async function toggleShipmentPublic(id, currentPublic) {
@@ -577,6 +605,7 @@ export default function ContainerLoader() {
   useEffect(() => {
     function onEscape(e) {
       if (e.key !== 'Escape') return;
+      if (showCurrentStatusPicker) { setShowCurrentStatusPicker(false); return; }
       if (capModal)        { setCapModal(null); return; }
       if (showSave)        { setShowSave(false); return; }
       if (showOverwrite)   { setShowOverwrite(false); return; }
@@ -586,7 +615,7 @@ export default function ContainerLoader() {
     window.addEventListener('keydown', onEscape);
     return () => window.removeEventListener('keydown', onEscape);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [capModal, showSave, showOverwrite, showShipments, showDeleteShip]);
+  }, [showCurrentStatusPicker, capModal, showSave, showOverwrite, showShipments, showDeleteShip]);
 
   // ── Handle pallet exported from PalletBuilder ──
   useEffect(() => {
@@ -891,22 +920,32 @@ export default function ContainerLoader() {
                 style={{ padding: '6px 14px', fontSize: 11, fontFamily: "'DM Mono', monospace", letterSpacing: '0.5px', borderRadius: 6, cursor: 'pointer', border: '1px solid var(--border)', color: 'var(--muted)', background: 'transparent', whiteSpace: 'nowrap' }}>
                 📂 Mis embarques
               </button>
-              <button
-                onClick={async () => {
-                  const containers = syncActiveContainer();
-                  const views = canvasRef.current ? await canvasRef.current.captureViews() : [];
-                  await exportShipmentPDF({ containers, currentContainerType, views, shipmentName: currentShipmentName, shipmentId: currentShipmentId });
-                }}
-                disabled={loadedProducts.length === 0}
-                style={{ padding: '6px 14px', fontSize: 11, fontFamily: "'DM Mono', monospace", letterSpacing: '0.5px', borderRadius: 6, cursor: loadedProducts.length === 0 ? 'not-allowed' : 'pointer', border: '1px solid var(--border)', color: loadedProducts.length === 0 ? 'var(--muted)' : 'var(--text)', background: 'transparent', whiteSpace: 'nowrap', opacity: loadedProducts.length === 0 ? 0.5 : 1 }}>
-                📄 Exportar PDF
-              </button>
-              <button
-                onClick={handleExportCSV}
-                disabled={loadedProducts.length === 0}
-                style={{ padding: '6px 14px', fontSize: 11, fontFamily: "'DM Mono', monospace", letterSpacing: '0.5px', borderRadius: 6, cursor: loadedProducts.length === 0 ? 'not-allowed' : 'pointer', border: '1px solid var(--border)', color: loadedProducts.length === 0 ? 'var(--muted)' : 'var(--text)', background: 'transparent', whiteSpace: 'nowrap', opacity: loadedProducts.length === 0 ? 0.5 : 1 }}>
-                📊 Exportar CSV
-              </button>
+              {/* Status button — only when a shipment is loaded */}
+              {currentShipmentId && (() => {
+                const st = STATUS_CONFIG[currentShipmentStatus] || STATUS_CONFIG.preparacion;
+                return (
+                  <div style={{ position: 'relative' }}>
+                    <button
+                      onClick={() => setShowCurrentStatusPicker(v => !v)}
+                      style={{ padding: '6px 12px', fontSize: 11, fontFamily: "'DM Mono', monospace", letterSpacing: '0.5px', borderRadius: 6, cursor: 'pointer', border: `1.5px solid ${st.color}55`, color: st.color, background: st.bg, whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 5 }}>
+                      <span>{st.icon}</span>
+                      <span>{st.label}</span>
+                      <span style={{ fontSize: 8, opacity: 0.6 }}>▾</span>
+                    </button>
+                    {showCurrentStatusPicker && (
+                      <div style={{ position: 'absolute', top: 'calc(100% + 4px)', right: 0, zIndex: 400, background: '#fff', borderRadius: 10, border: '1px solid #E8E0D8', boxShadow: '0 4px 16px rgba(0,0,0,0.14)', padding: 6, display: 'flex', flexDirection: 'column', gap: 3, minWidth: 170 }}>
+                        {Object.entries(STATUS_CONFIG).map(([key, cfg]) => (
+                          <button key={key}
+                            onClick={() => { updateShipmentStatus(currentShipmentId, key); setShowCurrentStatusPicker(false); }}
+                            style={{ background: currentShipmentStatus === key ? cfg.bg : 'transparent', border: `1.5px solid ${currentShipmentStatus === key ? cfg.color + '55' : 'transparent'}`, borderRadius: 7, padding: '6px 10px', cursor: 'pointer', textAlign: 'left', color: cfg.color, fontFamily: "'DM Mono', monospace", fontSize: 10, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 7 }}>
+                            <span>{cfg.icon}</span><span>{cfg.label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
 
             {/* Shipment notes inline */}
@@ -1282,12 +1321,6 @@ export default function ContainerLoader() {
                 const sNotes = Array.isArray(rawC) ? '' : (rawC?.notes || '');
                 const totalConts = conts.length || 1;
                 const totalProds = conts.reduce((acc, c) => acc + (c.products?.length || 0), 0);
-                const STATUS_CONFIG = {
-                  preparacion: { label: 'En preparación', color: '#C0614A', bg: '#FDF0ED', icon: '🔴' },
-                  embarcado:   { label: 'Embarcado',      color: '#2E7DC0', bg: '#EBF4FD', icon: '🚢' },
-                  en_puerto:   { label: 'En puerto',      color: '#C08A1A', bg: '#FDF6E3', icon: '🟡' },
-                  entregado:   { label: 'Entregado',      color: '#3A8C52', bg: '#EDF7F1', icon: '✅' },
-                };
                 const st = STATUS_CONFIG[s.status] || STATUS_CONFIG.preparacion;
                 const isOpen = openStatusId === s.id;
                 return (
@@ -1358,6 +1391,31 @@ export default function ContainerLoader() {
                         background: s.is_public ? '#EDF7F1' : 'transparent',
                       }}>
                         {s.is_public ? '🔗 Link activo' : '🔗 Compartir'}
+                      </button>
+                      <button onClick={() => handleExportShipmentCSV(s)} title="Exportar CSV" style={{
+                        padding: '4px 10px', fontSize: 10, fontFamily: "'DM Mono', monospace", borderRadius: 6, cursor: 'pointer',
+                        border: '1px solid #D8CFC6', color: '#9a8778', background: 'transparent',
+                      }}>
+                        📊 CSV
+                      </button>
+                      <button
+                        onClick={async () => {
+                          if (String(currentShipmentId) !== String(s.id)) {
+                            showToast('Cargá el embarque primero para exportar PDF', 'error'); return;
+                          }
+                          const containers = syncActiveContainer();
+                          const views = canvasRef.current ? await canvasRef.current.captureViews() : [];
+                          await exportShipmentPDF({ containers, currentContainerType, views, shipmentName: currentShipmentName, shipmentId: currentShipmentId });
+                        }}
+                        title={String(currentShipmentId) === String(s.id) ? 'Exportar PDF' : 'Cargá el embarque para exportar PDF'}
+                        style={{
+                          padding: '4px 10px', fontSize: 10, fontFamily: "'DM Mono', monospace", borderRadius: 6, cursor: 'pointer',
+                          border: `1px solid ${String(currentShipmentId) === String(s.id) ? '#D8CFC6' : '#EDE8E3'}`,
+                          color: String(currentShipmentId) === String(s.id) ? '#9a8778' : '#C8B8A8',
+                          background: 'transparent',
+                          opacity: String(currentShipmentId) === String(s.id) ? 1 : 0.5,
+                        }}>
+                        📄 PDF
                       </button>
                       <div style={{ flex: 1 }} />
                       <button onClick={() => loadShipment(s.id)} style={{
