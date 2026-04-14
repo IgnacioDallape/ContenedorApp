@@ -7,6 +7,24 @@ import useAppStore from '../../stores/appStore.js';
 import { ZONE_COLORS, ZONE_COLORS_HEX, ZONE_LABELS } from '../../lib/constants.js';
 import { runPacking, runPackingCached, invalidatePackingCache, hmGetMax } from '../../lib/packing.js';
 
+// ── Multi-container packing cache (up to 8 slots, keyed by dims+products) ──
+const _packCache = new Map();
+function _packKey(CL, CW, CH, products, manualPos) {
+  const posStr = manualPos ? Object.entries(manualPos).sort().map(([k,v])=>`${k}:${v.x},${v.z}`).join(';') : '';
+  return `${Math.round(CL)},${Math.round(CW)},${Math.round(CH)}|` +
+    products.map(p => `${p.id}:${p.qty}:${JSON.stringify(p.dims)}:${JSON.stringify(p.lockedOri||null)}`).join('|') +
+    '|' + posStr;
+}
+function getCachedPack(CL, CW, CH, products, manualPos) {
+  return _packCache.get(_packKey(CL, CW, CH, products, manualPos)) ?? null;
+}
+function setCachedPack(CL, CW, CH, products, manualPos, packed) {
+  const k = _packKey(CL, CW, CH, products, manualPos);
+  if (_packCache.size >= 8) _packCache.delete(_packCache.keys().next().value);
+  _packCache.set(k, packed);
+}
+export function invalidateContainerPackCache() { _packCache.clear(); }
+
 // ── Material cache: one template per hex color, cloned per mesh ──
 const _matTemplates = new Map();
 function makeBoxMaterials(hex) {
@@ -311,12 +329,19 @@ function ThreeCanvas({ onSelectInstance, onSetZone, onClearZone }, ref) {
     if (!products.length) return;
 
     const drawOverlay = document.getElementById('three-loading');
-    if (drawOverlay) drawOverlay.style.display = 'flex';
+    const manualPos = state.instanceManualPos;
+    const isCached = getCachedPack(CL, CW, CH, products, manualPos) !== null;
+    if (drawOverlay) drawOverlay.style.display = isCached ? 'none' : 'flex';
 
     // Double rAF: first frame triggers layout, second guarantees paint before freeze
     requestAnimationFrame(() => requestAnimationFrame(() => {
       if (!threeRef.current) return;
-      const { packed } = runPackingCached(products);
+      const cached = getCachedPack(CL, CW, CH, products, manualPos);
+      const packed = cached ?? (() => {
+        const r = runPackingCached(products);
+        setCachedPack(CL, CW, CH, products, manualPos, r.packed);
+        return r.packed;
+      })();
       const totalItems = packed.length;
       const heavy = totalItems > 40;  // heavy mode: merge geos, skip anim, simplify pallets
       const animItems = [];
