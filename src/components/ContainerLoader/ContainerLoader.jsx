@@ -920,6 +920,17 @@ export default function ContainerLoader() {
                 style={{ padding: '6px 14px', fontSize: 11, fontFamily: "'DM Mono', monospace", letterSpacing: '0.5px', borderRadius: 6, cursor: 'pointer', border: '1px solid var(--border)', color: 'var(--muted)', background: 'transparent', whiteSpace: 'nowrap' }}>
                 📂 Mis embarques
               </button>
+              <button
+                onClick={async () => {
+                  const containers = syncActiveContainer();
+                  const views = canvasRef.current ? await canvasRef.current.captureViews() : [];
+                  await exportShipmentPDF({ containers, currentContainerType, views, shipmentName: currentShipmentName, shipmentId: currentShipmentId });
+                }}
+                disabled={loadedProducts.length === 0}
+                title="Exportar PDF"
+                style={{ padding: '5px 10px', fontSize: 13, borderRadius: 6, cursor: loadedProducts.length === 0 ? 'not-allowed' : 'pointer', border: '1px solid var(--border)', color: loadedProducts.length === 0 ? 'var(--muted)' : 'var(--text)', background: 'transparent', opacity: loadedProducts.length === 0 ? 0.45 : 1, lineHeight: 1 }}>
+                📄
+              </button>
               {/* Status button — only when a shipment is loaded */}
               {currentShipmentId && (() => {
                 const st = STATUS_CONFIG[currentShipmentStatus] || STATUS_CONFIG.preparacion;
