@@ -236,10 +236,73 @@ export default function ContainerLoader() {
     showToast(`✓ ${product.qty} ${label} distribuidas en ${newContainers.length} contenedor${newContainers.length > 1 ? 'es' : ''}`, 'success');
   }
 
-  // ── Change type of active container only ──
+  // ── Change type of active container + pull products from others to fill new space ──
   function handleChangeContainerType(newType) {
-    // Just change this container's type — others stay independent
-    setContainerType(newType);
+    const synced = syncActiveContainer();
+    const ct = CONTAINER_TYPES[newType];
+    if (!ct) return;
+
+    const activeProds = synced[activeContainerIdx]?.products || [];
+
+    // No other containers — just change type
+    const otherIdxs = synced.map((_, i) => i).filter(i => i !== activeContainerIdx && synced[i].products.length > 0);
+    if (otherIdxs.length === 0) {
+      setContainerType(newType);
+      return;
+    }
+
+    // Set packing engine to new type dimensions
+    setContainerDimensions(ct.L, ct.W, ct.H, ct.vol);
+
+    // Find how many of active products fit in new container
+    invalidatePackingCache();
+    let currentInActive = [...activeProds];
+
+    // Try to pull products from other containers, one container at a time
+    const updatedContainers = synced.map(c => ({ ...c, products: [...c.products] }));
+    updatedContainers[activeContainerIdx] = { ...updatedContainers[activeContainerIdx], type: newType, products: currentInActive };
+
+    for (const oi of otherIdxs) {
+      const otherProds = updatedContainers[oi].products;
+      if (!otherProds.length) continue;
+
+      // Test how many from this container fit in the active one
+      const testId = 'pull_test';
+      for (const op of otherProds) {
+        const testList = [...currentInActive, { ...op, id: testId }];
+        invalidatePackingCache();
+        const { placed } = runPacking(testList);
+        const fits = Math.min(placed[testId] || 0, op.qty);
+        if (fits <= 0) continue;
+
+        // Pull `fits` units from other container into active
+        currentInActive = [...currentInActive];
+        const existingInActive = currentInActive.find(p => p.name === op.name && p.type === op.type);
+        if (existingInActive) {
+          currentInActive = currentInActive.map(p => p === existingInActive ? { ...p, qty: p.qty + fits } : p);
+        } else {
+          currentInActive = [...currentInActive, { ...op, id: Date.now() + Math.random(), qty: fits }];
+        }
+
+        // Remove those units from the other container
+        const remaining = op.qty - fits;
+        if (remaining <= 0) {
+          updatedContainers[oi] = { ...updatedContainers[oi], products: updatedContainers[oi].products.filter(p => p !== op) };
+        } else {
+          updatedContainers[oi] = { ...updatedContainers[oi], products: updatedContainers[oi].products.map(p => p === op ? { ...p, qty: remaining } : p) };
+        }
+      }
+      updatedContainers[activeContainerIdx] = { ...updatedContainers[activeContainerIdx], type: newType, products: currentInActive };
+    }
+
+    // Remove containers that are now empty
+    const finalContainers = updatedContainers.filter(c => c.products.length > 0 || updatedContainers.indexOf(c) === activeContainerIdx);
+
+    // Restore packing engine to active container dimensions
+    setContainerDimensions(ct.L, ct.W, ct.H, ct.vol);
+
+    loadShipmentData({ id: currentShipmentId, name: currentShipmentName, containers: finalContainers.map((c, i) => ({ ...c, id: i + 1 })) });
+    showToast(`✓ Tipo cambiado a ${ct.label} — espacio optimizado`, 'success');
   }
 
   // ── Rotation ──
