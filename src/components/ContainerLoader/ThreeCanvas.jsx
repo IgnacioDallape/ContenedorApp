@@ -309,6 +309,8 @@ function ThreeCanvas({ onSelectInstance, onSetZone, onClearZone }, ref) {
       if (c.material) { Array.isArray(c.material) ? c.material.forEach(m => m?.dispose()) : c.material.dispose(); }
       containerGroup.remove(c);
     }
+    // Force shadow map recompute whenever scene geometry changes
+    if (t) t._shadowDirty = true;
     const state = useContainerStore.getState();
     const CL = state.CONT_L, CW = state.CONT_W, CH = state.CONT_H;
 
