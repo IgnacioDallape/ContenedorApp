@@ -1046,59 +1046,59 @@ export default function ContainerLoader() {
 
               {/* Inspector panel */}
               {inspector && (
-                <div style={{ display: 'block', position: 'absolute', right: 10, top: 44, zIndex: 60, width: 210, background: 'rgba(248,241,233,0.97)', border: '1.5px solid var(--c1)', borderRadius: 10, boxShadow: '0 10px 36px rgba(141,121,102,0.32)', fontFamily: "'DM Mono', monospace", backdropFilter: 'blur(10px)', overflow: 'hidden' }}>
-                  <div style={{ background: 'var(--c1)', padding: '8px 12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
-                      <span style={{ fontSize: 14, flexShrink: 0 }}>{inspector.type === 'pallet' ? '🟫' : '📦'}</span>
-                      <span style={{ fontSize: 10, color: 'var(--c5)', letterSpacing: '0.5px', fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{inspector.label} #{inspector.unitIdx}</span>
+                <div style={{ position: 'absolute', right: 10, top: 44, zIndex: 60, width: 200, background: 'rgba(248,241,233,0.97)', border: '1.5px solid var(--c1)', borderRadius: 12, boxShadow: '0 8px 28px rgba(141,121,102,0.28)', fontFamily: "'DM Mono', monospace", backdropFilter: 'blur(10px)', overflow: 'hidden' }}>
+
+                  {/* Header */}
+                  <div style={{ background: 'var(--c1)', padding: '9px 12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 7, minWidth: 0 }}>
+                      <span style={{ fontSize: 15, flexShrink: 0 }}>{inspector.type === 'pallet' ? '🟫' : '📦'}</span>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontSize: 11, color: 'var(--c5)', fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{inspector.label}</div>
+                        <div style={{ fontSize: 9, color: 'rgba(248,241,233,0.7)', letterSpacing: '0.3px' }}>unidad #{inspector.unitIdx}</div>
+                      </div>
                     </div>
-                    <button onClick={() => { setInspector(null); setSelectedInstance(null); }} style={{ background: 'rgba(248,241,233,0.2)', border: 'none', color: 'var(--c5)', cursor: 'pointer', fontSize: 13, padding: '2px 6px', borderRadius: 4 }}>×</button>
-                  </div>
-                  <div style={{ padding: '8px 12px 0', fontSize: 9, color: 'var(--muted)', letterSpacing: '0.5px', borderBottom: '1px solid var(--border)', paddingBottom: 8 }}>
-                    {inspector.dims}{inspector.weight > 0 ? ` · ⚖ ${inspector.weight} kg` : ''}
-                  </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4, padding: '8px 12px' }}>
-                    <button onClick={() => { setInteractModeLocal('move'); setInteractMode('move'); }}
-                      style={{ padding: '5px 8px', fontSize: 9, fontFamily: "'DM Mono', monospace", letterSpacing: '0.5px', borderRadius: 4, cursor: 'pointer', border: `1.5px solid ${interactMode === 'move' ? 'var(--c1)' : 'var(--border2)'}`, background: interactMode === 'move' ? 'var(--c1)' : 'transparent', color: interactMode === 'move' ? 'var(--c5)' : 'var(--text2)', fontWeight: interactMode === 'move' ? 700 : 400 }}>✥ MOVER</button>
-                    <button onClick={() => { setInteractModeLocal('rotate'); setInteractMode('rotate'); }}
-                      style={{ padding: '5px 8px', fontSize: 9, fontFamily: "'DM Mono', monospace", letterSpacing: '0.5px', borderRadius: 4, cursor: 'pointer', border: `1.5px solid ${interactMode === 'rotate' ? 'var(--c1)' : 'var(--border2)'}`, background: interactMode === 'rotate' ? 'var(--c1)' : 'transparent', color: interactMode === 'rotate' ? 'var(--c5)' : 'var(--text2)', fontWeight: interactMode === 'rotate' ? 700 : 400 }}>↻ ROTAR</button>
+                    <button onClick={() => { setInspector(null); setSelectedInstance(null); }} style={{ background: 'rgba(248,241,233,0.15)', border: 'none', color: 'var(--c5)', cursor: 'pointer', fontSize: 14, width: 24, height: 24, borderRadius: 5, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>×</button>
                   </div>
 
-                  {interactMode === 'move' ? (
-                    <div style={{ padding: '0 12px 10px' }}>
-                      <div style={{ fontSize: 10, color: 'var(--text2)', marginBottom: 8, fontFamily: "'DM Mono', monospace", background: 'var(--surface2)', padding: '5px 8px', borderRadius: 4, border: '1px solid var(--border)', textAlign: 'center' }}>
-                        X: — · Z: —
-                      </div>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 3, width: 108, margin: '0 auto 8px' }}>
-                        <div /><button onClick={() => nudgeSelected(0,-1)} className="nudge-btn">▲</button><div />
-                        <button onClick={() => nudgeSelected(-1,0)} className="nudge-btn">◀</button>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, color: 'var(--muted)' }}>✥</div>
-                        <button onClick={() => nudgeSelected(1,0)} className="nudge-btn">▶</button>
-                        <div /><button onClick={() => nudgeSelected(0,1)} className="nudge-btn">▼</button><div />
-                      </div>
-                      <div style={{ display: 'flex', gap: 4, alignItems: 'center', marginBottom: 6 }}>
-                        <span style={{ fontSize: 9, color: 'var(--muted)' }}>PASO</span>
-                        <select value={nudgeStep} onChange={e => setNudgeStep(parseInt(e.target.value))}
-                          style={{ flex: 1, padding: '3px 6px', fontSize: 10, fontFamily: "'DM Mono', monospace", background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 3, color: 'var(--text)' }}>
-                          <option value="5">5 cm</option><option value="10">10 cm</option><option value="20">20 cm</option><option value="50">50 cm</option>
-                        </select>
-                      </div>
-                      <div style={{ fontSize: 9, color: 'rgba(141,121,102,0.6)', textAlign: 'center', letterSpacing: '0.3px' }}>🖱 arrastrá para mover</div>
-                    </div>
-                  ) : (
-                    <div style={{ padding: '0 12px 10px' }}>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                        <button onClick={() => rotateSelected('Y')} className="rot-action-btn">↻ Horizontal (Y)</button>
-                        <button onClick={() => rotateSelected('X')} style={{ opacity: inspector.type === 'pallet' ? 0.35 : 1, pointerEvents: inspector.type === 'pallet' ? 'none' : '' }} className="rot-action-btn">↻ Frente/atrás (X)</button>
-                        <button onClick={() => rotateSelected('Z')} style={{ opacity: inspector.type === 'pallet' ? 0.35 : 1, pointerEvents: inspector.type === 'pallet' ? 'none' : '' }} className="rot-action-btn">↻ Lado a lado (Z)</button>
-                        <button onClick={clearRotation} style={{ padding: '5px 10px', fontSize: 9, fontFamily: "'DM Mono', monospace", border: '1px solid var(--border)', borderRadius: 4, background: 'transparent', color: 'var(--muted)', cursor: 'pointer', marginTop: 2 }}>✕ Restablecer</button>
-                      </div>
-                    </div>
-                  )}
+                  {/* Dims + weight */}
+                  <div style={{ padding: '8px 12px', fontSize: 10, color: 'var(--muted)', borderBottom: '1px solid var(--border)', letterSpacing: '0.3px' }}>
+                    {inspector.dims}{inspector.weight > 0 ? <span style={{ marginLeft: 6, color: 'var(--text2)' }}>⚖ {inspector.weight} kg</span> : ''}
+                  </div>
 
-                  <div style={{ borderTop: '1px solid var(--border)', padding: '8px 12px', display: 'flex', gap: 6 }}>
-                    <button onClick={removeSelectedProduct} style={{ flex: 1, padding: 6, fontSize: 9, fontFamily: "'DM Mono', monospace", letterSpacing: '0.5px', border: '1px solid rgba(184,92,92,0.4)', borderRadius: 4, background: 'rgba(184,92,92,0.06)', color: 'var(--danger)', cursor: 'pointer' }}>🗑 Eliminar</button>
-                    <button onClick={duplicateSelectedProduct} style={{ flex: 1, padding: 6, fontSize: 9, fontFamily: "'DM Mono', monospace", letterSpacing: '0.5px', border: '1px solid var(--border2)', borderRadius: 4, background: 'transparent', color: 'var(--text2)', cursor: 'pointer' }}>⧉ Duplicar</button>
+                  {/* Rotation */}
+                  <div style={{ padding: '10px 12px', borderBottom: '1px solid var(--border)' }}>
+                    <div style={{ fontSize: 9, color: 'var(--muted)', letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 8 }}>Rotación</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 5 }}>
+                      <button onClick={() => rotateSelected('Y')}
+                        style={{ padding: '7px 6px', fontSize: 10, fontFamily: "'DM Mono', monospace", borderRadius: 6, cursor: 'pointer', border: '1.5px solid var(--border2)', background: 'var(--surface2)', color: 'var(--text)', textAlign: 'center', lineHeight: 1.3 }}>
+                        <div style={{ fontSize: 14, marginBottom: 2 }}>↻</div>
+                        <div style={{ fontSize: 8, color: 'var(--muted)', letterSpacing: '0.3px' }}>Horizontal</div>
+                      </button>
+                      <button onClick={() => rotateSelected('X')}
+                        disabled={inspector.type === 'pallet'}
+                        style={{ padding: '7px 6px', fontSize: 10, fontFamily: "'DM Mono', monospace", borderRadius: 6, cursor: inspector.type === 'pallet' ? 'not-allowed' : 'pointer', border: '1.5px solid var(--border2)', background: 'var(--surface2)', color: inspector.type === 'pallet' ? 'var(--muted)' : 'var(--text)', textAlign: 'center', lineHeight: 1.3, opacity: inspector.type === 'pallet' ? 0.35 : 1 }}>
+                        <div style={{ fontSize: 14, marginBottom: 2 }}>↕</div>
+                        <div style={{ fontSize: 8, color: 'var(--muted)', letterSpacing: '0.3px' }}>Adelante</div>
+                      </button>
+                      <button onClick={() => rotateSelected('Z')}
+                        disabled={inspector.type === 'pallet'}
+                        style={{ padding: '7px 6px', fontSize: 10, fontFamily: "'DM Mono', monospace", borderRadius: 6, cursor: inspector.type === 'pallet' ? 'not-allowed' : 'pointer', border: '1.5px solid var(--border2)', background: 'var(--surface2)', color: inspector.type === 'pallet' ? 'var(--muted)' : 'var(--text)', textAlign: 'center', lineHeight: 1.3, opacity: inspector.type === 'pallet' ? 0.35 : 1 }}>
+                        <div style={{ fontSize: 14, marginBottom: 2 }}>↔</div>
+                        <div style={{ fontSize: 8, color: 'var(--muted)', letterSpacing: '0.3px' }}>Lateral</div>
+                      </button>
+                      <button onClick={clearRotation}
+                        style={{ padding: '7px 6px', fontSize: 9, fontFamily: "'DM Mono', monospace", borderRadius: 6, cursor: 'pointer', border: '1.5px solid var(--border)', background: 'transparent', color: 'var(--muted)', textAlign: 'center', lineHeight: 1.3 }}>
+                        <div style={{ fontSize: 14, marginBottom: 2 }}>✕</div>
+                        <div style={{ fontSize: 8, letterSpacing: '0.3px' }}>Reset</div>
+                      </button>
+                    </div>
+                    <div style={{ fontSize: 9, color: 'rgba(141,121,102,0.5)', textAlign: 'center', marginTop: 8, letterSpacing: '0.3px' }}>🖱 arrastrá para mover</div>
+                  </div>
+
+                  {/* Actions */}
+                  <div style={{ padding: '8px 12px', display: 'flex', gap: 6 }}>
+                    <button onClick={removeSelectedProduct} style={{ flex: 1, padding: '7px 6px', fontSize: 9, fontFamily: "'DM Mono', monospace", letterSpacing: '0.5px', border: '1px solid rgba(184,92,92,0.35)', borderRadius: 6, background: 'rgba(184,92,92,0.06)', color: 'var(--danger)', cursor: 'pointer' }}>🗑 Eliminar</button>
+                    <button onClick={duplicateSelectedProduct} style={{ flex: 1, padding: '7px 6px', fontSize: 9, fontFamily: "'DM Mono', monospace", letterSpacing: '0.5px', border: '1px solid var(--border2)', borderRadius: 6, background: 'transparent', color: 'var(--text2)', cursor: 'pointer' }}>⧉ Duplicar</button>
                   </div>
                 </div>
               )}
