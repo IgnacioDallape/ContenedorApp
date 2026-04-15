@@ -401,7 +401,17 @@ export default function ContainerLoader() {
     if (dX > CONT_L + 0.5 || dZ > CONT_W + 0.5 || dY > CONT_H + 0.5) {
       showToast(`"${p.name}" no cabe rotado (${Math.round(dX)}×${Math.round(dZ)}×${Math.round(dY)} cm)`, 'error'); return;
     }
+    // Apply orientation and test if it still fits alongside other items
     setInstanceLockedOri(instanceId, { dX, dZ, dY });
+    invalidatePackingCache();
+    const { placed } = runPacking(loadedProducts);
+    if ((placed[String(p.id)] || 0) < p.qty) {
+      // Doesn't fit — revert
+      setInstanceLockedOri(instanceId, prev);
+      invalidatePackingCache();
+      showToast(`"${p.name}" no cabe rotado — no hay espacio con la carga actual`, 'error');
+      return;
+    }
     const unitIdx = parseInt(instanceId.split('_').pop()) + 1;
     setInspector(prev2 => prev2 ? { ...prev2, dims: `${Math.round(dX)}×${Math.round(dZ)}×${Math.round(dY)} cm` } : prev2);
     showToast(`↻ "${p.name} #${unitIdx}" → ${Math.round(dX)}×${Math.round(dZ)}×${Math.round(dY)} cm`, 'success');
