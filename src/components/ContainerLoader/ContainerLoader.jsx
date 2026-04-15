@@ -504,6 +504,7 @@ export default function ContainerLoader() {
       if (error) { showToast('Error al guardar: ' + error.message, 'error'); return; }
       setCurrentShipmentId(inserted.id);
       setCurrentShipmentName(saveName.trim());
+      setCurrentShipmentStatus('preparacion');
       setShowSave(false);
       showToast(`Embarque guardado: "${saveName.trim()}"`, 'success');
     } finally { setIsSaving(false); }
