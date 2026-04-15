@@ -721,6 +721,20 @@ function ThreeCanvas({ onSelectInstance, onSetZone, onClearZone }, ref) {
       t._dragCachedDims = null;
       const iid = t._selectedInstanceId;
       invalidatePackingCache();
+
+      // Validate drop position: if the item can't be placed there, clear its manual pos
+      const state = useContainerStore.getState();
+      const productId = iid.split('_').slice(0, -1).join('_');
+      const p = state.loadedProducts.find(p => String(p.id) === productId);
+      if (p) {
+        const { placed } = runPacking(state.loadedProducts);
+        if ((placed[String(p.id)] || 0) < p.qty) {
+          delete window._instanceManualPos[iid];
+          invalidatePackingCache();
+          showToast('No hay espacio ahí — el pallet volvió a su lugar', 'error');
+        }
+      }
+
       useContainerStore.getState()._syncWindowGlobals();
       drawContainer();
       setTimeout(() => { selectInstance(iid); }, 60);
