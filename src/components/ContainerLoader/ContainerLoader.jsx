@@ -11,6 +11,7 @@ import { exportShipmentPDF } from '../../lib/exportPDF.js';
 
 const STATUS_CONFIG = {
   preparacion: { label: 'En preparación', color: '#C0614A', bg: '#FDF0ED', icon: '🔴' },
+  en_transito: { label: 'En tránsito',    color: '#7A5C8A', bg: '#F3EEF8', icon: '🚛' },
   embarcado:   { label: 'Embarcado',      color: '#2E7DC0', bg: '#EBF4FD', icon: '🚢' },
   en_puerto:   { label: 'En puerto',      color: '#C08A1A', bg: '#FDF6E3', icon: '🟡' },
   entregado:   { label: 'Entregado',      color: '#3A8C52', bg: '#EDF7F1', icon: '✅' },
@@ -931,16 +932,26 @@ export default function ContainerLoader() {
                 style={{ padding: '5px 10px', fontSize: 13, borderRadius: 6, cursor: loadedProducts.length === 0 ? 'not-allowed' : 'pointer', border: '1px solid var(--border)', color: loadedProducts.length === 0 ? 'var(--muted)' : 'var(--text)', background: 'transparent', opacity: loadedProducts.length === 0 ? 0.45 : 1, lineHeight: 1 }}>
                 📄
               </button>
-              {/* Status button — only when a shipment is loaded */}
-              {currentShipmentId && (() => {
-                const st = STATUS_CONFIG[currentShipmentStatus] || STATUS_CONFIG.preparacion;
-                return (
-                  <div style={{ position: 'relative' }}>
+            </div>
+
+            {/* Shipment notes inline + status button */}
+            {currentShipmentId && (() => {
+              const st = STATUS_CONFIG[currentShipmentStatus] || STATUS_CONFIG.preparacion;
+              return (
+                <div style={{ display: 'flex', gap: 6, alignItems: 'flex-start', marginBottom: 8 }}>
+                  <textarea
+                    value={shipmentNotes}
+                    onChange={e => setShipmentNotes(e.target.value)}
+                    placeholder="📝 Notas del embarque..."
+                    rows={1}
+                    style={{ flex: 1, padding: '7px 12px', border: '1px solid var(--border)', borderRadius: 7, fontFamily: "'Jost', sans-serif", fontSize: 12, background: 'var(--surface)', color: 'var(--text)', boxSizing: 'border-box', resize: 'vertical', lineHeight: 1.5, opacity: 0.85 }}
+                  />
+                  <div style={{ position: 'relative', flexShrink: 0 }}>
                     <button
                       onClick={() => setShowCurrentStatusPicker(v => !v)}
-                      style={{ padding: '6px 12px', fontSize: 11, fontFamily: "'DM Mono', monospace", letterSpacing: '0.5px', borderRadius: 6, cursor: 'pointer', border: `1.5px solid ${st.color}55`, color: st.color, background: st.bg, whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 5 }}>
+                      title={st.label}
+                      style={{ padding: '5px 8px', fontSize: 14, borderRadius: 6, cursor: 'pointer', border: `1.5px solid ${st.color}55`, background: st.bg, lineHeight: 1, display: 'flex', alignItems: 'center', gap: 4 }}>
                       <span>{st.icon}</span>
-                      <span>{st.label}</span>
                       <span style={{ fontSize: 8, opacity: 0.6 }}>▾</span>
                     </button>
                     {showCurrentStatusPicker && (
@@ -955,22 +966,9 @@ export default function ContainerLoader() {
                       </div>
                     )}
                   </div>
-                );
-              })()}
-            </div>
-
-            {/* Shipment notes inline */}
-            {currentShipmentId && (
-              <div style={{ marginBottom: 8 }}>
-                <textarea
-                  value={shipmentNotes}
-                  onChange={e => setShipmentNotes(e.target.value)}
-                  placeholder="📝 Notas del embarque..."
-                  rows={1}
-                  style={{ width: '100%', padding: '7px 12px', border: '1px solid var(--border)', borderRadius: 7, fontFamily: "'Jost', sans-serif", fontSize: 12, background: 'var(--surface)', color: 'var(--text)', boxSizing: 'border-box', resize: 'vertical', lineHeight: 1.5, opacity: 0.85 }}
-                />
-              </div>
-            )}
+                </div>
+              );
+            })()}
 
             {/* Container type selector */}
             <div className="container-selector">
