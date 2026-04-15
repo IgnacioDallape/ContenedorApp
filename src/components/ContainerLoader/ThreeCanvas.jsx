@@ -9,17 +9,18 @@ import { runPacking, runPackingCached, invalidatePackingCache, hmGetMax } from '
 
 // ── Multi-container packing cache (up to 8 slots, keyed by dims+products) ──
 const _packCache = new Map();
-function _packKey(CL, CW, CH, products, manualPos) {
+function _packKey(CL, CW, CH, products, manualPos, lockedOri) {
   const posStr = manualPos ? Object.entries(manualPos).sort().map(([k,v])=>`${k}:${v.x},${v.z}`).join(';') : '';
+  const oriStr = lockedOri ? Object.entries(lockedOri).sort().map(([k,v])=>`${k}:${v.dX},${v.dZ},${v.dY}`).join(';') : '';
   return `${Math.round(CL)},${Math.round(CW)},${Math.round(CH)}|` +
-    products.map(p => `${p.id}:${p.qty}:${JSON.stringify(p.dims)}:${JSON.stringify(p.lockedOri||null)}`).join('|') +
-    '|' + posStr;
+    products.map(p => `${p.id}:${p.qty}:${JSON.stringify(p.dims)}`).join('|') +
+    '|' + posStr + '|' + oriStr;
 }
-function getCachedPack(CL, CW, CH, products, manualPos) {
-  return _packCache.get(_packKey(CL, CW, CH, products, manualPos)) ?? null;
+function getCachedPack(CL, CW, CH, products, manualPos, lockedOri) {
+  return _packCache.get(_packKey(CL, CW, CH, products, manualPos, lockedOri)) ?? null;
 }
-function setCachedPack(CL, CW, CH, products, manualPos, packed) {
-  const k = _packKey(CL, CW, CH, products, manualPos);
+function setCachedPack(CL, CW, CH, products, manualPos, lockedOri, packed) {
+  const k = _packKey(CL, CW, CH, products, manualPos, lockedOri);
   if (_packCache.size >= 8) _packCache.delete(_packCache.keys().next().value);
   _packCache.set(k, packed);
 }
@@ -349,16 +350,18 @@ function ThreeCanvas({ onSelectInstance, onSetZone, onClearZone }, ref) {
 
     const drawOverlay = document.getElementById('three-loading');
     const manualPos = state.instanceManualPos;
-    const isCached = getCachedPack(CL, CW, CH, products, manualPos) !== null;
+    const lockedOri = state.instanceLockedOri;
+    const isCached = getCachedPack(CL, CW, CH, products, manualPos, lockedOri) !== null;
     if (drawOverlay) drawOverlay.style.display = isCached ? 'none' : 'flex';
 
     // Double rAF: first frame triggers layout, second guarantees paint before freeze
     requestAnimationFrame(() => requestAnimationFrame(() => {
       if (!threeRef.current) return;
-      const cached = getCachedPack(CL, CW, CH, products, manualPos);
+      const cached = getCachedPack(CL, CW, CH, products, manualPos, lockedOri);
       const packed = cached ?? (() => {
+        invalidatePackingCache(); // lockedOri or manualPos changed — must re-run
         const r = runPackingCached(products);
-        setCachedPack(CL, CW, CH, products, manualPos, r.packed);
+        setCachedPack(CL, CW, CH, products, manualPos, lockedOri, r.packed);
         return r.packed;
       })();
       const totalItems = packed.length;
@@ -652,6 +655,7 @@ function ThreeCanvas({ onSelectInstance, onSetZone, onClearZone }, ref) {
             }
           });
           t._selectedOutlines.forEach(o => { o.position.x = cx; o.position.z = cz; });
+          t._requestRender?.();
         }
         return;
       }
