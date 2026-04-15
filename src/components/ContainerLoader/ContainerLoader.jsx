@@ -47,7 +47,7 @@ export default function ContainerLoader() {
   const [boxL,        setBoxL]        = useState('');
   const [boxW,        setBoxW]        = useState('');
   const [boxH,        setBoxH]        = useState('');
-  const [palletType,  setPalletType]  = useState('euro');
+  const [palletType,  setPalletType]  = useState('eua');
   const [palletHeight, setPalletHeight] = useState(120);
   const [formError,   setFormError]   = useState('');
 

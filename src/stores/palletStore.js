@@ -85,7 +85,7 @@ export function pb_runPacking(products, palL, palW, maxH) {
 }
 
 const usePalletStore = create((set, get) => ({
-  palletType:   'euro',
+  palletType:   'eua',
   maxHeight:    180,
   products:     [],
   results:      [],

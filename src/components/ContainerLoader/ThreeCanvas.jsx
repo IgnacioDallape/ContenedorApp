@@ -506,6 +506,13 @@ function ThreeCanvas({ onSelectInstance, onSetZone, onClearZone }, ref) {
 
     if (drawOverlay) drawOverlay.style.display = 'none';
     threeRef.current?._requestRender?.();
+
+    // Re-apply selection highlight on the new meshes (drawContainer recreates all meshes)
+    if (t._selectedInstanceId) {
+      const selId = t._selectedInstanceId;
+      deselectAll();
+      selectInstance(selId);
+    }
     })); // end double rAF phase 2
   }
 
