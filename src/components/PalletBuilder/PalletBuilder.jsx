@@ -6,7 +6,7 @@ import { PB_PALLET_TYPES, PB_COLORS } from '../../lib/constants.js';
 import PalletThreeCanvas from './PalletThreeCanvas.jsx';
 
 const PRODUCT_DEFAULTS = {
-  name: '', L: '', W: '', H: '', qty: '', weight: '', mustBeBase: false,
+  name: '', L: '', W: '', H: '', qty: '', weight: '', mustBeBase: false, imgUrl: null,
 };
 
 export default function PalletBuilder() {
@@ -42,8 +42,16 @@ export default function PalletBuilder() {
       qty: String(p.qty),
       weight: String(p.weight || ''),
       mustBeBase: p.mustBeBase || false,
+      imgUrl: p.imgUrl || null,
     });
     setShowProductForm(true);
+  }
+
+  function loadPhotoFilePB(file) {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => setForm(f => ({ ...f, imgUrl: e.target.result }));
+    reader.readAsDataURL(file);
   }
 
   function saveProduct() {
@@ -60,7 +68,7 @@ export default function PalletBuilder() {
     const minDim = Math.min(L, W, H);
     if (minDim > Math.max(pt.L, pt.W)) return showToast('La caja es más grande que el pallet', 'error');
 
-    addOrUpdateProduct({ name, dims: { L, W, H }, qty, weight, mustBeBase: form.mustBeBase });
+    addOrUpdateProduct({ name, dims: { L, W, H }, qty, weight, mustBeBase: form.mustBeBase, imgUrl: form.imgUrl || null });
     clearResults();
     setShowProductForm(false);
     setForm({ ...PRODUCT_DEFAULTS });
@@ -222,7 +230,10 @@ export default function PalletBuilder() {
           ) : (
             products.map(p => (
               <div key={p.id} className="queue-item" style={{ marginBottom: 6 }}>
-                <div className="queue-dot" style={{ background: p.color }} />
+                {p.imgUrl
+                  ? <img src={p.imgUrl} style={{ width: 28, height: 28, objectFit: 'cover', borderRadius: 4, flexShrink: 0 }} />
+                  : <div className="queue-dot" style={{ background: p.color }} />
+                }
                 <div className="queue-info">
                   <div className="queue-name">
                     {p.name}
@@ -459,6 +470,26 @@ export default function PalletBuilder() {
                 <label htmlFor="pbMustBeBase" style={{ cursor: 'pointer', fontSize: 13, margin: 0 }}>
                   ⬇ Debe ir en la base (capa inferior del pallet)
                 </label>
+              </div>
+              <div className="field full">
+                <label>Foto de referencia <span className="unit">opcional</span></label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  {form.imgUrl ? (
+                    <div style={{ position: 'relative', flexShrink: 0 }}>
+                      <img src={form.imgUrl} style={{ width: 64, height: 64, objectFit: 'cover', borderRadius: 8, border: '1px solid var(--border)' }} />
+                      <button onClick={() => setForm(f => ({ ...f, imgUrl: null }))} style={{ position: 'absolute', top: -6, right: -6, width: 18, height: 18, borderRadius: '50%', background: 'var(--red)', border: 'none', color: '#fff', fontSize: 11, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
+                    </div>
+                  ) : null}
+                  <button
+                    type="button"
+                    onClick={() => document.getElementById('pb-photo-input').click()}
+                    style={{ padding: '7px 14px', background: 'var(--bg-3)', border: '1px solid var(--border-2)', borderRadius: 'var(--radius)', cursor: 'pointer', fontSize: 12, color: 'var(--text-2)' }}
+                  >
+                    {form.imgUrl ? 'Cambiar foto' : '+ Subir foto'}
+                  </button>
+                  <input type="file" id="pb-photo-input" accept="image/*" style={{ display: 'none' }}
+                    onChange={e => loadPhotoFilePB(e.target.files[0])} />
+                </div>
               </div>
             </div>
 

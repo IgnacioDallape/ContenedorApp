@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import useImportaproStore from '../../stores/importaproStore.js';
 import { ars, rd } from '../../lib/formatters.js';
 
@@ -33,8 +33,15 @@ export default function Simulator() {
   const [iigg,    setIigg]    = useState(35);
   const [selProd, setSelProd] = useState(null);
 
+  useEffect(() => {
+    if (savedProducts.length === 1 && selProd === null) {
+      setSelProd(0);
+      setCosto(savedProducts[0].costoARS);
+    }
+  }, [savedProducts.length]);
+
   function selectPill(i) {
-    if (selProd === i) { setSelProd(null); return; }
+    if (selProd === i) { setSelProd(null); setCosto(0); return; }
     setSelProd(i);
     setCosto(savedProducts[i].costoARS);
   }
@@ -53,7 +60,10 @@ export default function Simulator() {
 
         {savedProducts.length > 0 && (
           <div className="card" style={{ marginBottom: 20 }}>
-            <div className="card-header"><span className="card-title">Cargar desde Mis Productos</span></div>
+            <div className="card-header">
+              <span className="card-title">Cargar desde Mis Productos</span>
+              {selProd === null && <span style={{ fontSize: 11, color: 'var(--text-3)' }}>← Hacé clic para cargar el costo</span>}
+            </div>
             <div id="sim-prod-picker" style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
               {savedProducts.map((p, i) => (
                 <div

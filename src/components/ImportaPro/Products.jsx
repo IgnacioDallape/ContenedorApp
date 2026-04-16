@@ -20,6 +20,7 @@ export default function Products() {
 
   const [selectedItems, setSelectedItems] = useState({});
   const [selectedZones, setSelectedZones] = useState({});
+  const [search, setSearch] = useState('');
 
   function handleLoadProduct(p) {
     loadProductToCalc(p);
@@ -63,8 +64,19 @@ export default function Products() {
           <p className="page-sub">Guardados desde la calculadora — hacé clic para editar</p>
         </div>
 
+        <div style={{ marginBottom: 16 }}>
+          <input
+            type="text"
+            placeholder="Buscar producto..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            style={{ width: '100%', maxWidth: 340, padding: '9px 14px', borderRadius: 'var(--radius)', border: '1px solid var(--border-2)', background: 'var(--bg-3)', color: 'var(--text)', fontFamily: 'var(--font)', fontSize: 13 }}
+          />
+        </div>
+
         <div id="products-list" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 16 }}>
-          {savedProducts.map((p, i) => {
+          {savedProducts.filter(p => p.nombre.toLowerCase().includes(search.toLowerCase())).map((p) => {
+            const i = savedProducts.indexOf(p);
             const ml   = getCanalData(p, 'mercado');
             const tp   = getCanalData(p, 'tienda');
             const best = p.canales?.reduce((a, b) => (b.precio > a.precio ? b : a), { precio: 0 }) || { precio: 0 };

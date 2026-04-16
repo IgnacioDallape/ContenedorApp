@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import useImportaproStore from '../../stores/importaproStore.js';
 import useAppStore from '../../stores/appStore.js';
 import { ars } from '../../lib/formatters.js';
@@ -5,6 +6,7 @@ import { ars } from '../../lib/formatters.js';
 export default function Prices() {
   const { savedProducts } = useImportaproStore();
   const { setActiveSection } = useAppStore();
+  const [targetMargen, setTargetMargen] = useState(30);
 
   if (!savedProducts.length) {
     return (
@@ -33,6 +35,16 @@ export default function Prices() {
           <p className="page-sub">Márgenes y precios sugeridos por canal de venta para cada producto calculado</p>
         </div>
 
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+          <span style={{ fontSize: 13, color: 'var(--text-2)', fontWeight: 500 }}>Margen objetivo para precio sugerido:</span>
+          <input
+            type="number" value={targetMargen} min="0" max="500" step="5"
+            onChange={e => setTargetMargen(parseFloat(e.target.value) || 0)}
+            style={{ width: 70, padding: '6px 10px', borderRadius: 'var(--radius)', border: '1px solid var(--border-2)', background: 'var(--bg-3)', color: 'var(--text)', fontFamily: 'var(--font)', fontSize: 13, textAlign: 'center' }}
+          />
+          <span style={{ fontSize: 13, color: 'var(--text-3)' }}>%</span>
+        </div>
+
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           {savedProducts.map(p => {
             const canales = p.canales || [];
@@ -46,7 +58,7 @@ export default function Prices() {
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                     <thead>
                       <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                        {['Canal', 'Precio', 'Comisión', 'Cuotas', 'Ganancia/u', 'Margen'].map(h => (
+                        {['Canal', 'Precio actual', 'Comisión', 'Cuotas', 'Ganancia/u', 'Margen', `Precio p/${targetMargen}%`].map(h => (
                           <th key={h} style={{ textAlign: 'left', padding: '7px 10px', color: 'var(--text-3)', fontWeight: 500, fontSize: 11 }}>{h}</th>
                         ))}
                       </tr>
@@ -58,6 +70,11 @@ export default function Prices() {
                         const gan = neto - p.costoARS;
                         const margen = p.costoARS > 0 ? Math.round(gan / p.costoARS * 100) : 0;
                         const badge = margen >= 50 ? 'green' : margen >= 20 ? 'amber' : 'red';
+                        // precio sugerido para alcanzar targetMargen: costo*(1+M%) / (1 - comision%) + cuotas
+                        const comF = (ch.comision || 0) / 100;
+                        const precioSug = p.costoARS > 0
+                          ? Math.ceil((p.costoARS * (1 + targetMargen / 100) + (ch.cuotas || 0)) / (1 - comF))
+                          : 0;
                         return (
                           <tr key={i} style={{ borderBottom: '1px solid var(--border-2)' }}>
                             <td style={{ padding: '9px 10px', fontWeight: 500 }}>{ch.nombre}</td>
@@ -66,6 +83,7 @@ export default function Prices() {
                             <td style={{ padding: '9px 10px', color: 'var(--text-2)' }}>{ch.cuotas ? ars(ch.cuotas) : '—'}</td>
                             <td style={{ padding: '9px 10px', fontWeight: 600, color: gan >= 0 ? 'var(--green)' : 'var(--red)' }}>{ch.precio ? ars(gan) : '—'}</td>
                             <td style={{ padding: '9px 10px' }}>{ch.precio ? <span className={`badge badge-${badge}`}>{margen}%</span> : '—'}</td>
+                            <td style={{ padding: '9px 10px', fontWeight: 700, color: 'var(--accent)' }}>{p.costoARS > 0 ? ars(precioSug) : '—'}</td>
                           </tr>
                         );
                       })}
