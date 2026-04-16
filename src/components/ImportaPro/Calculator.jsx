@@ -506,7 +506,7 @@ export default function Calculator() {
         <div className="card dist-card" style={{ marginTop:'1.5rem' }}>
           <div className="card-header"><span className="card-title">Resultado y distribución de ganancia</span></div>
 
-          <div className="dist-main-grid" style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:24, alignItems:'start' }}>
+          <div className="dist-main-grid" style={{ display:'grid', gridTemplateColumns:'1fr 220px 1fr', gap:24, alignItems:'start' }}>
 
             {/* LEFT: Desglose completo del costo */}
             <div>
@@ -557,6 +557,20 @@ export default function Calculator() {
                 </div>
               </div>
             </div>
+
+            {/* CENTER: Donut interactivo */}
+            <InteractiveDonut
+              slices={[
+                { label:'FOB',           pct: c.fob/tot*100,                         color:'#1a4f8a', usd: c.fob },
+                { label:'Flete int.',    pct: (c.fleteUnit+c.seguroUnit)/tot*100,    color:'#4a8ac4', usd: c.fleteUnit+c.seguroUnit },
+                { label:'Despachante',   pct: c.despachanteUnit/tot*100,             color:'#6b9b8b', usd: c.despachanteUnit },
+                { label:'Flete interno', pct: c.fleteInternoUnit/tot*100,            color:'#5b8b7b', usd: c.fleteInternoUnit },
+                { label:'Trader',        pct: c.traderUnit/tot*100,                  color:'#7ba3d4', usd: c.traderUnit },
+                { label:'Impuestos',     pct: (c.diUnit+c.ivaUnit+c.teUnit)/tot*100, color:'#c0392b', usd: c.diUnit+c.ivaUnit+c.teUnit },
+              ]}
+              centerLabel="Costo total"
+              centerValue={`U$S ${rd(c.costoUSD,2)}`}
+            />
 
             {/* RIGHT: Distribución de ganancia */}
             <div>
@@ -684,6 +698,80 @@ function ResultGroup({ color, label, rows, subtotal }) {
           <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)', fontFamily: "'DM Mono', monospace" }}>{val}</span>
         </div>
       ))}
+    </div>
+  );
+}
+
+function InteractiveDonut({ slices, centerLabel, centerValue }) {
+  const [hovered, setHovered] = useState(null);
+  const R = 68, CX = 100, CY = 100, SW = 26;
+  const circ = 2 * Math.PI * R;
+  const GAP_DEG = 2.5;
+
+  let cumPct = 0;
+  const segs = slices.map((s, i) => {
+    const startDeg = cumPct * 3.6 - 90;
+    const pctAdj = Math.max(s.pct - GAP_DEG / 3.6, 0.05);
+    const len = (pctAdj / 100) * circ;
+    cumPct += s.pct;
+    return { ...s, startDeg, len };
+  });
+
+  const hov = hovered !== null ? slices[hovered] : null;
+
+  return (
+    <div style={{ display:'flex', flexDirection:'column', alignItems:'center' }}>
+      <div style={{ position:'relative', width:200, height:200 }}>
+        <svg width={200} height={200} style={{ overflow:'visible' }}>
+          {segs.map((seg, i) => {
+            const active = hovered === i;
+            const r = active ? R + 5 : R;
+            const c2 = 2 * Math.PI * r;
+            const ratio = seg.len / circ;
+            const len2 = ratio * c2;
+            return (
+              <circle key={i}
+                cx={CX} cy={CY} r={r}
+                fill="none"
+                stroke={seg.color}
+                strokeWidth={active ? SW + 4 : SW}
+                strokeDasharray={`${len2} ${c2 - len2}`}
+                transform={`rotate(${seg.startDeg} ${CX} ${CY})`}
+                style={{ cursor:'pointer', transition:'r 0.18s, stroke-width 0.18s', filter: active ? `drop-shadow(0 0 6px ${seg.color}90)` : 'none' }}
+                onMouseEnter={() => setHovered(i)}
+                onMouseLeave={() => setHovered(null)}
+              />
+            );
+          })}
+        </svg>
+        <div style={{ position:'absolute', inset:0, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', pointerEvents:'none', gap:1 }}>
+          {hov ? (
+            <>
+              <div style={{ fontSize:9, fontWeight:700, color:'var(--text-3)', textTransform:'uppercase', letterSpacing:'0.07em', textAlign:'center' }}>{hov.label}</div>
+              <div style={{ fontSize:22, fontWeight:800, color: hov.color, fontFamily:"'DM Mono',monospace", lineHeight:1.1 }}>{rd(hov.pct,1)}%</div>
+              <div style={{ fontSize:10, color:'var(--text-3)', fontFamily:"'DM Mono',monospace" }}>U$S {rd(hov.usd,2)}</div>
+            </>
+          ) : (
+            <>
+              <div style={{ fontSize:9, fontWeight:700, color:'var(--text-3)', textTransform:'uppercase', letterSpacing:'0.07em', textAlign:'center' }}>{centerLabel}</div>
+              <div style={{ fontSize:18, fontWeight:800, color:'var(--text)', fontFamily:"'DM Mono',monospace", lineHeight:1.2 }}>{centerValue}</div>
+            </>
+          )}
+        </div>
+      </div>
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'3px 10px', width:'100%', maxWidth:200 }}>
+        {slices.map((s, i) => (
+          <div key={i}
+            onMouseEnter={() => setHovered(i)}
+            onMouseLeave={() => setHovered(null)}
+            style={{ display:'flex', alignItems:'center', gap:5, cursor:'pointer', padding:'3px 5px', borderRadius:5,
+              background: hovered===i ? `${s.color}18` : 'transparent', transition:'background 0.15s' }}>
+            <span style={{ width:7, height:7, borderRadius:2, background:s.color, flexShrink:0 }}/>
+            <span style={{ fontSize:9, color: hovered===i ? 'var(--text)' : 'var(--text-3)', fontWeight: hovered===i ? 700 : 400, flex:1, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{s.label}</span>
+            <span style={{ fontSize:9, color:'var(--text-2)', fontFamily:"'DM Mono',monospace" }}>{rd(s.pct,1)}%</span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
