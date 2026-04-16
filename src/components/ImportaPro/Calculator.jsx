@@ -180,64 +180,68 @@ export default function Calculator() {
             {/* ── Datos del producto ── */}
             <div className="card">
               <div className="card-header"><span className="card-title">Datos del producto</span></div>
-              <div className="form-grid-2">
+              <div className="form-grid-2" style={{ marginBottom: 14 }}>
                 <div className="field full">
                   <label>Nombre del producto</label>
                   <input type="text" id="p-nombre" value={inputs.nombre}
                     onChange={e => setInputs({ nombre: e.target.value })} />
                 </div>
-                <div className="field full">
-                  <label>Moneda del precio de compra</label>
-                  <div className="currency-toggle">
-                    {['cny','usd','ars'].map(m => (
-                      <button key={m} className={`ctog-btn${inputs.currencyMode===m?' active':''}`}
-                        onClick={() => syncFob({ currencyMode: m })}>
-                        {m==='cny'?'Yuan (CNY)':m==='usd'?'Dólar (USD)':'Pesos (ARS)'}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                {inputs.currencyMode === 'cny' && (
-                  <div className="field">
-                    <label>Precio 1688 <span className="unit">CNY / unidad</span></label>
-                    <input type="number" id="p-fob-cny" value={inputs.fobCny} step="0.1" min="0"
-                      onChange={e => syncFob({ fobCny: parseFloat(e.target.value)||0 })} />
-                  </div>
-                )}
-                {inputs.currencyMode === 'ars' && (
-                  <div className="field">
-                    <label>Precio de compra <span className="unit">ARS / unidad</span></label>
-                    <input type="number" id="p-fob-ars" value={inputs.fobArs} step="100" min="0"
-                      onChange={e => syncFob({ fobArs: parseFloat(e.target.value)||0 })} />
-                  </div>
-                )}
-                <div className="field">
-                  <label>Equivalente <span className="unit">USD / unidad</span></label>
-                  <input type="number" id="p-fob" value={inputs.fob} step="0.01" min="0"
-                    readOnly={inputs.currencyMode !== 'usd'}
-                    style={{ color: inputs.currencyMode === 'usd' ? 'var(--text)' : 'var(--text-3)' }}
-                    onChange={inputs.currencyMode === 'usd' ? e => setInputs({ fob: parseFloat(e.target.value)||0 }) : undefined} />
-                </div>
-                <div className="field">
-                  <label>Cantidad <span className="unit">unidades</span></label>
-                  <input type="number" id="p-qty" value={inputs.qty} min="1"
-                    onChange={e => setInputs({ qty: parseInt(e.target.value)||1 })} />
-                </div>
-                {inputs.currencyMode === 'cny' && (
-                  <div className="field">
-                    <label>Cotización CNY → USD</label>
-                    <input type="number" id="p-cny" value={inputs.cny} step="0.001" min="0"
-                      onChange={e => syncFob({ cny: parseFloat(e.target.value)||0.138 })} />
-                  </div>
-                )}
-                {inputs.currencyMode === 'ars' && (
-                  <div className="field">
-                    <label>Cotización ARS → USD <span className="unit">ref. por defecto $1.450</span></label>
-                    <input type="number" id="p-ars-tc" value={inputs.arsTC} step="10" min="1"
-                      onChange={e => syncFob({ arsTC: parseFloat(e.target.value)||1450 })} />
-                  </div>
-                )}
               </div>
+              <CalcSection color="#4a7dc1" label="Precio de compra" style={{ marginBottom: 4 }}>
+                <div className="form-grid-2">
+                  <div className="field full">
+                    <label>Moneda del precio de compra</label>
+                    <div className="currency-toggle">
+                      {['cny','usd','ars'].map(m => (
+                        <button key={m} className={`ctog-btn${inputs.currencyMode===m?' active':''}`}
+                          onClick={() => syncFob({ currencyMode: m })}>
+                          {m==='cny'?'Yuan (CNY)':m==='usd'?'Dólar (USD)':'Pesos (ARS)'}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  {inputs.currencyMode === 'cny' && (
+                    <div className="field">
+                      <label>Precio 1688 <span className="unit">CNY / unidad</span></label>
+                      <input type="number" id="p-fob-cny" value={inputs.fobCny} step="0.1" min="0"
+                        onChange={e => syncFob({ fobCny: parseFloat(e.target.value)||0 })} />
+                    </div>
+                  )}
+                  {inputs.currencyMode === 'ars' && (
+                    <div className="field">
+                      <label>Precio de compra <span className="unit">ARS / unidad</span></label>
+                      <input type="number" id="p-fob-ars" value={inputs.fobArs} step="100" min="0"
+                        onChange={e => syncFob({ fobArs: parseFloat(e.target.value)||0 })} />
+                    </div>
+                  )}
+                  <div className="field">
+                    <label>Equivalente <span className="unit">USD / unidad</span></label>
+                    <input type="number" id="p-fob" value={inputs.fob} step="0.01" min="0"
+                      readOnly={inputs.currencyMode !== 'usd'}
+                      style={{ color: inputs.currencyMode === 'usd' ? 'var(--text)' : 'var(--text-3)' }}
+                      onChange={inputs.currencyMode === 'usd' ? e => setInputs({ fob: parseFloat(e.target.value)||0 }) : undefined} />
+                  </div>
+                  <div className="field">
+                    <label>Cantidad <span className="unit">unidades</span></label>
+                    <input type="number" id="p-qty" value={inputs.qty} min="1"
+                      onChange={e => setInputs({ qty: parseInt(e.target.value)||1 })} />
+                  </div>
+                  {inputs.currencyMode === 'cny' && (
+                    <div className="field">
+                      <label>Cotización CNY → USD</label>
+                      <input type="number" id="p-cny" value={inputs.cny} step="0.001" min="0"
+                        onChange={e => syncFob({ cny: parseFloat(e.target.value)||0.138 })} />
+                    </div>
+                  )}
+                  {inputs.currencyMode === 'ars' && (
+                    <div className="field">
+                      <label>Cotización ARS → USD <span className="unit">ref. por defecto $1.450</span></label>
+                      <input type="number" id="p-ars-tc" value={inputs.arsTC} step="10" min="1"
+                        onChange={e => syncFob({ arsTC: parseFloat(e.target.value)||1450 })} />
+                    </div>
+                  )}
+                </div>
+              </CalcSection>
 
               <div className="divider"/>
               <div className="section-label" style={{ display:'flex', alignItems:'center', gap:8 }}>
@@ -415,7 +419,7 @@ export default function Calculator() {
                     <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-3)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 7 }}>Derecho de importación</div>
                     <TaxToggle
                       options={[{v:0,l:'0% — Exento'},{v:6,l:'6%'},{v:12,l:'12%'},{v:18,l:'18%'},{v:20,l:'20%'},{v:25,l:'25%'},{v:35,l:'35%'}]}
-                      value={inputs.di} color="#c0392b"
+                      value={inputs.di}
                       onChange={v => setInputs({ di: v })}
                     />
                   </div>
@@ -424,7 +428,7 @@ export default function Calculator() {
                       <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-3)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 7 }}>IVA importación</div>
                       <TaxToggle
                         options={[{v:10.5,l:'10.5%'},{v:21,l:'21%'}]}
-                        value={inputs.ivaImp} color="#c0392b"
+                        value={inputs.ivaImp}
                         onChange={v => setInputs({ ivaImp: v })}
                       />
                     </div>
@@ -432,7 +436,7 @@ export default function Calculator() {
                       <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-3)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 7 }}>Tasa estadística</div>
                       <TaxToggle
                         options={[{v:0,l:'0%'},{v:3,l:'3%'}]}
-                        value={inputs.te} color="#c0392b"
+                        value={inputs.te}
                         onChange={v => setInputs({ te: v })}
                       />
                     </div>
@@ -509,44 +513,51 @@ export default function Calculator() {
             <span className="card-title">Canales de venta</span>
             <button className="btn-outline" onClick={addCanal}>+ Agregar canal</button>
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             {canales.map((canal, i) => {
               const precio   = canal.precio || 0;
               const comision = precio * (canal.comision || 0) / 100;
               const neto     = precio - comision - (canal.cuotas || 0);
               const ganancia = neto - c.costoARS;
               const margen   = c.costoARS > 0 ? Math.round(ganancia / c.costoARS * 100) : 0;
-              const borderColor = margen >= 50 ? 'var(--green)' : margen >= 20 ? 'var(--amber, #e6a817)' : 'var(--red)';
-              const inp = { padding:'7px 10px', background:'var(--bg)', border:'1px solid var(--border)', borderRadius:'var(--radius)', color:'var(--text)', fontFamily:'var(--font)', fontSize:13, width:'100%', boxSizing:'border-box' };
+              const badgeKey = margen >= 50 ? 'green' : margen >= 20 ? 'amber' : 'red';
+              const accentColor = margen >= 50 ? 'var(--green)' : margen >= 20 ? 'var(--amber, #e6a817)' : 'var(--red)';
               return (
-                <div key={i} style={{ borderLeft: `3px solid ${borderColor}`, borderRadius: '0 8px 8px 0', background: 'var(--bg-3)', overflow: 'hidden', border: '1px solid var(--border)', borderLeftWidth: 3, borderLeftColor: borderColor }}>
-                  {/* Row 1: nombre + resultado */}
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px 6px', gap: 12 }}>
+                <div key={i} style={{ borderRadius: 8, border: '1px solid var(--border)', overflow: 'hidden', background: 'var(--bg-2)' }}>
+                  {/* Header: canal name + ganancia + badge + delete */}
+                  <div style={{ display: 'flex', alignItems: 'center', padding: '9px 14px', borderLeft: `4px solid ${accentColor}`, background: 'var(--bg-3)', borderBottom: '1px solid var(--border-2)', gap: 10 }}>
                     <input
                       value={canal.nombre}
                       onChange={e => updateCanal(i, { nombre: e.target.value })}
-                      style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', background: 'transparent', border: 'none', outline: 'none', fontFamily: 'var(--font)', flex: 1, minWidth: 0 }}
+                      style={{ flex: 1, fontSize: 13, fontWeight: 700, color: 'var(--text)', background: 'transparent', border: 'none', outline: 'none', fontFamily: 'var(--font)', minWidth: 0 }}
                     />
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
-                      <span style={{ fontSize: 15, fontWeight: 700, color: ganancia >= 0 ? 'var(--green)' : 'var(--red)' }}>{ars(ganancia)}</span>
-                      <span className={`badge badge-${margen >= 50 ? 'green' : margen >= 20 ? 'amber' : 'red'}`} style={{ fontSize: 12 }}>{margen}%</span>
-                      <button onClick={() => removeCanal(i)} style={{ background: 'none', border: 'none', fontSize: 16, color: 'var(--text-3)', cursor: 'pointer', lineHeight: 1, padding: '0 2px' }}>×</button>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                      <div style={{ textAlign: 'right' }}>
+                        <div style={{ fontSize: 10, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.05em', lineHeight: 1, marginBottom: 2 }}>Ganancia/u</div>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: ganancia >= 0 ? 'var(--green)' : 'var(--red)', lineHeight: 1 }}>
+                          {precio ? ars(ganancia) : <span style={{ color: 'var(--text-3)', fontWeight: 400, fontSize: 12 }}>—</span>}
+                        </div>
+                      </div>
+                      <span className={`badge badge-${badgeKey}`} style={{ fontSize: 11 }}>{precio ? `${margen}%` : '—'}</span>
+                      <button onClick={() => removeCanal(i)} style={{ background: 'none', border: 'none', fontSize: 18, color: 'var(--text-3)', cursor: 'pointer', lineHeight: 1, padding: '0 2px', opacity: 0.5 }} title="Eliminar canal">×</button>
                     </div>
                   </div>
-                  {/* Row 2: inputs */}
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, padding: '6px 14px 12px' }}>
-                    <div>
-                      <div style={{ fontSize: 9, color: 'var(--text-3)', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 4 }}>Precio venta ARS</div>
-                      <input type="number" value={precio} style={inp} onChange={e => updateCanal(i, { precio: parseFloat(e.target.value)||0 })} />
-                    </div>
-                    <div>
-                      <div style={{ fontSize: 9, color: 'var(--text-3)', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 4 }}>Comisión %</div>
-                      <input type="number" value={canal.comision} step="0.5" style={inp} onChange={e => updateCanal(i, { comision: parseFloat(e.target.value)||0 })} />
-                    </div>
-                    <div>
-                      <div style={{ fontSize: 9, color: 'var(--text-3)', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 4 }}>Cuotas ARS</div>
-                      <input type="number" value={canal.cuotas||0} style={inp} onChange={e => updateCanal(i, { cuotas: parseFloat(e.target.value)||0 })} />
-                    </div>
+                  {/* Input cells */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', borderLeft: `4px solid ${accentColor}` }}>
+                    {[
+                      { label: 'Precio venta ARS', val: precio,           step: 100,  onChange: v => updateCanal(i, { precio: v }) },
+                      { label: 'Comisión %',        val: canal.comision,  step: 0.5,  onChange: v => updateCanal(i, { comision: v }) },
+                      { label: 'Cuotas ARS',        val: canal.cuotas||0, step: 100,  onChange: v => updateCanal(i, { cuotas: v }) },
+                    ].map((f, fi) => (
+                      <div key={f.label} style={{ padding: '8px 14px', borderRight: fi < 2 ? '1px solid var(--border-2)' : 'none' }}>
+                        <div style={{ fontSize: 9, fontWeight: 600, color: 'var(--text-3)', letterSpacing: '0.07em', textTransform: 'uppercase', marginBottom: 5 }}>{f.label}</div>
+                        <input
+                          type="number" value={f.val} step={f.step}
+                          style={{ width: '100%', background: 'transparent', border: 'none', outline: 'none', fontFamily: 'var(--font)', fontSize: 15, fontWeight: 600, color: 'var(--text)', padding: 0 }}
+                          onChange={e => f.onChange(parseFloat(e.target.value) || 0)}
+                        />
+                      </div>
+                    ))}
                   </div>
                 </div>
               );
@@ -617,7 +628,7 @@ function CalcSection({ color, label, children, style }) {
   );
 }
 
-function TaxToggle({ options, value, color, onChange }) {
+function TaxToggle({ options, value, onChange }) {
   return (
     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
       {options.map(opt => {
@@ -628,11 +639,12 @@ function TaxToggle({ options, value, color, onChange }) {
             type="button"
             onClick={() => onChange(opt.v)}
             style={{
-              padding: '5px 10px', borderRadius: 6, fontSize: 12, cursor: 'pointer',
+              padding: '5px 11px', borderRadius: 6, fontSize: 12, cursor: 'pointer',
               fontFamily: 'var(--font)', fontWeight: active ? 700 : 400, transition: 'all 0.15s',
-              border: `1.5px solid ${active ? color : 'var(--border)'}`,
-              background: active ? color : 'transparent',
+              border: `1.5px solid ${active ? 'var(--accent)' : 'var(--border)'}`,
+              background: active ? 'var(--accent)' : 'var(--bg-3)',
               color: active ? '#fff' : 'var(--text-3)',
+              boxShadow: active ? '0 1px 4px rgba(0,0,0,0.12)' : 'none',
             }}
           >
             {opt.l}
