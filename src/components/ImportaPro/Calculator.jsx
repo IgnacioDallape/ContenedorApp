@@ -6,28 +6,32 @@ import { ars, rd } from '../../lib/formatters.js';
 import { PALLET_SIZES } from '../../lib/constants.js';
 
 export function calcCostos(inp) {
-  const fob        = parseFloat(inp.fob)        || 0;
-  const qty        = parseInt(inp.qty)           || 1;
-  const flete      = parseFloat(inp.flete)       || 0;
-  const seguroPct  = parseFloat(inp.seguroPct)   || 0;
-  const aduana     = parseFloat(inp.aduana)      || 0;
-  const traderPct  = parseFloat(inp.traderPct)   || 0;
-  const di         = parseFloat(inp.di)          || 0;
-  const ivaImp     = parseFloat(inp.ivaImp)      || 21;
-  const te         = parseFloat(inp.te)          || 0;
-  const tc         = parseFloat(inp.globalTC)    || 1450;
-  const fleteUnit  = flete / qty;
-  const seguroUnit = fob * seguroPct / 100;
-  const traderUnit = fob * traderPct / 100;
-  const cif        = fob + fleteUnit + seguroUnit;
-  const diUnit     = cif * di / 100;
-  const ivaUnit    = (cif + diUnit) * ivaImp / 100;
-  const teUnit     = cif * te / 100;
-  const aduanaUnit = aduana / qty;
-  const costoUSD   = cif + diUnit + ivaUnit + teUnit + aduanaUnit + traderUnit;
-  const costoARS   = costoUSD * tc;
-  return { fob, qty, flete, seguroPct, aduana, traderPct, di, ivaImp, te, tc,
-           fleteUnit, seguroUnit, traderUnit, cif, diUnit, ivaUnit, teUnit, aduanaUnit, costoUSD, costoARS };
+  const fob             = parseFloat(inp.fob)           || 0;
+  const qty             = parseInt(inp.qty)              || 1;
+  const flete           = parseFloat(inp.flete)          || 0;
+  const seguroPct       = parseFloat(inp.seguroPct)      || 0;
+  const despachante     = parseFloat(inp.despachante)    || parseFloat(inp.aduana) || 0; // backward compat
+  const fleteInterno    = parseFloat(inp.fleteInterno)   || 0;
+  const traderPct       = parseFloat(inp.traderPct)      || 0;
+  const di              = parseFloat(inp.di)             || 0;
+  const ivaImp          = parseFloat(inp.ivaImp)         || 21;
+  const te              = parseFloat(inp.te)             || 0;
+  const tc              = parseFloat(inp.globalTC)       || 1359;
+  const fleteUnit       = flete / qty;
+  const seguroUnit      = fob * seguroPct / 100;
+  const traderUnit      = fob * traderPct / 100;
+  const cif             = fob + fleteUnit + seguroUnit;
+  const diUnit          = cif * di / 100;
+  const ivaUnit         = (cif + diUnit) * ivaImp / 100;
+  const teUnit          = cif * te / 100;
+  const despachanteUnit = despachante / qty;
+  const fleteInternoUnit = fleteInterno / qty;
+  const aduanaUnit      = despachanteUnit + fleteInternoUnit;
+  const costoUSD        = cif + diUnit + ivaUnit + teUnit + aduanaUnit + traderUnit;
+  const costoARS        = costoUSD * tc;
+  return { fob, qty, flete, seguroPct, despachante, fleteInterno, traderPct, di, ivaImp, te, tc,
+           fleteUnit, seguroUnit, traderUnit, cif, diUnit, ivaUnit, teUnit,
+           despachanteUnit, fleteInternoUnit, aduanaUnit, costoUSD, costoARS };
 }
 
 export default function Calculator() {
@@ -151,13 +155,16 @@ export default function Calculator() {
     [`D.I. (${c.di}%)`,             `U$S ${rd(c.diUnit, 2)}`],
     [`IVA imp. (${c.ivaImp}%)`,     `U$S ${rd(c.ivaUnit, 2)}`],
     [`Tasa estadística (${c.te}%)`, `U$S ${rd(c.teUnit, 3)}`],
-    ['Aduana + transp. interno',     `U$S ${rd(c.aduanaUnit, 2)}`],
+    ['Despachante / aduana',         `U$S ${rd(c.despachanteUnit, 2)}`],
+    ['Flete interno / puerto',       `U$S ${rd(c.fleteInternoUnit, 2)}`],
   ];
   const pctBars = [
-    { label:'Producto (FOB)',         pct: c.fob/tot*100,                              color:'#1a4f8a' },
-    { label:'Logística y flete',      pct: (c.fleteUnit+c.seguroUnit+c.aduanaUnit)/tot*100, color:'#4a8ac4' },
-    { label:`Trader (${c.traderPct}%)`, pct: c.traderUnit/tot*100,                    color:'#7ba3d4' },
-    { label:'Impuestos (DI+IVA+TE)',  pct: (c.diUnit+c.ivaUnit+c.teUnit)/tot*100,     color:'#c0392b' },
+    { label:'FOB',                    pct: c.fob/tot*100,                                              color:'#1a4f8a' },
+    { label:'Flete int.',             pct: (c.fleteUnit+c.seguroUnit)/tot*100,                         color:'#4a8ac4' },
+    { label:'Despachante',            pct: c.despachanteUnit/tot*100,                                  color:'#6b9b8b' },
+    { label:'Flete interno',          pct: c.fleteInternoUnit/tot*100,                                 color:'#5b8b7b' },
+    { label:`Trader`,                 pct: c.traderUnit/tot*100,                                       color:'#7ba3d4' },
+    { label:'Impuestos',              pct: (c.diUnit+c.ivaUnit+c.teUnit)/tot*100,                      color:'#c0392b' },
   ];
 
   return (
@@ -351,50 +358,75 @@ export default function Calculator() {
                 <span className="card-title">Logística e importación</span>
                 <button className="btn-text" onClick={() => setActiveSection('ncm')}>Buscar NCM →</button>
               </div>
-              <div className="section-label">Flete, seguro y aduana</div>
-              <div className="form-grid-3">
-                <div className="field"><label>Flete total <span className="unit">USD</span></label>
-                  <input type="number" id="p-flete" value={inputs.flete} min="0"
-                    onChange={e => setInputs({ flete: parseFloat(e.target.value)||0 })} /></div>
-                <div className="field"><label>Seguro <span className="unit">%</span></label>
-                  <input type="number" id="p-seguro-pct" value={inputs.seguroPct} step="0.1" min="0"
-                    onChange={e => setInputs({ seguroPct: parseFloat(e.target.value)||0 })} /></div>
-                <div className="field"><label>Aduana + transp. interno <span className="unit">USD total</span></label>
-                  <input type="number" id="p-aduana" value={inputs.aduana} min="0"
-                    onChange={e => setInputs({ aduana: parseFloat(e.target.value)||0 })} /></div>
-              </div>
-              <div className="divider"/>
-              <div className="section-label">Comisión trader China</div>
-              <div className="form-grid-2">
-                <div className="field">
-                  <label>Comisión trader <span className="unit">% sobre FOB</span></label>
-                  <input type="number" id="p-trader-pct" value={inputs.traderPct} step="0.5" min="0" max="20"
-                    onChange={e => setInputs({ traderPct: parseFloat(e.target.value)||0 })} />
+
+              {/* Flete internacional */}
+              <CalcSection color="#4a8ac4" label="Flete internacional">
+                <div className="form-grid-2">
+                  <div className="field"><label>Flete total <span className="unit">USD</span></label>
+                    <input type="number" id="p-flete" value={inputs.flete} min="0"
+                      onChange={e => setInputs({ flete: parseFloat(e.target.value)||0 })} /></div>
+                  <div className="field"><label>Seguro <span className="unit">%</span></label>
+                    <input type="number" id="p-seguro-pct" value={inputs.seguroPct} step="0.1" min="0"
+                      onChange={e => setInputs({ seguroPct: parseFloat(e.target.value)||0 })} /></div>
                 </div>
-                <div className="field">
-                  <label>Total comisión trader <span className="unit">USD (lote completo)</span></label>
-                  <input type="number" id="p-trader-usd" value={rd(c.traderUnit * c.qty, 2)} readOnly />
+              </CalcSection>
+
+              {/* Despacho y logística local */}
+              <CalcSection color="#6b9b8b" label="Despacho y flete interno" style={{ marginTop: 10 }}>
+                <div className="form-grid-2">
+                  <div className="field">
+                    <label>Despachante / aduana <span className="unit">USD total</span></label>
+                    <input type="number" id="p-despachante" value={inputs.despachante ?? inputs.aduana ?? 0} min="0"
+                      onChange={e => setInputs({ despachante: parseFloat(e.target.value)||0 })} />
+                  </div>
+                  <div className="field">
+                    <label>Flete interno / puerto <span className="unit">USD total</span></label>
+                    <input type="number" id="p-flete-interno" value={inputs.fleteInterno || 0} min="0"
+                      onChange={e => setInputs({ fleteInterno: parseFloat(e.target.value)||0 })} />
+                  </div>
                 </div>
-              </div>
-              <div className="trader-note">El trader gestiona fabricantes, logística y despacho en origen. Rango habitual: 4 % – 8 % del valor FOB.</div>
-              <div className="divider"/>
-              <div className="section-label">Aranceles Argentina</div>
-              <div className="form-grid-3">
-                <div className="field"><label>Derecho de importación</label>
-                  <select id="p-di" value={inputs.di} onChange={e => setInputs({ di: parseFloat(e.target.value)||0 })}>
-                    {[0,6,12,18,20,25,35].map(v => <option key={v} value={v}>{v}%{v===0?' — Exento':''}</option>)}
-                  </select></div>
-                <div className="field"><label>IVA importación</label>
-                  <select id="p-iva-imp" value={inputs.ivaImp} onChange={e => setInputs({ ivaImp: parseFloat(e.target.value)||21 })}>
-                    <option value="10.5">10.5%</option>
-                    <option value="21">21%</option>
-                  </select></div>
-                <div className="field"><label>Tasa estadística</label>
-                  <select id="p-te" value={inputs.te} onChange={e => setInputs({ te: parseFloat(e.target.value)||0 })}>
-                    <option value="0">0%</option>
-                    <option value="3">3%</option>
-                  </select></div>
-              </div>
+                <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 8, padding: '7px 10px', background: 'var(--bg-3)', borderRadius: 6, borderLeft: '3px solid #6b9b8b' }}>
+                  Honorarios del despachante + aranceles pagados en aduana + transporte puerto → depósito. Se prorratean por unidad.
+                </div>
+              </CalcSection>
+
+              {/* Trader */}
+              <CalcSection color="#7ba3d4" label="Comisión trader China" style={{ marginTop: 10 }}>
+                <div className="form-grid-2">
+                  <div className="field">
+                    <label>Comisión trader <span className="unit">% sobre FOB</span></label>
+                    <input type="number" id="p-trader-pct" value={inputs.traderPct} step="0.5" min="0" max="20"
+                      onChange={e => setInputs({ traderPct: parseFloat(e.target.value)||0 })} />
+                  </div>
+                  <div className="field">
+                    <label>Total trader <span className="unit">USD (lote completo)</span></label>
+                    <input type="number" id="p-trader-usd" value={rd(c.traderUnit * c.qty, 2)} readOnly style={{ color: 'var(--text-3)' }} />
+                  </div>
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 8, padding: '7px 10px', background: 'var(--bg-3)', borderRadius: 6, borderLeft: '3px solid #7ba3d4' }}>
+                  Gestiona fabricantes, calidad y despacho en origen. Rango habitual: 4 – 8 % del FOB.
+                </div>
+              </CalcSection>
+
+              {/* Aranceles */}
+              <CalcSection color="#c0392b" label="Aranceles Argentina" style={{ marginTop: 10 }}>
+                <div className="form-grid-3">
+                  <div className="field"><label>Derecho de importación</label>
+                    <select id="p-di" value={inputs.di} onChange={e => setInputs({ di: parseFloat(e.target.value)||0 })}>
+                      {[0,6,12,18,20,25,35].map(v => <option key={v} value={v}>{v}%{v===0?' — Exento':''}</option>)}
+                    </select></div>
+                  <div className="field"><label>IVA importación</label>
+                    <select id="p-iva-imp" value={inputs.ivaImp} onChange={e => setInputs({ ivaImp: parseFloat(e.target.value)||21 })}>
+                      <option value="10.5">10.5%</option>
+                      <option value="21">21%</option>
+                    </select></div>
+                  <div className="field"><label>Tasa estadística</label>
+                    <select id="p-te" value={inputs.te} onChange={e => setInputs({ te: parseFloat(e.target.value)||0 })}>
+                      <option value="0">0%</option>
+                      <option value="3">3%</option>
+                    </select></div>
+                </div>
+              </CalcSection>
             </div>
           </div>
 
@@ -437,7 +469,8 @@ export default function Calculator() {
                 <ResultGroup color="#6b9b8b" label="Logística" rows={[
                   ['Flete prorrateado', `U$S ${rd(c.fleteUnit, 2)}`],
                   [`Seguro (${c.seguroPct}%)`, `U$S ${rd(c.seguroUnit, 3)}`],
-                  ['Aduana + transp. interno', `U$S ${rd(c.aduanaUnit, 2)}`],
+                  ['Despachante / aduana', `U$S ${rd(c.despachanteUnit, 2)}`],
+                  ['Flete interno / puerto', `U$S ${rd(c.fleteInternoUnit, 2)}`],
                 ]} subtotal={`CIF: U$S ${rd(c.cif, 2)}`} />
 
                 {/* Grupo 3: Impuestos y comisiones */}
@@ -546,6 +579,19 @@ export default function Calculator() {
           <button className="btn-outline" onClick={() => exportCSV(c, canales, inputs.nombre)}>Exportar CSV</button>
         </div>
       </section>
+    </div>
+  );
+}
+
+function CalcSection({ color, label, children, style }) {
+  return (
+    <div style={{ borderLeft: `3px solid ${color}`, borderRadius: '0 8px 8px 0', overflow: 'hidden', ...style }}>
+      <div style={{ padding: '6px 12px', background: `${color}15`, borderBottom: `1px solid ${color}30` }}>
+        <span style={{ fontSize: 10, fontWeight: 700, color, letterSpacing: '0.07em', textTransform: 'uppercase' }}>{label}</span>
+      </div>
+      <div style={{ padding: '12px 12px 4px' }}>
+        {children}
+      </div>
     </div>
   );
 }
