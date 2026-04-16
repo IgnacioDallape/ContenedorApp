@@ -67,6 +67,7 @@ export default function Calculator() {
 
   async function handleSaveProduct() {
     if (!inputs.nombre) { showToast('Ingresá el nombre del producto', 'error'); return; }
+    if (!(parseFloat(inputs.pesoUnit) > 0)) { showToast('Ingresá el peso por unidad (debe ser mayor a 0)', 'error'); return; }
     const prod = {
       id:        Date.now(),
       nombre:    inputs.nombre,
@@ -146,11 +147,11 @@ export default function Calculator() {
     ['Flete prorrateado',             `U$S ${rd(c.fleteUnit, 2)}`],
     [`Seguro (${c.seguroPct}%)`,     `U$S ${rd(c.seguroUnit, 3)}`],
     ['Valor CIF',                    `U$S ${rd(c.cif, 2)}`],
-    [`Comisión trader (${c.traderPct}%)`, ars(c.traderUnit * c.tc)],
-    [`D.I. (${c.di}%)`,             ars(c.diUnit * c.tc)],
-    [`IVA imp. (${c.ivaImp}%)`,     ars(c.ivaUnit * c.tc)],
-    [`Tasa estadística (${c.te}%)`, ars(c.teUnit * c.tc)],
-    ['Aduana + transp. interno',     ars(c.aduanaUnit * c.tc)],
+    [`Comisión trader (${c.traderPct}%)`, `U$S ${rd(c.traderUnit, 3)}`],
+    [`D.I. (${c.di}%)`,             `U$S ${rd(c.diUnit, 2)}`],
+    [`IVA imp. (${c.ivaImp}%)`,     `U$S ${rd(c.ivaUnit, 2)}`],
+    [`Tasa estadística (${c.te}%)`, `U$S ${rd(c.teUnit, 3)}`],
+    ['Aduana + transp. interno',     `U$S ${rd(c.aduanaUnit, 2)}`],
   ];
   const pctBars = [
     { label:'Producto (FOB)',         pct: c.fob/tot*100,                              color:'#1a4f8a' },
@@ -405,7 +406,7 @@ export default function Calculator() {
                 <div className="big-label">Costo unitario total</div>
                 <div className="big-value" id="res-costo-ars">{ars(c.costoARS)}</div>
                 <div className="big-sub" id="res-costo-usd">
-                  U$S {rd(c.costoUSD, 2)} · {c.qty} u = {ars(c.costoARS * c.qty)} total
+                  U$S {rd(c.costoUSD, 2)} · ¥{rd(c.costoUSD / (parseFloat(inputs.cny) || 0.138), 0)} CNY · {c.qty} u = {ars(c.costoARS * c.qty)} total
                 </div>
               </div>
               <div className="breakdown" id="breakdown">
@@ -417,7 +418,7 @@ export default function Calculator() {
                 ))}
                 <div className="bd-row bd-total">
                   <span className="bd-label">Costo unitario total</span>
-                  <span className="bd-val">{ars(c.costoARS)}</span>
+                  <span className="bd-val">U$S {rd(c.costoUSD, 2)}</span>
                 </div>
               </div>
             </div>
