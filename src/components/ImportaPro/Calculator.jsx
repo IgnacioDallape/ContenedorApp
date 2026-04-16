@@ -312,13 +312,13 @@ export default function Calculator() {
 
               <div className="divider"/>
               {/* ── Referencias + Fotos ── */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxWidth: 560, margin: '0 auto' }}>
                 <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-3)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>Referencias y fotos</div>
 
                 {/* Links con badge de plataforma */}
                 {[
-                  { id:'p-link-1688', key:'link1688', label:'1688', color:'#e87722', placeholder:'https://detail.1688.com/...', hint:'Origen' },
-                  { id:'p-link-ml',   key:'linkML',   label:'ML',   color:'#3483fa', placeholder:'https://articulo.mercadolibre.com.ar/...', hint:'Local' },
+                  { id:'p-link-1688', key:'link1688', label:'1688', color:'#6b9b8b', placeholder:'https://detail.1688.com/...', hint:'Origen' },
+                  { id:'p-link-ml',   key:'linkML',   label:'ML',   color:'#4a7dc1', placeholder:'https://articulo.mercadolibre.com.ar/...', hint:'Local' },
                 ].map(({ id, key, label, color, placeholder, hint }) => {
                   const hasVal = !!(inputs[key]);
                   return (
@@ -345,7 +345,7 @@ export default function Calculator() {
                 <div style={{ display:'flex', gap:10, alignItems:'flex-start', marginTop:4 }}>
                   {[0, 1].map(idx => {
                     const label = idx === 0 ? '1688' : 'ML';
-                    const color = idx === 0 ? '#e87722' : '#3483fa';
+                    const color = idx === 0 ? '#6b9b8b' : '#4a7dc1';
                     const hasPhoto = !!(inputs.photos?.[idx]);
                     return (
                       <div key={idx}
@@ -383,94 +383,6 @@ export default function Calculator() {
               </div>
             </div>
 
-            {/* ── Logística ── */}
-            <div className="card">
-              <div className="card-header">
-                <span className="card-title">Logística e importación</span>
-                <button className="btn-text" onClick={() => setActiveSection('ncm')}>Buscar NCM →</button>
-              </div>
-
-              {/* Flete internacional */}
-              <CalcSection color="#4a8ac4" label="Flete internacional">
-                <div className="form-grid-2">
-                  <div className="field"><label>Flete total <span className="unit">USD</span></label>
-                    <input type="number" id="p-flete" value={inputs.flete} min="0"
-                      onChange={e => setInputs({ flete: parseFloat(e.target.value)||0 })} /></div>
-                  <div className="field"><label>Seguro <span className="unit">%</span></label>
-                    <input type="number" id="p-seguro-pct" value={inputs.seguroPct} step="0.1" min="0"
-                      onChange={e => setInputs({ seguroPct: parseFloat(e.target.value)||0 })} /></div>
-                </div>
-              </CalcSection>
-
-              {/* Despacho y logística local */}
-              <CalcSection color="#6b9b8b" label="Despacho y flete interno" style={{ marginTop: 10 }}>
-                <div className="form-grid-2">
-                  <div className="field">
-                    <label>Despachante / aduana <span className="unit">USD total</span></label>
-                    <input type="number" id="p-despachante" value={inputs.despachante ?? inputs.aduana ?? 0} min="0"
-                      onChange={e => setInputs({ despachante: parseFloat(e.target.value)||0 })} />
-                  </div>
-                  <div className="field">
-                    <label>Flete interno / puerto <span className="unit">USD total</span></label>
-                    <input type="number" id="p-flete-interno" value={inputs.fleteInterno || 0} min="0"
-                      onChange={e => setInputs({ fleteInterno: parseFloat(e.target.value)||0 })} />
-                  </div>
-                </div>
-                <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 8, padding: '7px 10px', background: 'var(--bg-3)', borderRadius: 6, borderLeft: '3px solid #6b9b8b' }}>
-                  Honorarios del despachante + aranceles pagados en aduana + transporte puerto → depósito. Se prorratean por unidad.
-                </div>
-              </CalcSection>
-
-              {/* Trader */}
-              <CalcSection color="#7ba3d4" label="Comisión trader China" style={{ marginTop: 10 }}>
-                <div className="form-grid-2">
-                  <div className="field">
-                    <label>Comisión trader <span className="unit">% sobre FOB</span></label>
-                    <input type="number" id="p-trader-pct" value={inputs.traderPct} step="0.5" min="0" max="20"
-                      onChange={e => setInputs({ traderPct: parseFloat(e.target.value)||0 })} />
-                  </div>
-                  <div className="field">
-                    <label>Total trader <span className="unit">USD (lote completo)</span></label>
-                    <input type="number" id="p-trader-usd" value={rd(c.traderUnit * c.qty, 2)} readOnly style={{ color: 'var(--text-3)' }} />
-                  </div>
-                </div>
-                <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 8, padding: '7px 10px', background: 'var(--bg-3)', borderRadius: 6, borderLeft: '3px solid #7ba3d4' }}>
-                  Gestiona fabricantes, calidad y despacho en origen. Rango habitual: 4 – 8 % del FOB.
-                </div>
-              </CalcSection>
-
-              {/* Aranceles */}
-              <CalcSection color="#c0392b" label="Aranceles Argentina" style={{ marginTop: 10 }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                  <div>
-                    <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-3)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 7 }}>Derecho de importación</div>
-                    <TaxToggle
-                      options={[{v:0,l:'0% — Exento'},{v:6,l:'6%'},{v:12,l:'12%'},{v:18,l:'18%'},{v:20,l:'20%'},{v:25,l:'25%'},{v:35,l:'35%'}]}
-                      value={inputs.di}
-                      onChange={v => setInputs({ di: v })}
-                    />
-                  </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                    <div>
-                      <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-3)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 7 }}>IVA importación</div>
-                      <TaxToggle
-                        options={[{v:10.5,l:'10.5%'},{v:21,l:'21%'}]}
-                        value={inputs.ivaImp}
-                        onChange={v => setInputs({ ivaImp: v })}
-                      />
-                    </div>
-                    <div>
-                      <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-3)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 7 }}>Tasa estadística</div>
-                      <TaxToggle
-                        options={[{v:0,l:'0%'},{v:3,l:'3%'}]}
-                        value={inputs.te}
-                        onChange={v => setInputs({ te: v })}
-                      />
-                    </div>
-                  </div>
-                </div>
-              </CalcSection>
-            </div>
           </div>
 
           {/* ── Right col: Result ── */}
@@ -502,29 +414,21 @@ export default function Calculator() {
 
               {/* Grouped breakdown */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-
-                {/* Grupo 1: Precio de compra */}
                 <ResultGroup color="#4a7dc1" label="Precio de compra" rows={[
                   ['Valor FOB (1688)', `U$S ${rd(c.fob, 3)}`],
                 ]} />
-
-                {/* Grupo 2: Logística */}
                 <ResultGroup color="#6b9b8b" label="Logística" rows={[
                   ['Flete prorrateado', `U$S ${rd(c.fleteUnit, 2)}`],
                   [`Seguro (${c.seguroPct}%)`, `U$S ${rd(c.seguroUnit, 3)}`],
                   ['Despachante / aduana', `U$S ${rd(c.despachanteUnit, 2)}`],
                   ['Flete interno / puerto', `U$S ${rd(c.fleteInternoUnit, 2)}`],
                 ]} subtotal={`CIF: U$S ${rd(c.cif, 2)}`} />
-
-                {/* Grupo 3: Impuestos y comisiones */}
                 <ResultGroup color="#c0392b" label="Impuestos y comisiones" rows={[
                   [`Trader (${c.traderPct}%)`, `U$S ${rd(c.traderUnit, 3)}`],
                   [`D.I. (${c.di}%)`, `U$S ${rd(c.diUnit, 2)}`],
                   [`IVA imp. (${c.ivaImp}%)`, `U$S ${rd(c.ivaUnit, 2)}`],
                   [`Tasa estadística (${c.te}%)`, `U$S ${rd(c.teUnit, 3)}`],
                 ]} />
-
-                {/* Total */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', background: 'var(--accent)', borderRadius: 8, marginTop: 2 }}>
                   <span style={{ fontSize: 12, fontWeight: 700, color: '#fff', letterSpacing: '0.03em' }}>COSTO UNITARIO TOTAL</span>
                   <span style={{ fontSize: 15, fontWeight: 800, color: '#fff', fontFamily: "'DM Mono', monospace" }}>U$S {rd(c.costoUSD, 2)}</span>
@@ -534,61 +438,136 @@ export default function Calculator() {
           </div>
         </div>
 
-        {/* ── Canales ── */}
-        <div className="card" style={{ marginTop:'1.5rem' }}>
-          <div className="card-header">
-            <span className="card-title">Canales de venta</span>
-            <button className="btn-outline" onClick={addCanal}>+ Agregar canal</button>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {canales.map((canal, i) => {
-              const precio   = canal.precio || 0;
-              const comision = precio * (canal.comision || 0) / 100;
-              const neto     = precio - comision - (canal.cuotas || 0);
-              const ganancia = neto - c.costoARS;
-              const margen   = c.costoARS > 0 ? Math.round(ganancia / c.costoARS * 100) : 0;
-              const badgeKey = margen >= 50 ? 'green' : margen >= 20 ? 'amber' : 'red';
-              const accentColor = margen >= 50 ? 'var(--green)' : margen >= 20 ? 'var(--amber, #e6a817)' : 'var(--red)';
-              return (
-                <div key={i} style={{ borderRadius: 8, border: '1px solid var(--border)', overflow: 'hidden', background: 'var(--bg-2)' }}>
-                  {/* Header: canal name + ganancia + badge + delete */}
-                  <div style={{ display: 'flex', alignItems: 'center', padding: '9px 14px', borderLeft: `4px solid ${accentColor}`, background: 'var(--bg-3)', borderBottom: '1px solid var(--border-2)', gap: 10 }}>
-                    <input
-                      value={canal.nombre}
-                      onChange={e => updateCanal(i, { nombre: e.target.value })}
-                      style={{ flex: 1, fontSize: 13, fontWeight: 700, color: 'var(--text)', background: 'transparent', border: 'none', outline: 'none', fontFamily: 'var(--font)', minWidth: 0 }}
-                    />
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-                      <div style={{ textAlign: 'right' }}>
-                        <div style={{ fontSize: 10, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.05em', lineHeight: 1, marginBottom: 2 }}>Ganancia/u</div>
-                        <div style={{ fontSize: 14, fontWeight: 700, color: ganancia >= 0 ? 'var(--green)' : 'var(--red)', lineHeight: 1 }}>
-                          {precio ? ars(ganancia) : <span style={{ color: 'var(--text-3)', fontWeight: 400, fontSize: 12 }}>—</span>}
-                        </div>
-                      </div>
-                      <span className={`badge badge-${badgeKey}`} style={{ fontSize: 11 }}>{precio ? `${margen}%` : '—'}</span>
-                      <button onClick={() => removeCanal(i)} style={{ background: 'none', border: 'none', fontSize: 18, color: 'var(--text-3)', cursor: 'pointer', lineHeight: 1, padding: '0 2px', opacity: 0.5 }} title="Eliminar canal">×</button>
-                    </div>
+        {/* ── Logística + Canales (lado a lado) ── */}
+        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'1.5rem', marginTop:'1.5rem', alignItems:'start' }}>
+
+          {/* ── Logística ── */}
+          <div className="card">
+            <div className="card-header">
+              <span className="card-title">Logística e importación</span>
+              <button className="btn-text" onClick={() => setActiveSection('ncm')}>Buscar NCM →</button>
+            </div>
+            <CalcSection color="#4a8ac4" label="Flete internacional">
+              <div className="form-grid-2">
+                <div className="field"><label>Flete total <span className="unit">USD</span></label>
+                  <input type="number" id="p-flete" value={inputs.flete} min="0"
+                    onChange={e => setInputs({ flete: parseFloat(e.target.value)||0 })} /></div>
+                <div className="field"><label>Seguro <span className="unit">%</span></label>
+                  <input type="number" id="p-seguro-pct" value={inputs.seguroPct} step="0.1" min="0"
+                    onChange={e => setInputs({ seguroPct: parseFloat(e.target.value)||0 })} /></div>
+              </div>
+            </CalcSection>
+            <CalcSection color="#6b9b8b" label="Despacho y flete interno" style={{ marginTop: 10 }}>
+              <div className="form-grid-2">
+                <div className="field">
+                  <label>Despachante / aduana <span className="unit">USD total</span></label>
+                  <input type="number" id="p-despachante" value={inputs.despachante ?? inputs.aduana ?? 0} min="0"
+                    onChange={e => setInputs({ despachante: parseFloat(e.target.value)||0 })} />
+                </div>
+                <div className="field">
+                  <label>Flete interno / puerto <span className="unit">USD total</span></label>
+                  <input type="number" id="p-flete-interno" value={inputs.fleteInterno || 0} min="0"
+                    onChange={e => setInputs({ fleteInterno: parseFloat(e.target.value)||0 })} />
+                </div>
+              </div>
+              <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 8, padding: '7px 10px', background: 'var(--bg-3)', borderRadius: 6, borderLeft: '3px solid #6b9b8b' }}>
+                Honorarios del despachante + aranceles pagados en aduana + transporte puerto → depósito. Se prorratean por unidad.
+              </div>
+            </CalcSection>
+            <CalcSection color="#7ba3d4" label="Comisión trader China" style={{ marginTop: 10 }}>
+              <div className="form-grid-2">
+                <div className="field">
+                  <label>Comisión trader <span className="unit">% sobre FOB</span></label>
+                  <input type="number" id="p-trader-pct" value={inputs.traderPct} step="0.5" min="0" max="20"
+                    onChange={e => setInputs({ traderPct: parseFloat(e.target.value)||0 })} />
+                </div>
+                <div className="field">
+                  <label>Total trader <span className="unit">USD (lote completo)</span></label>
+                  <input type="number" id="p-trader-usd" value={rd(c.traderUnit * c.qty, 2)} readOnly style={{ color: 'var(--text-3)' }} />
+                </div>
+              </div>
+              <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 8, padding: '7px 10px', background: 'var(--bg-3)', borderRadius: 6, borderLeft: '3px solid #7ba3d4' }}>
+                Gestiona fabricantes, calidad y despacho en origen. Rango habitual: 4 – 8 % del FOB.
+              </div>
+            </CalcSection>
+            <CalcSection color="#c0392b" label="Aranceles Argentina" style={{ marginTop: 10 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div>
+                  <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-3)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 7 }}>Derecho de importación</div>
+                  <TaxToggle
+                    options={[{v:0,l:'0% — Exento'},{v:6,l:'6%'},{v:12,l:'12%'},{v:18,l:'18%'},{v:20,l:'20%'},{v:25,l:'25%'},{v:35,l:'35%'}]}
+                    value={inputs.di}
+                    onChange={v => setInputs({ di: v })}
+                  />
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  <div>
+                    <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-3)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 7 }}>IVA importación</div>
+                    <TaxToggle options={[{v:10.5,l:'10.5%'},{v:21,l:'21%'}]} value={inputs.ivaImp} onChange={v => setInputs({ ivaImp: v })} />
                   </div>
-                  {/* Input cells */}
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', borderLeft: `4px solid ${accentColor}` }}>
-                    {[
-                      { label: 'Precio venta ARS', val: precio,           step: 100,  onChange: v => updateCanal(i, { precio: v }) },
-                      { label: 'Comisión %',        val: canal.comision,  step: 0.5,  onChange: v => updateCanal(i, { comision: v }) },
-                      { label: 'Cuotas ARS',        val: canal.cuotas||0, step: 100,  onChange: v => updateCanal(i, { cuotas: v }) },
-                    ].map((f, fi) => (
-                      <div key={f.label} style={{ padding: '8px 14px', borderRight: fi < 2 ? '1px solid var(--border-2)' : 'none' }}>
-                        <div style={{ fontSize: 9, fontWeight: 600, color: 'var(--text-3)', letterSpacing: '0.07em', textTransform: 'uppercase', marginBottom: 5 }}>{f.label}</div>
-                        <input
-                          type="number" value={f.val} step={f.step}
-                          style={{ width: '100%', background: 'transparent', border: 'none', outline: 'none', fontFamily: 'var(--font)', fontSize: 15, fontWeight: 600, color: 'var(--text)', padding: 0 }}
-                          onChange={e => f.onChange(parseFloat(e.target.value) || 0)}
-                        />
-                      </div>
-                    ))}
+                  <div>
+                    <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-3)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 7 }}>Tasa estadística</div>
+                    <TaxToggle options={[{v:0,l:'0%'},{v:3,l:'3%'}]} value={inputs.te} onChange={v => setInputs({ te: v })} />
                   </div>
                 </div>
-              );
-            })}
+              </div>
+            </CalcSection>
+          </div>
+
+          {/* ── Canales ── */}
+          <div className="card">
+            <div className="card-header">
+              <span className="card-title">Canales de venta</span>
+              <button className="btn-outline" onClick={addCanal}>+ Agregar canal</button>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {canales.map((canal, i) => {
+                const precio   = canal.precio || 0;
+                const comision = precio * (canal.comision || 0) / 100;
+                const neto     = precio - comision - (canal.cuotas || 0);
+                const ganancia = neto - c.costoARS;
+                const margen   = c.costoARS > 0 ? Math.round(ganancia / c.costoARS * 100) : 0;
+                const badgeKey = margen >= 50 ? 'green' : margen >= 20 ? 'amber' : 'red';
+                const accentColor = margen >= 50 ? 'var(--green)' : margen >= 20 ? 'var(--amber, #e6a817)' : 'var(--red)';
+                return (
+                  <div key={i} style={{ borderRadius: 8, border: '1px solid var(--border)', overflow: 'hidden', background: 'var(--bg-2)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', padding: '9px 14px', borderLeft: `4px solid ${accentColor}`, background: 'var(--bg-3)', borderBottom: '1px solid var(--border-2)', gap: 10 }}>
+                      <input
+                        value={canal.nombre}
+                        onChange={e => updateCanal(i, { nombre: e.target.value })}
+                        style={{ flex: 1, fontSize: 13, fontWeight: 700, color: 'var(--text)', background: 'transparent', border: 'none', outline: 'none', fontFamily: 'var(--font)', minWidth: 0 }}
+                      />
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                        <div style={{ textAlign: 'right' }}>
+                          <div style={{ fontSize: 10, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.05em', lineHeight: 1, marginBottom: 2 }}>Ganancia/u</div>
+                          <div style={{ fontSize: 14, fontWeight: 700, color: ganancia >= 0 ? 'var(--green)' : 'var(--red)', lineHeight: 1 }}>
+                            {precio ? ars(ganancia) : <span style={{ color: 'var(--text-3)', fontWeight: 400, fontSize: 12 }}>—</span>}
+                          </div>
+                        </div>
+                        <span className={`badge badge-${badgeKey}`} style={{ fontSize: 11 }}>{precio ? `${margen}%` : '—'}</span>
+                        <button onClick={() => removeCanal(i)} style={{ background: 'none', border: 'none', fontSize: 18, color: 'var(--text-3)', cursor: 'pointer', lineHeight: 1, padding: '0 2px', opacity: 0.5 }} title="Eliminar canal">×</button>
+                      </div>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', borderLeft: `4px solid ${accentColor}` }}>
+                      {[
+                        { label: 'Precio venta ARS', val: precio,           step: 100, onChange: v => updateCanal(i, { precio: v }) },
+                        { label: 'Comisión %',        val: canal.comision,  step: 0.5, onChange: v => updateCanal(i, { comision: v }) },
+                        { label: 'Cuotas ARS',        val: canal.cuotas||0, step: 100, onChange: v => updateCanal(i, { cuotas: v }) },
+                      ].map((f, fi) => (
+                        <div key={f.label} style={{ padding: '8px 12px', borderRight: fi < 2 ? '1px solid var(--border-2)' : 'none' }}>
+                          <div style={{ fontSize: 9, fontWeight: 600, color: 'var(--text-3)', letterSpacing: '0.07em', textTransform: 'uppercase', marginBottom: 5 }}>{f.label}</div>
+                          <input
+                            type="number" value={f.val} step={f.step}
+                            style={{ width: '100%', background: 'transparent', border: 'none', outline: 'none', fontFamily: 'var(--font)', fontSize: 14, fontWeight: 600, color: 'var(--text)', padding: 0 }}
+                            onChange={e => f.onChange(parseFloat(e.target.value) || 0)}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
 
