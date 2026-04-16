@@ -311,48 +311,75 @@ export default function Calculator() {
               </div>
 
               <div className="divider"/>
-              <div className="section-label">Referencias</div>
-              <div className="form-grid-2">
-                <div className="field">
-                  <label>Link en 1688 <span className="unit">para comparar en origen</span></label>
-                  <div style={{ display:'flex', gap:6 }}>
-                    <input type="url" id="p-link-1688" value={inputs.link1688||''} placeholder="https://detail.1688.com/..." style={{ flex:1 }}
-                      onChange={e => setInputs({ link1688: e.target.value })} />
-                    <button onClick={() => inputs.link1688 && window.open(inputs.link1688,'_blank')}
-                      style={{ flexShrink:0, padding:'0 14px', height:38, background:'var(--bg-3)', border:'1px solid var(--border-2)', borderRadius:'var(--radius)', color:'var(--accent)', fontSize:14, cursor:'pointer' }}>↗</button>
-                  </div>
-                </div>
-                <div className="field">
-                  <label>Link en Mercado Libre <span className="unit">para comparar precio local</span></label>
-                  <div style={{ display:'flex', gap:6 }}>
-                    <input type="url" id="p-link-ml" value={inputs.linkML||''} placeholder="https://articulo.mercadolibre.com.ar/..." style={{ flex:1 }}
-                      onChange={e => setInputs({ linkML: e.target.value })} />
-                    <button onClick={() => inputs.linkML && window.open(inputs.linkML,'_blank')}
-                      style={{ flexShrink:0, padding:'0 14px', height:38, background:'var(--bg-3)', border:'1px solid var(--border-2)', borderRadius:'var(--radius)', color:'var(--accent)', fontSize:14, cursor:'pointer' }}>↗</button>
-                  </div>
-                </div>
-              </div>
+              {/* ── Referencias + Fotos ── */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-3)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>Referencias y fotos</div>
 
-              <div className="divider"/>
-              <div className="section-label">Fotos de referencia <span className="unit" style={{ textTransform:'none', letterSpacing:0 }}>(máx. 2)</span></div>
-              <div className="photo-row">
-                {[0, 1].map(idx => (
-                  <div key={idx} className="photo-slot" onClick={() => document.getElementById(`photo-input-${idx}`).click()}>
-                    {inputs.photos?.[idx] ? (
-                      <>
-                        <img src={inputs.photos[idx]} style={{ display:'block', width:'100%', height:'100%', objectFit:'cover', borderRadius:6 }} />
-                        <button className="photo-del" onClick={e => { e.stopPropagation(); clearPhoto(idx); }}>×</button>
-                      </>
-                    ) : (
-                      <div className="photo-placeholder">
-                        <span style={{ fontSize:22, color:'var(--text-3)' }}>+</span>
-                        <span style={{ fontSize:11, color:'var(--text-3)', marginTop:4 }}>Foto {idx===0?'1688':'ML'}</span>
+                {/* Links con badge de plataforma */}
+                {[
+                  { id:'p-link-1688', key:'link1688', label:'1688', color:'#e87722', placeholder:'https://detail.1688.com/...', hint:'Origen' },
+                  { id:'p-link-ml',   key:'linkML',   label:'ML',   color:'#3483fa', placeholder:'https://articulo.mercadolibre.com.ar/...', hint:'Local' },
+                ].map(({ id, key, label, color, placeholder, hint }) => {
+                  const hasVal = !!(inputs[key]);
+                  return (
+                    <div key={key} style={{ display:'flex', alignItems:'center', border:'1px solid var(--border)', borderRadius:8, overflow:'hidden', background:'var(--bg)', transition:'border-color 0.15s' }}>
+                      <div style={{ background: color, padding:'0 13px', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', alignSelf:'stretch', flexShrink:0, minWidth:46 }}>
+                        <span style={{ fontSize:9, fontWeight:800, color:'#fff', letterSpacing:'0.05em', lineHeight:1 }}>{label}</span>
+                        <span style={{ fontSize:8, color:'rgba(255,255,255,0.7)', marginTop:2, lineHeight:1 }}>{hint}</span>
                       </div>
-                    )}
-                    <input type="file" id={`photo-input-${idx}`} accept="image/*" style={{ display:'none' }}
-                      onChange={e => loadPhotoFile(idx, e.target.files[0])} />
-                  </div>
-                ))}
+                      <input
+                        type="url" id={id} value={inputs[key]||''} placeholder={placeholder}
+                        style={{ flex:1, border:'none', background:'transparent', padding:'10px 12px', fontFamily:'var(--font)', fontSize:12, color:'var(--text)', outline:'none', minWidth:0 }}
+                        onChange={e => setInputs({ [key]: e.target.value })}
+                      />
+                      <button
+                        onClick={() => hasVal && window.open(inputs[key],'_blank')}
+                        style={{ flexShrink:0, padding:'0 14px', alignSelf:'stretch', border:'none', borderLeft:'1px solid var(--border-2)', background: hasVal ? `${color}12` : 'transparent', color: hasVal ? color : 'var(--border)', fontSize:14, cursor: hasVal ? 'pointer' : 'default', transition:'all 0.15s' }}
+                        title={hasVal ? 'Abrir enlace' : 'Sin enlace'}
+                      >↗</button>
+                    </div>
+                  );
+                })}
+
+                {/* Fotos */}
+                <div style={{ display:'flex', gap:10, alignItems:'flex-start', marginTop:4 }}>
+                  {[0, 1].map(idx => {
+                    const label = idx === 0 ? '1688' : 'ML';
+                    const color = idx === 0 ? '#e87722' : '#3483fa';
+                    const hasPhoto = !!(inputs.photos?.[idx]);
+                    return (
+                      <div key={idx}
+                        onClick={() => document.getElementById(`photo-input-${idx}`).click()}
+                        style={{ width:88, height:88, border: hasPhoto ? `2px solid ${color}40` : '1.5px dashed var(--border)', borderRadius:10, cursor:'pointer', position:'relative', overflow:'hidden', background: hasPhoto ? 'transparent' : 'var(--bg-3)', display:'flex', alignItems:'center', justifyContent:'center', flexDirection:'column', flexShrink:0, transition:'border-color 0.2s' }}
+                      >
+                        {hasPhoto ? (
+                          <>
+                            <img src={inputs.photos[idx]} style={{ display:'block', width:'100%', height:'100%', objectFit:'cover' }} />
+                            <div style={{ position:'absolute', top:0, left:0, right:0, bottom:0, background:'rgba(0,0,0,0)', transition:'background 0.2s' }}/>
+                            <button
+                              className="photo-del"
+                              onClick={e => { e.stopPropagation(); clearPhoto(idx); }}
+                              style={{ position:'absolute', top:4, right:4, width:20, height:20, borderRadius:'50%', background:'rgba(0,0,0,0.55)', border:'none', color:'#fff', fontSize:13, lineHeight:'20px', textAlign:'center', cursor:'pointer', padding:0 }}
+                            >×</button>
+                            <div style={{ position:'absolute', bottom:0, left:0, right:0, background: `${color}cc`, padding:'3px 0', textAlign:'center' }}>
+                              <span style={{ fontSize:8, fontWeight:700, color:'#fff', letterSpacing:'0.06em' }}>{label}</span>
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <span style={{ fontSize:22, color:'var(--border)', lineHeight:1 }}>+</span>
+                            <span style={{ fontSize:9, color:'var(--text-3)', marginTop:5, fontWeight:600, letterSpacing:'0.04em' }}>{label}</span>
+                          </>
+                        )}
+                        <input type="file" id={`photo-input-${idx}`} accept="image/*" style={{ display:'none' }}
+                          onChange={e => loadPhotoFile(idx, e.target.files[0])} />
+                      </div>
+                    );
+                  })}
+                  <p style={{ fontSize:11, color:'var(--text-3)', lineHeight:1.6, margin:0, paddingTop:2 }}>
+                    Guardá fotos del producto en origen (1688) y en el mercado local (ML) para comparar visualmente. Se almacenan junto al producto.
+                  </p>
+                </div>
               </div>
             </div>
 
