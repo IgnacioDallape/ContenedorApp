@@ -410,21 +410,33 @@ export default function Calculator() {
 
               {/* Aranceles */}
               <CalcSection color="#c0392b" label="Aranceles Argentina" style={{ marginTop: 10 }}>
-                <div className="form-grid-3">
-                  <div className="field"><label>Derecho de importación</label>
-                    <select id="p-di" value={inputs.di} onChange={e => setInputs({ di: parseFloat(e.target.value)||0 })}>
-                      {[0,6,12,18,20,25,35].map(v => <option key={v} value={v}>{v}%{v===0?' — Exento':''}</option>)}
-                    </select></div>
-                  <div className="field"><label>IVA importación</label>
-                    <select id="p-iva-imp" value={inputs.ivaImp} onChange={e => setInputs({ ivaImp: parseFloat(e.target.value)||21 })}>
-                      <option value="10.5">10.5%</option>
-                      <option value="21">21%</option>
-                    </select></div>
-                  <div className="field"><label>Tasa estadística</label>
-                    <select id="p-te" value={inputs.te} onChange={e => setInputs({ te: parseFloat(e.target.value)||0 })}>
-                      <option value="0">0%</option>
-                      <option value="3">3%</option>
-                    </select></div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  <div>
+                    <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-3)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 7 }}>Derecho de importación</div>
+                    <TaxToggle
+                      options={[{v:0,l:'0% — Exento'},{v:6,l:'6%'},{v:12,l:'12%'},{v:18,l:'18%'},{v:20,l:'20%'},{v:25,l:'25%'},{v:35,l:'35%'}]}
+                      value={inputs.di} color="#c0392b"
+                      onChange={v => setInputs({ di: v })}
+                    />
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                    <div>
+                      <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-3)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 7 }}>IVA importación</div>
+                      <TaxToggle
+                        options={[{v:10.5,l:'10.5%'},{v:21,l:'21%'}]}
+                        value={inputs.ivaImp} color="#c0392b"
+                        onChange={v => setInputs({ ivaImp: v })}
+                      />
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-3)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 7 }}>Tasa estadística</div>
+                      <TaxToggle
+                        options={[{v:0,l:'0%'},{v:3,l:'3%'}]}
+                        value={inputs.te} color="#c0392b"
+                        onChange={v => setInputs({ te: v })}
+                      />
+                    </div>
+                  </div>
                 </div>
               </CalcSection>
             </div>
@@ -497,39 +509,48 @@ export default function Calculator() {
             <span className="card-title">Canales de venta</span>
             <button className="btn-outline" onClick={addCanal}>+ Agregar canal</button>
           </div>
-          <div className="channels-table">
-            <div className="ch-head">
-              <span>Canal</span><span>Precio venta (ARS)</span><span>Comisión %</span>
-              <span>Cuotas (ARS)</span><span>Margen s/costo</span><span>Ganancia / u</span><span></span>
-            </div>
-            <div id="canales-list">
-              {canales.map((canal, i) => {
-                const precio   = canal.precio || 0;
-                const comision = precio * (canal.comision || 0) / 100;
-                const neto     = precio - comision - (canal.cuotas || 0);
-                const ganancia = neto - c.costoARS;
-                const margen   = c.costoARS > 0 ? Math.round(ganancia / c.costoARS * 100) : 0;
-                const badge    = margen >= 50 ? 'green' : margen >= 20 ? 'amber' : 'red';
-                const inpStyle = { width:'100%', padding:'7px 9px', background:'var(--bg-3)', border:'1px solid var(--border)', borderRadius:'var(--radius)', color:'var(--text)', fontFamily:'var(--font)', fontSize:13 };
-                return (
-                  <div key={i} className="ch-row">
-                    <input className="ch-name-input" value={canal.nombre}
-                      onChange={e => updateCanal(i, { nombre: e.target.value })} />
-                    <input type="number" value={precio} style={inpStyle}
-                      onChange={e => updateCanal(i, { precio: parseFloat(e.target.value)||0 })} />
-                    <input type="number" value={canal.comision} step="0.5" style={inpStyle}
-                      onChange={e => updateCanal(i, { comision: parseFloat(e.target.value)||0 })} />
-                    <input type="number" value={canal.cuotas||0} style={inpStyle}
-                      onChange={e => updateCanal(i, { cuotas: parseFloat(e.target.value)||0 })} />
-                    <span id={`ch-badge-${i}`}><span className={`badge badge-${badge}`}>{margen}%</span></span>
-                    <span id={`ch-gan-${i}`} style={{ fontWeight:600, fontSize:'13.5px', color: ganancia>=0?'var(--green)':'var(--red)' }}>
-                      {ars(ganancia)}
-                    </span>
-                    <button className="del-btn" onClick={() => removeCanal(i)}>×</button>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {canales.map((canal, i) => {
+              const precio   = canal.precio || 0;
+              const comision = precio * (canal.comision || 0) / 100;
+              const neto     = precio - comision - (canal.cuotas || 0);
+              const ganancia = neto - c.costoARS;
+              const margen   = c.costoARS > 0 ? Math.round(ganancia / c.costoARS * 100) : 0;
+              const borderColor = margen >= 50 ? 'var(--green)' : margen >= 20 ? 'var(--amber, #e6a817)' : 'var(--red)';
+              const inp = { padding:'7px 10px', background:'var(--bg)', border:'1px solid var(--border)', borderRadius:'var(--radius)', color:'var(--text)', fontFamily:'var(--font)', fontSize:13, width:'100%', boxSizing:'border-box' };
+              return (
+                <div key={i} style={{ borderLeft: `3px solid ${borderColor}`, borderRadius: '0 8px 8px 0', background: 'var(--bg-3)', overflow: 'hidden', border: '1px solid var(--border)', borderLeftWidth: 3, borderLeftColor: borderColor }}>
+                  {/* Row 1: nombre + resultado */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px 6px', gap: 12 }}>
+                    <input
+                      value={canal.nombre}
+                      onChange={e => updateCanal(i, { nombre: e.target.value })}
+                      style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', background: 'transparent', border: 'none', outline: 'none', fontFamily: 'var(--font)', flex: 1, minWidth: 0 }}
+                    />
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+                      <span style={{ fontSize: 15, fontWeight: 700, color: ganancia >= 0 ? 'var(--green)' : 'var(--red)' }}>{ars(ganancia)}</span>
+                      <span className={`badge badge-${margen >= 50 ? 'green' : margen >= 20 ? 'amber' : 'red'}`} style={{ fontSize: 12 }}>{margen}%</span>
+                      <button onClick={() => removeCanal(i)} style={{ background: 'none', border: 'none', fontSize: 16, color: 'var(--text-3)', cursor: 'pointer', lineHeight: 1, padding: '0 2px' }}>×</button>
+                    </div>
                   </div>
-                );
-              })}
-            </div>
+                  {/* Row 2: inputs */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, padding: '6px 14px 12px' }}>
+                    <div>
+                      <div style={{ fontSize: 9, color: 'var(--text-3)', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 4 }}>Precio venta ARS</div>
+                      <input type="number" value={precio} style={inp} onChange={e => updateCanal(i, { precio: parseFloat(e.target.value)||0 })} />
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 9, color: 'var(--text-3)', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 4 }}>Comisión %</div>
+                      <input type="number" value={canal.comision} step="0.5" style={inp} onChange={e => updateCanal(i, { comision: parseFloat(e.target.value)||0 })} />
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 9, color: 'var(--text-3)', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 4 }}>Cuotas ARS</div>
+                      <input type="number" value={canal.cuotas||0} style={inp} onChange={e => updateCanal(i, { cuotas: parseFloat(e.target.value)||0 })} />
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
 
@@ -592,6 +613,32 @@ function CalcSection({ color, label, children, style }) {
       <div style={{ padding: '12px 12px 4px' }}>
         {children}
       </div>
+    </div>
+  );
+}
+
+function TaxToggle({ options, value, color, onChange }) {
+  return (
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+      {options.map(opt => {
+        const active = value === opt.v;
+        return (
+          <button
+            key={opt.v}
+            type="button"
+            onClick={() => onChange(opt.v)}
+            style={{
+              padding: '5px 10px', borderRadius: 6, fontSize: 12, cursor: 'pointer',
+              fontFamily: 'var(--font)', fontWeight: active ? 700 : 400, transition: 'all 0.15s',
+              border: `1.5px solid ${active ? color : 'var(--border)'}`,
+              background: active ? color : 'transparent',
+              color: active ? '#fff' : 'var(--text-3)',
+            }}
+          >
+            {opt.l}
+          </button>
+        );
+      })}
     </div>
   );
 }
