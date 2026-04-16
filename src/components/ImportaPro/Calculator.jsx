@@ -582,25 +582,25 @@ export default function Calculator() {
             </div>
           </div>
 
-          {/* Barra de distribución global */}
-          <div style={{ display:'flex', height:6, borderRadius:4, overflow:'hidden', gap:2, maxWidth:480, margin:'0 auto 20px' }}>
-            <div style={{ flex:distReinv||0.5, background:'var(--accent)', borderRadius:3, transition:'flex 0.3s' }}/>
-            <div style={{ flex:distGan||0.5, background:'var(--green)', borderRadius:3, transition:'flex 0.3s' }}/>
-            <div style={{ flex:Math.max(distLibre,0.5), background:'var(--amber)', borderRadius:3, transition:'flex 0.3s' }}/>
-          </div>
+          {/* Grid 3 columnas: card ML | donut chart | card TP */}
+          <div style={{ display:'grid', gridTemplateColumns:'1fr auto 1fr', gap:16, alignItems:'start' }}>
 
-          {/* Cards de resultado centradas y compactas */}
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, maxWidth:680, margin:'0 auto' }}>
+            {/* Cards de canal */}
             {[{ ch: mlCh, label: mlCh?.nombre || 'Mercado Libre', color: 'var(--accent)' },
               { ch: tpCh, label: tpCh?.nombre || 'Tienda propia', color: 'var(--green)' }
             ].map(({ ch, label: lbl, color }, i) => {
               const ganNeta = chanGan(ch);
-              return (
+              const card = (
                 <div key={i} style={{ background:'var(--bg-3)', borderRadius:'var(--radius-lg)', padding:'12px 14px', border:'1px solid var(--border)', borderTop:`3px solid ${color}` }}>
                   <div style={{ fontSize:10, fontWeight:700, textTransform:'uppercase', letterSpacing:'0.08em', color, marginBottom:8 }}>{lbl}</div>
                   <div style={{ fontSize:11, color:'var(--text-3)', marginBottom:2 }}>Ganancia neta</div>
                   <div style={{ fontSize:18, fontWeight:700, color:'var(--text)', marginBottom:10 }}>{ars(ganNeta)}</div>
-                  <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:6 }}>
+                  <div style={{ display:'flex', height:4, borderRadius:3, overflow:'hidden', gap:1, marginBottom:10 }}>
+                    <div style={{ flex:distReinv||0.5, background:'var(--accent)', borderRadius:2 }}/>
+                    <div style={{ flex:distGan||0.5, background:'var(--green)', borderRadius:2 }}/>
+                    <div style={{ flex:Math.max(distLibre,0.5), background:'var(--amber)', borderRadius:2 }}/>
+                  </div>
+                  <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:5 }}>
                     <div style={{ background:'var(--accent-dim)', borderRadius:'var(--radius)', padding:'6px 8px' }}>
                       <div style={{ fontSize:9, fontWeight:600, color:'var(--accent)', letterSpacing:'0.06em', textTransform:'uppercase', marginBottom:2 }}>Reinversión {distReinv}%</div>
                       <div style={{ fontSize:13, fontWeight:700, color:'var(--accent)' }}>{ars(ganNeta*distReinv/100)}</div>
@@ -616,6 +616,48 @@ export default function Calculator() {
                   </div>
                 </div>
               );
+              return i === 0
+                ? card
+                : <>{/* Donut de composición de costos */}
+                    <div style={{ display:'flex', flexDirection:'column', alignItems:'center', padding:'4px 8px', minWidth:180 }}>
+                      <div style={{ fontSize:9, fontWeight:700, color:'var(--text-3)', letterSpacing:'0.08em', textTransform:'uppercase', marginBottom:10 }}>Composición del costo</div>
+                      {(() => {
+                        const R = 54, CX = 70, CY = 70, C = 2 * Math.PI * R;
+                        let cum = 0;
+                        return (
+                          <svg viewBox="0 0 140 140" width={150} height={150}>
+                            <circle cx={CX} cy={CY} r={R} fill="none" stroke="var(--border)" strokeWidth={18} />
+                            {pctBars.map((b, bi) => {
+                              const pct  = Math.max(b.pct, 0.3);
+                              const dash = pct / 100 * C;
+                              const off  = C * 0.25 - (cum / 100 * C);
+                              cum += b.pct;
+                              return (
+                                <circle key={bi} cx={CX} cy={CY} r={R} fill="none"
+                                  stroke={b.color} strokeWidth={18}
+                                  strokeDasharray={`${dash} ${C - dash}`}
+                                  strokeDashoffset={off}
+                                  style={{ transition: 'all 0.4s' }}
+                                />
+                              );
+                            })}
+                            <text x={CX} y={CY - 7} textAnchor="middle" fontSize="8.5" fill="var(--text-3)" fontFamily="var(--font)" fontWeight="600" letterSpacing="0.06em">COSTO</text>
+                            <text x={CX} y={CY + 8} textAnchor="middle" fontSize="13" fill="var(--text)" fontFamily="var(--font)" fontWeight="700">U$S {rd(c.costoUSD,2)}</text>
+                          </svg>
+                        );
+                      })()}
+                      <div style={{ display:'flex', flexDirection:'column', gap:5, width:'100%', marginTop:4 }}>
+                        {pctBars.map((b, bi) => (
+                          <div key={bi} style={{ display:'flex', alignItems:'center', gap:6 }}>
+                            <span style={{ width:8, height:8, borderRadius:2, background:b.color, flexShrink:0 }}/>
+                            <span style={{ fontSize:10, color:'var(--text-3)', flex:1 }}>{b.label}</span>
+                            <span style={{ fontSize:10, fontWeight:700, color:'var(--text-2)' }}>{rd(b.pct,1)}%</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    {card}
+                  </>;
             })}
           </div>
         </div>
