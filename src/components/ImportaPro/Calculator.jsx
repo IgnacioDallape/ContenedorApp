@@ -574,37 +574,62 @@ export default function Calculator() {
         {/* ── Distribución ── */}
         <div className="card dist-card" style={{ marginTop:'1.5rem' }}>
           <div className="card-header"><span className="card-title">Distribución de la ganancia por venta</span></div>
-          <p className="hint" style={{ marginBottom:'1.25rem' }}>Definí cómo distribuir la ganancia neta una vez consumada la venta.</p>
-          <div className="dist-controls">
-            <div className="field">
-              <label>Reinversión en mercadería <span className="unit">% de la ganancia neta</span></label>
-              <input type="number" id="dist-reinversion" value={distReinv} min="0" max="100" step="5"
-                onChange={e => setDistReinv(Math.min(100, Math.max(0, parseFloat(e.target.value)||0)))} />
-            </div>
-            <div className="field">
-              <label>Retiro personal (ganancia) <span className="unit">% de la ganancia neta</span></label>
-              <input type="number" id="dist-ganancia" value={distGan} min="0" max="100" step="5"
-                onChange={e => setDistGan(Math.min(100, Math.max(0, parseFloat(e.target.value)||0)))} />
+
+          {/* Controles compactos centrados */}
+          <div style={{ display:'flex', justifyContent:'center', gap:10, marginBottom:20, flexWrap:'wrap', alignItems:'center' }}>
+            {[
+              { label:'Reinversión', id:'dist-reinversion', value:distReinv, color:'var(--accent)', setter:setDistReinv },
+              { label:'Retiro personal', id:'dist-ganancia', value:distGan,  color:'var(--green)',  setter:setDistGan  },
+            ].map(({ label, id, value, color, setter }) => (
+              <div key={id} style={{ display:'flex', alignItems:'center', gap:8, background:'var(--bg-3)', border:'1px solid var(--border)', borderRadius:8, padding:'8px 14px' }}>
+                <span style={{ width:8, height:8, borderRadius:2, background:color, flexShrink:0 }}/>
+                <span style={{ fontSize:12, color:'var(--text-2)', fontWeight:500, whiteSpace:'nowrap' }}>{label}</span>
+                <input
+                  type="number" id={id} value={value} min="0" max="100" step="5"
+                  style={{ width:44, textAlign:'center', padding:'3px 6px', border:'1px solid var(--border)', borderRadius:5, fontFamily:'var(--font)', fontSize:13, fontWeight:700, color:'var(--text)', background:'var(--bg)', outline:'none' }}
+                  onChange={e => setter(Math.min(100, Math.max(0, parseFloat(e.target.value)||0)))}
+                />
+                <span style={{ fontSize:12, color:'var(--text-3)' }}>%</span>
+              </div>
+            ))}
+            <div style={{ display:'flex', alignItems:'center', gap:8, background:'var(--bg-3)', border:'1px solid var(--border)', borderRadius:8, padding:'8px 14px', opacity:0.75 }}>
+              <span style={{ width:8, height:8, borderRadius:2, background:'var(--amber)', flexShrink:0 }}/>
+              <span style={{ fontSize:12, color:'var(--text-2)', fontWeight:500 }}>Disponible</span>
+              <span style={{ fontSize:13, fontWeight:700, color:'var(--text)' }}>{rd(distLibre,1)}%</span>
             </div>
           </div>
-          <div className="dist-metrics" id="dist-metrics">
+
+          {/* Barra de distribución global */}
+          <div style={{ display:'flex', height:6, borderRadius:4, overflow:'hidden', gap:2, maxWidth:480, margin:'0 auto 20px' }}>
+            <div style={{ flex:distReinv||0.5, background:'var(--accent)', borderRadius:3, transition:'flex 0.3s' }}/>
+            <div style={{ flex:distGan||0.5, background:'var(--green)', borderRadius:3, transition:'flex 0.3s' }}/>
+            <div style={{ flex:Math.max(distLibre,0.5), background:'var(--amber)', borderRadius:3, transition:'flex 0.3s' }}/>
+          </div>
+
+          {/* Cards de resultado centradas y compactas */}
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, maxWidth:680, margin:'0 auto' }}>
             {[{ ch: mlCh, label: mlCh?.nombre || 'Mercado Libre', color: 'var(--accent)' },
               { ch: tpCh, label: tpCh?.nombre || 'Tienda propia', color: 'var(--green)' }
             ].map(({ ch, label: lbl, color }, i) => {
               const ganNeta = chanGan(ch);
               return (
-                <div key={i} style={{ background:'var(--bg-3)', borderRadius:'var(--radius-lg)', padding:'14px 16px', border:'1px solid var(--border)', marginBottom: i===0?10:0 }}>
-                  <div style={{ fontSize:'10.5px', fontWeight:600, textTransform:'uppercase', letterSpacing:'0.08em', color, marginBottom:12, paddingBottom:8, borderBottom:'1px solid var(--border)' }}>{lbl}</div>
-                  <div style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:10, marginBottom:12 }}>
-                    <div style={{ gridColumn:'1/-1' }}><div className="dm-label">Ganancia neta</div><div style={{ fontSize:20, fontWeight:700, color:'var(--text)' }}>{ars(ganNeta)}</div></div>
-                    <div style={{ background:'var(--accent-dim)', borderRadius:'var(--radius)', padding:'8px 10px' }}><div className="dm-label" style={{ color:'var(--accent)' }}>Reinversión {distReinv}%</div><div style={{ fontSize:14, fontWeight:700, color:'var(--accent)' }}>{ars(ganNeta*distReinv/100)}</div></div>
-                    <div style={{ background:'var(--green-dim)', borderRadius:'var(--radius)', padding:'8px 10px' }}><div className="dm-label" style={{ color:'var(--green)' }}>Retiro {distGan}%</div><div style={{ fontSize:14, fontWeight:700, color:'var(--green)' }}>{ars(ganNeta*distGan/100)}</div></div>
-                    <div style={{ background:'var(--amber-dim)', borderRadius:'var(--radius)', padding:'8px 10px', gridColumn:'1/-1' }}><div className="dm-label" style={{ color:'var(--amber)' }}>Disponible {rd(distLibre,1)}%</div><div style={{ fontSize:14, fontWeight:700, color:'var(--amber)' }}>{ars(ganNeta*distLibre/100)} <span style={{ fontSize:11, fontWeight:400 }}>por {c.qty} u: {ars(ganNeta*distLibre/100*c.qty)}</span></div></div>
-                  </div>
-                  <div style={{ display:'flex', height:8, borderRadius:5, overflow:'hidden', gap:2 }}>
-                    <div style={{ flex:distReinv||0.5, background:'var(--accent)', borderRadius:3 }}/>
-                    <div style={{ flex:distGan||0.5, background:'var(--green)', borderRadius:3 }}/>
-                    <div style={{ flex:Math.max(distLibre,0.5), background:'var(--amber)', borderRadius:3 }}/>
+                <div key={i} style={{ background:'var(--bg-3)', borderRadius:'var(--radius-lg)', padding:'12px 14px', border:'1px solid var(--border)', borderTop:`3px solid ${color}` }}>
+                  <div style={{ fontSize:10, fontWeight:700, textTransform:'uppercase', letterSpacing:'0.08em', color, marginBottom:8 }}>{lbl}</div>
+                  <div style={{ fontSize:11, color:'var(--text-3)', marginBottom:2 }}>Ganancia neta</div>
+                  <div style={{ fontSize:18, fontWeight:700, color:'var(--text)', marginBottom:10 }}>{ars(ganNeta)}</div>
+                  <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:6 }}>
+                    <div style={{ background:'var(--accent-dim)', borderRadius:'var(--radius)', padding:'6px 8px' }}>
+                      <div style={{ fontSize:9, fontWeight:600, color:'var(--accent)', letterSpacing:'0.06em', textTransform:'uppercase', marginBottom:2 }}>Reinversión {distReinv}%</div>
+                      <div style={{ fontSize:13, fontWeight:700, color:'var(--accent)' }}>{ars(ganNeta*distReinv/100)}</div>
+                    </div>
+                    <div style={{ background:'var(--green-dim)', borderRadius:'var(--radius)', padding:'6px 8px' }}>
+                      <div style={{ fontSize:9, fontWeight:600, color:'var(--green)', letterSpacing:'0.06em', textTransform:'uppercase', marginBottom:2 }}>Retiro {distGan}%</div>
+                      <div style={{ fontSize:13, fontWeight:700, color:'var(--green)' }}>{ars(ganNeta*distGan/100)}</div>
+                    </div>
+                    <div style={{ background:'var(--amber-dim)', borderRadius:'var(--radius)', padding:'6px 8px', gridColumn:'1/-1' }}>
+                      <div style={{ fontSize:9, fontWeight:600, color:'var(--amber)', letterSpacing:'0.06em', textTransform:'uppercase', marginBottom:2 }}>Disponible {rd(distLibre,1)}%</div>
+                      <div style={{ fontSize:13, fontWeight:700, color:'var(--amber)' }}>{ars(ganNeta*distLibre/100)} <span style={{ fontSize:11, fontWeight:400, color:'var(--text-3)' }}>· {c.qty} u: {ars(ganNeta*distLibre/100*c.qty)}</span></div>
+                    </div>
                   </div>
                 </div>
               );
