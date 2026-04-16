@@ -422,7 +422,7 @@ export default function Calculator() {
         </div>
 
         {/* ── Logística + Canales (lado a lado) ── */}
-        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'1.5rem', marginTop:'1.5rem', alignItems:'start' }}>
+        <div className="calc-split-grid" style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'1.5rem', marginTop:'1.5rem', alignItems:'start' }}>
 
           {/* ── Logística ── */}
           <div className="card">
@@ -559,17 +559,17 @@ export default function Calculator() {
           <div className="card-header"><span className="card-title">Distribución de la ganancia por venta</span></div>
 
           {/* Controles compactos centrados */}
-          <div style={{ display:'flex', justifyContent:'center', gap:10, marginBottom:20, flexWrap:'wrap', alignItems:'center' }}>
+          <div className="dist-chip-row" style={{ display:'flex', justifyContent:'center', gap:10, marginBottom:20, flexWrap:'wrap', alignItems:'center' }}>
             {[
               { label:'Reinversión', id:'dist-reinversion', value:distReinv, color:'var(--accent)', setter:setDistReinv },
               { label:'Retiro personal', id:'dist-ganancia', value:distGan,  color:'var(--green)',  setter:setDistGan  },
             ].map(({ label, id, value, color, setter }) => (
-              <div key={id} style={{ display:'flex', alignItems:'center', gap:8, background:'var(--bg-3)', border:'1px solid var(--border)', borderRadius:8, padding:'8px 14px' }}>
+              <div className="dist-chip" key={id} style={{ display:'flex', alignItems:'center', gap:8, background:'var(--bg-3)', border:'1px solid var(--border)', borderRadius:8, padding:'8px 14px' }}>
                 <span style={{ width:8, height:8, borderRadius:2, background:color, flexShrink:0 }}/>
-                <span style={{ fontSize:12, color:'var(--text-2)', fontWeight:500, whiteSpace:'nowrap' }}>{label}</span>
+                <span style={{ fontSize:12, color:'var(--text-2)', fontWeight:500, whiteSpace:'nowrap', flex:1 }}>{label}</span>
                 <input
                   type="number" id={id} value={value} min="0" max="100" step="5"
-                  style={{ width:44, textAlign:'center', padding:'3px 6px', border:'1px solid var(--border)', borderRadius:5, fontFamily:'var(--font)', fontSize:13, fontWeight:700, color:'var(--text)', background:'var(--bg)', outline:'none' }}
+                  style={{ width:58, textAlign:'center', padding:'3px 8px', border:'1px solid var(--border)', borderRadius:5, fontFamily:'var(--font)', fontSize:13, fontWeight:700, color:'var(--text)', background:'var(--bg)', outline:'none' }}
                   onChange={e => setter(Math.min(100, Math.max(0, parseFloat(e.target.value)||0)))}
                 />
                 <span style={{ fontSize:12, color:'var(--text-3)' }}>%</span>
@@ -583,7 +583,7 @@ export default function Calculator() {
           </div>
 
           {/* Grid 3 columnas: card ML | donut chart | card TP */}
-          <div style={{ display:'grid', gridTemplateColumns:'1fr auto 1fr', gap:16, alignItems:'start' }}>
+          <div className="dist-main-grid" style={{ display:'grid', gridTemplateColumns:'1fr auto 1fr', gap:16, alignItems:'start' }}>
 
             {/* Cards de canal */}
             {[{ ch: mlCh, label: mlCh?.nombre || 'Mercado Libre', color: 'var(--accent)' },

@@ -450,6 +450,12 @@ html, body { overflow-x: hidden; max-width: 100vw; }
 
   /* NCM row wrap */
   .ncm-row { flex-wrap: wrap; gap: 6px; }
+
+  /* Calc: logística+canales y distribución se apilan */
+  .calc-split-grid { grid-template-columns: 1fr !important; }
+  .dist-main-grid  { grid-template-columns: 1fr !important; }
+  .dist-chip-row   { flex-direction: column !important; align-items: stretch !important; }
+  .dist-chip       { justify-content: space-between; }
 }
   
 
