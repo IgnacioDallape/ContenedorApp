@@ -99,25 +99,17 @@ export default function AppShell() {
             />
             <span className="tc-badge">CNY/USD</span>
           </div>
-          <div style={{ marginTop:10 }}>
-            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:5 }}>
-              <span className="tc-label" style={{ margin:0 }}>API Key Anthropic</span>
-              <span id="apikey-status" style={{ fontSize:10, color: apiKey?.startsWith('sk-ant-') ? 'var(--green)' : apiKey ? 'var(--amber)' : 'var(--text-3)' }}>
-                {apiKey?.startsWith('sk-ant-') ? '✓ Configurada' : apiKey ? '⚠ Formato inválido' : 'Sin configurar'}
-              </span>
+          <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', background: 'var(--bg-3)', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'var(--accent)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, flexShrink: 0 }}>
+                {label.charAt(0).toUpperCase()}
+              </div>
+              <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 90 }}>{label}</span>
             </div>
-            <div style={{ display:'flex', gap:5 }}>
-              <input
-                type="password" id="apikey-input" placeholder="sk-ant-..."
-                style={{ flex:1, fontSize:11, padding:'6px 8px' }}
-                value={apiKey}
-                onChange={e => setApiKey(e.target.value)}
-              />
-            </div>
-          </div>
-          <div className="sidebar-user">
-            <span className="sidebar-user-name">{label}</span>
-            <button className="sidebar-logout" onClick={logout}>Salir ↗</button>
+            <button onClick={logout} style={{ fontSize: 11, color: 'var(--text-3)', background: 'none', border: '1px solid var(--border-2)', borderRadius: 'var(--radius)', padding: '4px 10px', cursor: 'pointer', fontFamily: 'var(--font)', transition: 'color 0.15s' }}
+              onMouseEnter={e => e.target.style.color = 'var(--red)'}
+              onMouseLeave={e => e.target.style.color = 'var(--text-3)'}
+            >Salir</button>
           </div>
         </div>
       </aside>
