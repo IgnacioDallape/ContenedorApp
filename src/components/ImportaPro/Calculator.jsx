@@ -401,41 +401,58 @@ export default function Calculator() {
           {/* ── Right col: Result ── */}
           <div className="col">
             <div className="card result-card">
-              <div className="card-header"><span className="card-title">Resultado</span></div>
-              <div className="big-metric">
+              {/* Big number */}
+              <div className="big-metric" style={{ paddingBottom: 16 }}>
                 <div className="big-label">Costo unitario total</div>
                 <div className="big-value" id="res-costo-ars">{ars(c.costoARS)}</div>
                 <div className="big-sub" id="res-costo-usd">
-                  U$S {rd(c.costoUSD, 2)} · ¥{rd(c.costoUSD / (parseFloat(inputs.cny) || 0.138), 0)} CNY · {c.qty} u = {ars(c.costoARS * c.qty)} total
+                  U$S {rd(c.costoUSD, 2)} · ¥{rd(c.costoUSD / (parseFloat(inputs.cny) || 0.1466), 0)} CNY · {c.qty} u = {ars(c.costoARS * c.qty)} total
                 </div>
               </div>
-              <div className="breakdown" id="breakdown">
-                {breakdown.map(([l, val], i) => (
-                  <div key={i} className="bd-row">
-                    <span className="bd-label">{l}</span>
-                    <span className="bd-val">{val}</span>
-                  </div>
-                ))}
-                <div className="bd-row bd-total">
-                  <span className="bd-label">Costo unitario total</span>
-                  <span className="bd-val">U$S {rd(c.costoUSD, 2)}</span>
-                </div>
-              </div>
-            </div>
-            <div className="card">
-              <div className="card-header"><span className="card-title">Composición del costo</span></div>
-              <div className="pct-bars" id="pct-bars">
+
+              {/* Composition mini-bars */}
+              <div style={{ display: 'flex', height: 6, borderRadius: 4, overflow: 'hidden', marginBottom: 10, gap: 2 }}>
                 {pctBars.map((b, i) => (
-                  <div key={i} className="pct-row">
-                    <div className="pct-meta">
-                      <span className="pct-meta-label">{b.label}</span>
-                      <span className="pct-meta-val">{rd(b.pct, 1)}%</span>
-                    </div>
-                    <div className="pct-track">
-                      <div className="pct-fill" style={{ width:`${Math.min(b.pct,100)}%`, background:b.color }} />
-                    </div>
+                  <div key={i} style={{ flex: Math.max(b.pct, 0.5), background: b.color, borderRadius: 3, transition: 'flex 0.3s' }} title={`${b.label}: ${rd(b.pct,1)}%`} />
+                ))}
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 12px', marginBottom: 18 }}>
+                {pctBars.map((b, i) => (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: 'var(--text-3)' }}>
+                    <span style={{ width: 8, height: 8, borderRadius: 2, background: b.color, flexShrink: 0 }} />
+                    {b.label} <strong style={{ color: 'var(--text-2)' }}>{rd(b.pct, 1)}%</strong>
                   </div>
                 ))}
+              </div>
+
+              {/* Grouped breakdown */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+
+                {/* Grupo 1: Precio de compra */}
+                <ResultGroup color="#4a7dc1" label="Precio de compra" rows={[
+                  ['Valor FOB (1688)', `U$S ${rd(c.fob, 3)}`],
+                ]} />
+
+                {/* Grupo 2: Logística */}
+                <ResultGroup color="#6b9b8b" label="Logística" rows={[
+                  ['Flete prorrateado', `U$S ${rd(c.fleteUnit, 2)}`],
+                  [`Seguro (${c.seguroPct}%)`, `U$S ${rd(c.seguroUnit, 3)}`],
+                  ['Aduana + transp. interno', `U$S ${rd(c.aduanaUnit, 2)}`],
+                ]} subtotal={`CIF: U$S ${rd(c.cif, 2)}`} />
+
+                {/* Grupo 3: Impuestos y comisiones */}
+                <ResultGroup color="#c0392b" label="Impuestos y comisiones" rows={[
+                  [`Trader (${c.traderPct}%)`, `U$S ${rd(c.traderUnit, 3)}`],
+                  [`D.I. (${c.di}%)`, `U$S ${rd(c.diUnit, 2)}`],
+                  [`IVA imp. (${c.ivaImp}%)`, `U$S ${rd(c.ivaUnit, 2)}`],
+                  [`Tasa estadística (${c.te}%)`, `U$S ${rd(c.teUnit, 3)}`],
+                ]} />
+
+                {/* Total */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', background: 'var(--accent)', borderRadius: 8, marginTop: 2 }}>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: '#fff', letterSpacing: '0.03em' }}>COSTO UNITARIO TOTAL</span>
+                  <span style={{ fontSize: 15, fontWeight: 800, color: '#fff', fontFamily: "'DM Mono', monospace" }}>U$S {rd(c.costoUSD, 2)}</span>
+                </div>
               </div>
             </div>
           </div>
@@ -529,6 +546,23 @@ export default function Calculator() {
           <button className="btn-outline" onClick={() => exportCSV(c, canales, inputs.nombre)}>Exportar CSV</button>
         </div>
       </section>
+    </div>
+  );
+}
+
+function ResultGroup({ color, label, rows, subtotal }) {
+  return (
+    <div style={{ borderLeft: `3px solid ${color}`, borderRadius: '0 6px 6px 0', background: 'var(--bg-3)', overflow: 'hidden' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 12px', background: `${color}18` }}>
+        <span style={{ fontSize: 10, fontWeight: 700, color, letterSpacing: '0.07em', textTransform: 'uppercase' }}>{label}</span>
+        {subtotal && <span style={{ fontSize: 10, fontWeight: 600, color, fontFamily: "'DM Mono', monospace" }}>{subtotal}</span>}
+      </div>
+      {rows.map(([l, val], i) => (
+        <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 12px', borderTop: '1px solid var(--border)' }}>
+          <span style={{ fontSize: 12, color: 'var(--text-2)' }}>{l}</span>
+          <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)', fontFamily: "'DM Mono', monospace" }}>{val}</span>
+        </div>
+      ))}
     </div>
   );
 }
