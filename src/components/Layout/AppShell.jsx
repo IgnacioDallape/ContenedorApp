@@ -92,6 +92,13 @@ export default function AppShell() {
             />
             <span className="tc-badge">USD/ARS</span>
           </div>
+          <div className="tc-row" style={{ marginTop: 6 }}>
+            <input
+              type="number" id="global-cny" value={inputs.cny} step="0.001" min="0.001"
+              onChange={e => { const v = parseFloat(e.target.value) || 0.138; setInputs({ cny: v, fob: inputs.currencyMode === 'cny' ? +((parseFloat(inputs.fobCny)||0)*v).toFixed(3) : inputs.fob }); }}
+            />
+            <span className="tc-badge">CNY/USD</span>
+          </div>
           <div style={{ marginTop:10 }}>
             <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:5 }}>
               <span className="tc-label" style={{ margin:0 }}>API Key Anthropic</span>
