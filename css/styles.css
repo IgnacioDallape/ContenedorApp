@@ -1044,6 +1044,21 @@ header { display: none !important; }
   flex-direction: column;
 }
 
+/* ── Mobile override (must come AFTER the late .main rule above) ── */
+@media (max-width: 680px) {
+  .app-shell { height: auto !important; overflow: visible !important; overflow-x: hidden !important; }
+  .main {
+    margin-left: 0 !important;
+    height: auto !important;
+    overflow: visible !important;
+    overflow-x: hidden !important;
+    padding: 1rem 1rem 90px !important;
+  }
+  .ip-section { padding: 1rem 1rem !important; }
+  .calc-split-grid { grid-template-columns: 1fr !important; }
+  .dist-main-grid  { grid-template-columns: 1fr !important; }
+}
+
 /* IP sections */
 .ip-section {
   display: none;

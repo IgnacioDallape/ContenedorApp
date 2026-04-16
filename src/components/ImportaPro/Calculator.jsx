@@ -175,7 +175,7 @@ export default function Calculator() {
           <p className="page-sub">Costo real de importar desde 1688 a Argentina, incluyendo impuestos, logística y trader</p>
         </div>
 
-        <div className="grid-2-1">
+        <div>
           <div className="col">
             {/* ── Datos del producto ── */}
             <div className="card">
@@ -349,7 +349,7 @@ export default function Calculator() {
                             >×</button>
                           </>
                         ) : (
-                          <span style={{ fontSize:18, color:'var(--border)', lineHeight:1, userSelect:'none' }}>⊕</span>
+                          <span style={{ fontSize:16, lineHeight:1, userSelect:'none' }}>📷</span>
                         )}
                         <input type="file" id={`photo-input-${photoIdx}`} accept="image/*" style={{ display:'none' }}
                           onChange={e => loadPhotoFile(photoIdx, e.target.files[0])} />
@@ -366,58 +366,6 @@ export default function Calculator() {
               </div>
             </div>
 
-          </div>
-
-          {/* ── Right col: Result ── */}
-          <div className="col">
-            <div className="card result-card">
-              {/* Big number */}
-              <div className="big-metric" style={{ paddingBottom: 16 }}>
-                <div className="big-label">Costo unitario total</div>
-                <div className="big-value" id="res-costo-ars">{ars(c.costoARS)}</div>
-                <div className="big-sub" id="res-costo-usd">
-                  U$S {rd(c.costoUSD, 2)} · ¥{rd(c.costoUSD / (parseFloat(inputs.cny) || 0.1466), 0)} CNY · {c.qty} u = {ars(c.costoARS * c.qty)} total
-                </div>
-              </div>
-
-              {/* Composition mini-bars */}
-              <div style={{ display: 'flex', height: 6, borderRadius: 4, overflow: 'hidden', marginBottom: 10, gap: 2 }}>
-                {pctBars.map((b, i) => (
-                  <div key={i} style={{ flex: Math.max(b.pct, 0.5), background: b.color, borderRadius: 3, transition: 'flex 0.3s' }} title={`${b.label}: ${rd(b.pct,1)}%`} />
-                ))}
-              </div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 12px', marginBottom: 18 }}>
-                {pctBars.map((b, i) => (
-                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: 'var(--text-3)' }}>
-                    <span style={{ width: 8, height: 8, borderRadius: 2, background: b.color, flexShrink: 0 }} />
-                    {b.label} <strong style={{ color: 'var(--text-2)' }}>{rd(b.pct, 1)}%</strong>
-                  </div>
-                ))}
-              </div>
-
-              {/* Grouped breakdown */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <ResultGroup color="#4a7dc1" label="Precio de compra" rows={[
-                  ['Valor FOB (1688)', `U$S ${rd(c.fob, 3)}`],
-                ]} />
-                <ResultGroup color="#6b9b8b" label="Logística" rows={[
-                  ['Flete prorrateado', `U$S ${rd(c.fleteUnit, 2)}`],
-                  [`Seguro (${c.seguroPct}%)`, `U$S ${rd(c.seguroUnit, 3)}`],
-                  ['Despachante / aduana', `U$S ${rd(c.despachanteUnit, 2)}`],
-                  ['Flete interno / puerto', `U$S ${rd(c.fleteInternoUnit, 2)}`],
-                ]} subtotal={`CIF: U$S ${rd(c.cif, 2)}`} />
-                <ResultGroup color="#c0392b" label="Impuestos y comisiones" rows={[
-                  [`Trader (${c.traderPct}%)`, `U$S ${rd(c.traderUnit, 3)}`],
-                  [`D.I. (${c.di}%)`, `U$S ${rd(c.diUnit, 2)}`],
-                  [`IVA imp. (${c.ivaImp}%)`, `U$S ${rd(c.ivaUnit, 2)}`],
-                  [`Tasa estadística (${c.te}%)`, `U$S ${rd(c.teUnit, 3)}`],
-                ]} />
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', background: 'var(--accent)', borderRadius: 8, marginTop: 2 }}>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: '#fff', letterSpacing: '0.03em' }}>COSTO UNITARIO TOTAL</span>
-                  <span style={{ fontSize: 15, fontWeight: 800, color: '#fff', fontFamily: "'DM Mono', monospace" }}>U$S {rd(c.costoUSD, 2)}</span>
-                </div>
-              </div>
-            </div>
           </div>
         </div>
 
@@ -554,111 +502,123 @@ export default function Calculator() {
           </div>
         </div>
 
-        {/* ── Distribución ── */}
+        {/* ── Resultado + Distribución ── */}
         <div className="card dist-card" style={{ marginTop:'1.5rem' }}>
-          <div className="card-header"><span className="card-title">Distribución de la ganancia por venta</span></div>
+          <div className="card-header"><span className="card-title">Resultado y distribución de ganancia</span></div>
 
-          {/* Controles compactos centrados */}
-          <div className="dist-chip-row" style={{ display:'flex', justifyContent:'center', gap:10, marginBottom:20, flexWrap:'wrap', alignItems:'center' }}>
-            {[
-              { label:'Reinversión', id:'dist-reinversion', value:distReinv, color:'var(--accent)', setter:setDistReinv },
-              { label:'Retiro personal', id:'dist-ganancia', value:distGan,  color:'var(--green)',  setter:setDistGan  },
-            ].map(({ label, id, value, color, setter }) => (
-              <div className="dist-chip" key={id} style={{ display:'flex', alignItems:'center', gap:8, background:'var(--bg-3)', border:'1px solid var(--border)', borderRadius:8, padding:'8px 14px' }}>
-                <span style={{ width:8, height:8, borderRadius:2, background:color, flexShrink:0 }}/>
-                <span style={{ fontSize:12, color:'var(--text-2)', fontWeight:500, whiteSpace:'nowrap', flex:1 }}>{label}</span>
-                <input
-                  type="number" id={id} value={value} min="0" max="100" step="5"
-                  style={{ width:58, textAlign:'center', padding:'3px 8px', border:'1px solid var(--border)', borderRadius:5, fontFamily:'var(--font)', fontSize:13, fontWeight:700, color:'var(--text)', background:'var(--bg)', outline:'none' }}
-                  onChange={e => setter(Math.min(100, Math.max(0, parseFloat(e.target.value)||0)))}
-                />
-                <span style={{ fontSize:12, color:'var(--text-3)' }}>%</span>
-              </div>
-            ))}
-            <div style={{ display:'flex', alignItems:'center', gap:8, background:'var(--bg-3)', border:'1px solid var(--border)', borderRadius:8, padding:'8px 14px', opacity:0.75 }}>
-              <span style={{ width:8, height:8, borderRadius:2, background:'var(--amber)', flexShrink:0 }}/>
-              <span style={{ fontSize:12, color:'var(--text-2)', fontWeight:500 }}>Disponible</span>
-              <span style={{ fontSize:13, fontWeight:700, color:'var(--text)' }}>{rd(distLibre,1)}%</span>
-            </div>
-          </div>
+          <div className="dist-main-grid" style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:24, alignItems:'start' }}>
 
-          {/* Grid 3 columnas: card ML | donut chart | card TP */}
-          <div className="dist-main-grid" style={{ display:'grid', gridTemplateColumns:'1fr auto 1fr', gap:16, alignItems:'start' }}>
-
-            {/* Cards de canal */}
-            {[{ ch: mlCh, label: mlCh?.nombre || 'Mercado Libre', color: 'var(--accent)' },
-              { ch: tpCh, label: tpCh?.nombre || 'Tienda propia', color: 'var(--green)' }
-            ].map(({ ch, label: lbl, color }, i) => {
-              const ganNeta = chanGan(ch);
-              const card = (
-                <div key={i} style={{ background:'var(--bg-3)', borderRadius:'var(--radius-lg)', padding:'12px 14px', border:'1px solid var(--border)', borderTop:`3px solid ${color}` }}>
-                  <div style={{ fontSize:10, fontWeight:700, textTransform:'uppercase', letterSpacing:'0.08em', color, marginBottom:8 }}>{lbl}</div>
-                  <div style={{ fontSize:11, color:'var(--text-3)', marginBottom:2 }}>Ganancia neta</div>
-                  <div style={{ fontSize:18, fontWeight:700, color:'var(--text)', marginBottom:10 }}>{ars(ganNeta)}</div>
-                  <div style={{ display:'flex', height:4, borderRadius:3, overflow:'hidden', gap:1, marginBottom:10 }}>
-                    <div style={{ flex:distReinv||0.5, background:'var(--accent)', borderRadius:2 }}/>
-                    <div style={{ flex:distGan||0.5, background:'var(--green)', borderRadius:2 }}/>
-                    <div style={{ flex:Math.max(distLibre,0.5), background:'var(--amber)', borderRadius:2 }}/>
-                  </div>
-                  <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:5 }}>
-                    <div style={{ background:'var(--accent-dim)', borderRadius:'var(--radius)', padding:'6px 8px' }}>
-                      <div style={{ fontSize:9, fontWeight:600, color:'var(--accent)', letterSpacing:'0.06em', textTransform:'uppercase', marginBottom:2 }}>Reinversión {distReinv}%</div>
-                      <div style={{ fontSize:13, fontWeight:700, color:'var(--accent)' }}>{ars(ganNeta*distReinv/100)}</div>
-                    </div>
-                    <div style={{ background:'var(--green-dim)', borderRadius:'var(--radius)', padding:'6px 8px' }}>
-                      <div style={{ fontSize:9, fontWeight:600, color:'var(--green)', letterSpacing:'0.06em', textTransform:'uppercase', marginBottom:2 }}>Retiro {distGan}%</div>
-                      <div style={{ fontSize:13, fontWeight:700, color:'var(--green)' }}>{ars(ganNeta*distGan/100)}</div>
-                    </div>
-                    <div style={{ background:'var(--amber-dim)', borderRadius:'var(--radius)', padding:'6px 8px', gridColumn:'1/-1' }}>
-                      <div style={{ fontSize:9, fontWeight:600, color:'var(--amber)', letterSpacing:'0.06em', textTransform:'uppercase', marginBottom:2 }}>Disponible {rd(distLibre,1)}%</div>
-                      <div style={{ fontSize:13, fontWeight:700, color:'var(--amber)' }}>{ars(ganNeta*distLibre/100)} <span style={{ fontSize:11, fontWeight:400, color:'var(--text-3)' }}>· {c.qty} u: {ars(ganNeta*distLibre/100*c.qty)}</span></div>
-                    </div>
-                  </div>
+            {/* LEFT: Desglose completo del costo */}
+            <div>
+              {/* Big number */}
+              <div style={{ marginBottom:16 }}>
+                <div style={{ fontSize:10, fontWeight:600, color:'var(--text-3)', textTransform:'uppercase', letterSpacing:'0.07em', marginBottom:4 }}>Costo unitario total</div>
+                <div className="big-value" style={{ fontSize:32, marginBottom:2 }}>{ars(c.costoARS)}</div>
+                <div style={{ fontSize:12, color:'var(--text-3)' }}>
+                  U$S {rd(c.costoUSD,2)} · ¥{rd(c.costoUSD/(parseFloat(inputs.cny)||0.1466),0)} CNY · {c.qty} u = {ars(c.costoARS*c.qty)} total
                 </div>
-              );
-              return i === 0
-                ? card
-                : <>{/* Donut de composición de costos */}
-                    <div style={{ display:'flex', flexDirection:'column', alignItems:'center', padding:'4px 8px', minWidth:180 }}>
-                      <div style={{ fontSize:9, fontWeight:700, color:'var(--text-3)', letterSpacing:'0.08em', textTransform:'uppercase', marginBottom:10 }}>Composición del costo</div>
-                      {(() => {
-                        const R = 54, CX = 70, CY = 70, C = 2 * Math.PI * R;
-                        let cum = 0;
-                        return (
-                          <svg viewBox="0 0 140 140" width={150} height={150}>
-                            <circle cx={CX} cy={CY} r={R} fill="none" stroke="var(--border)" strokeWidth={18} />
-                            {pctBars.map((b, bi) => {
-                              const pct  = Math.max(b.pct, 0.3);
-                              const dash = pct / 100 * C;
-                              const off  = C * 0.25 - (cum / 100 * C);
-                              cum += b.pct;
-                              return (
-                                <circle key={bi} cx={CX} cy={CY} r={R} fill="none"
-                                  stroke={b.color} strokeWidth={18}
-                                  strokeDasharray={`${dash} ${C - dash}`}
-                                  strokeDashoffset={off}
-                                  style={{ transition: 'all 0.4s' }}
-                                />
-                              );
-                            })}
-                            <text x={CX} y={CY - 7} textAnchor="middle" fontSize="8.5" fill="var(--text-3)" fontFamily="var(--font)" fontWeight="600" letterSpacing="0.06em">COSTO</text>
-                            <text x={CX} y={CY + 8} textAnchor="middle" fontSize="13" fill="var(--text)" fontFamily="var(--font)" fontWeight="700">U$S {rd(c.costoUSD,2)}</text>
-                          </svg>
-                        );
-                      })()}
-                      <div style={{ display:'flex', flexDirection:'column', gap:5, width:'100%', marginTop:4 }}>
-                        {pctBars.map((b, bi) => (
-                          <div key={bi} style={{ display:'flex', alignItems:'center', gap:6 }}>
-                            <span style={{ width:8, height:8, borderRadius:2, background:b.color, flexShrink:0 }}/>
-                            <span style={{ fontSize:10, color:'var(--text-3)', flex:1 }}>{b.label}</span>
-                            <span style={{ fontSize:10, fontWeight:700, color:'var(--text-2)' }}>{rd(b.pct,1)}%</span>
-                          </div>
-                        ))}
+              </div>
+
+              {/* Composition bars */}
+              <div style={{ display:'flex', height:6, borderRadius:4, overflow:'hidden', marginBottom:8, gap:2 }}>
+                {pctBars.map((b,i)=>(
+                  <div key={i} style={{ flex:Math.max(b.pct,0.5), background:b.color, borderRadius:3, transition:'flex 0.3s' }} title={`${b.label}: ${rd(b.pct,1)}%`}/>
+                ))}
+              </div>
+              <div style={{ display:'flex', flexWrap:'wrap', gap:'3px 10px', marginBottom:16 }}>
+                {pctBars.map((b,i)=>(
+                  <div key={i} style={{ display:'flex', alignItems:'center', gap:4, fontSize:10, color:'var(--text-3)' }}>
+                    <span style={{ width:7, height:7, borderRadius:1, background:b.color, flexShrink:0 }}/>
+                    {b.label} <strong style={{ color:'var(--text-2)' }}>{rd(b.pct,1)}%</strong>
+                  </div>
+                ))}
+              </div>
+
+              {/* Result groups */}
+              <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+                <ResultGroup color="#4a7dc1" label="Precio de compra" rows={[
+                  ['Valor FOB (1688)', `U$S ${rd(c.fob,3)}`],
+                ]} />
+                <ResultGroup color="#6b9b8b" label="Logística" rows={[
+                  ['Flete prorrateado', `U$S ${rd(c.fleteUnit,2)}`],
+                  [`Seguro (${c.seguroPct}%)`, `U$S ${rd(c.seguroUnit,3)}`],
+                  ['Despachante / aduana', `U$S ${rd(c.despachanteUnit,2)}`],
+                  ['Flete interno / puerto', `U$S ${rd(c.fleteInternoUnit,2)}`],
+                ]} subtotal={`CIF: U$S ${rd(c.cif,2)}`} />
+                <ResultGroup color="#c0392b" label="Impuestos y comisiones" rows={[
+                  [`Trader (${c.traderPct}%)`, `U$S ${rd(c.traderUnit,3)}`],
+                  [`D.I. (${c.di}%)`, `U$S ${rd(c.diUnit,2)}`],
+                  [`IVA imp. (${c.ivaImp}%)`, `U$S ${rd(c.ivaUnit,2)}`],
+                  [`Tasa estadística (${c.te}%)`, `U$S ${rd(c.teUnit,3)}`],
+                ]} />
+                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'10px 14px', background:'var(--accent)', borderRadius:8, marginTop:2 }}>
+                  <span style={{ fontSize:12, fontWeight:700, color:'#fff', letterSpacing:'0.03em' }}>COSTO UNITARIO TOTAL</span>
+                  <span style={{ fontSize:15, fontWeight:800, color:'#fff', fontFamily:"'DM Mono', monospace" }}>U$S {rd(c.costoUSD,2)}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* RIGHT: Distribución de ganancia */}
+            <div>
+              {/* Controles */}
+              <div className="dist-chip-row" style={{ display:'flex', gap:8, marginBottom:14, flexWrap:'wrap' }}>
+                {[
+                  { label:'Reinversión', id:'dist-reinversion', value:distReinv, color:'var(--accent)', setter:setDistReinv },
+                  { label:'Retiro personal', id:'dist-ganancia', value:distGan, color:'var(--green)', setter:setDistGan },
+                ].map(({ label, id, value, color, setter }) => (
+                  <div className="dist-chip" key={id} style={{ display:'flex', alignItems:'center', gap:6, background:'var(--bg-3)', border:'1px solid var(--border)', borderRadius:8, padding:'7px 12px', flex:1 }}>
+                    <span style={{ width:7, height:7, borderRadius:2, background:color, flexShrink:0 }}/>
+                    <span style={{ fontSize:11, color:'var(--text-2)', fontWeight:500, flex:1, whiteSpace:'nowrap' }}>{label}</span>
+                    <input type="number" id={id} value={value} min="0" max="100" step="5"
+                      style={{ width:52, textAlign:'center', padding:'2px 6px', border:'1px solid var(--border)', borderRadius:5, fontFamily:'var(--font)', fontSize:13, fontWeight:700, color:'var(--text)', background:'var(--bg)', outline:'none' }}
+                      onChange={e => setter(Math.min(100, Math.max(0, parseFloat(e.target.value)||0)))} />
+                    <span style={{ fontSize:11, color:'var(--text-3)' }}>%</span>
+                  </div>
+                ))}
+                <div style={{ display:'flex', alignItems:'center', gap:6, background:'var(--bg-3)', border:'1px solid var(--border)', borderRadius:8, padding:'7px 12px' }}>
+                  <span style={{ width:7, height:7, borderRadius:2, background:'var(--amber)', flexShrink:0 }}/>
+                  <span style={{ fontSize:11, color:'var(--text-2)', fontWeight:500 }}>Disponible</span>
+                  <span style={{ fontSize:13, fontWeight:700, color:'var(--text)' }}>{rd(distLibre,1)}%</span>
+                </div>
+              </div>
+
+              {/* Canal cards */}
+              <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+                {[{ ch:mlCh, label:mlCh?.nombre||'Mercado Libre', color:'var(--accent)' },
+                  { ch:tpCh, label:tpCh?.nombre||'Tienda propia',  color:'var(--green)'  }
+                ].map(({ ch, label:lbl, color }, i) => {
+                  const ganNeta = chanGan(ch);
+                  return (
+                    <div key={i} style={{ background:'var(--bg-3)', borderRadius:'var(--radius-lg)', padding:'12px 14px', border:'1px solid var(--border)', borderTop:`3px solid ${color}` }}>
+                      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:6 }}>
+                        <div style={{ fontSize:10, fontWeight:700, textTransform:'uppercase', letterSpacing:'0.08em', color }}>{lbl}</div>
+                        <div style={{ fontSize:11, color:'var(--text-3)' }}>Ganancia neta: <strong style={{ color:'var(--text)', fontSize:15 }}>{ars(ganNeta)}</strong></div>
+                      </div>
+                      <div style={{ display:'flex', height:4, borderRadius:3, overflow:'hidden', gap:1, marginBottom:10 }}>
+                        <div style={{ flex:distReinv||0.5, background:'var(--accent)', borderRadius:2 }}/>
+                        <div style={{ flex:distGan||0.5, background:'var(--green)', borderRadius:2 }}/>
+                        <div style={{ flex:Math.max(distLibre,0.5), background:'var(--amber)', borderRadius:2 }}/>
+                      </div>
+                      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:5 }}>
+                        <div style={{ background:'var(--accent-dim)', borderRadius:'var(--radius)', padding:'6px 8px' }}>
+                          <div style={{ fontSize:9, fontWeight:600, color:'var(--accent)', letterSpacing:'0.05em', textTransform:'uppercase', marginBottom:2 }}>Reinversión {distReinv}%</div>
+                          <div style={{ fontSize:12, fontWeight:700, color:'var(--accent)' }}>{ars(ganNeta*distReinv/100)}</div>
+                        </div>
+                        <div style={{ background:'var(--green-dim)', borderRadius:'var(--radius)', padding:'6px 8px' }}>
+                          <div style={{ fontSize:9, fontWeight:600, color:'var(--green)', letterSpacing:'0.05em', textTransform:'uppercase', marginBottom:2 }}>Retiro {distGan}%</div>
+                          <div style={{ fontSize:12, fontWeight:700, color:'var(--green)' }}>{ars(ganNeta*distGan/100)}</div>
+                        </div>
+                        <div style={{ background:'var(--amber-dim)', borderRadius:'var(--radius)', padding:'6px 8px' }}>
+                          <div style={{ fontSize:9, fontWeight:600, color:'var(--amber)', letterSpacing:'0.05em', textTransform:'uppercase', marginBottom:2 }}>Disponible {rd(distLibre,1)}%</div>
+                          <div style={{ fontSize:12, fontWeight:700, color:'var(--amber)' }}>{ars(ganNeta*distLibre/100)}</div>
+                        </div>
                       </div>
                     </div>
-                    {card}
-                  </>;
-            })}
+                  );
+                })}
+              </div>
+            </div>
+
           </div>
         </div>
 
