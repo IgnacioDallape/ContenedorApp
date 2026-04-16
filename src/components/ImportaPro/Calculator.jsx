@@ -187,7 +187,7 @@ export default function Calculator() {
                     onChange={e => setInputs({ nombre: e.target.value })} />
                 </div>
               </div>
-              <CalcSection color="#4a7dc1" label="Precio de compra" style={{ marginBottom: 4 }}>
+              <CalcSection id="calc-fob" color="#4a7dc1" label="Precio de compra" style={{ marginBottom: 4 }}>
                 <div className="form-grid-2">
                   <div className="field full">
                     <label>Moneda del precio de compra</label>
@@ -378,7 +378,7 @@ export default function Calculator() {
               <span className="card-title">Logística e importación</span>
               <button className="btn-text" onClick={() => setActiveSection('ncm')}>Buscar NCM →</button>
             </div>
-            <CalcSection color="#4a8ac4" label="Flete internacional">
+            <CalcSection id="calc-flete" color="#4a8ac4" label="Flete internacional">
               <div className="form-grid-2">
                 <div className="field"><label>Flete total <span className="unit">USD</span></label>
                   <input type="number" id="p-flete" value={inputs.flete} min="0"
@@ -388,7 +388,7 @@ export default function Calculator() {
                     onChange={e => setInputs({ seguroPct: parseFloat(e.target.value)||0 })} /></div>
               </div>
             </CalcSection>
-            <CalcSection color="#6b9b8b" label="Despacho y flete interno" style={{ marginTop: 10 }}>
+            <CalcSection id="calc-despacho" color="#6b9b8b" label="Despacho y flete interno" style={{ marginTop: 10 }}>
               <div className="form-grid-2">
                 <div className="field">
                   <label>Despachante / aduana <span className="unit">USD total</span></label>
@@ -405,7 +405,7 @@ export default function Calculator() {
                 Honorarios del despachante + aranceles pagados en aduana + transporte puerto → depósito. Se prorratean por unidad.
               </div>
             </CalcSection>
-            <CalcSection color="#7ba3d4" label="Comisión trader China" style={{ marginTop: 10 }}>
+            <CalcSection id="calc-trader" color="#7ba3d4" label="Comisión trader China" style={{ marginTop: 10 }}>
               <div className="form-grid-2">
                 <div className="field">
                   <label>Comisión trader <span className="unit">% sobre FOB</span></label>
@@ -421,7 +421,7 @@ export default function Calculator() {
                 Gestiona fabricantes, calidad y despacho en origen. Rango habitual: 4 – 8 % del FOB.
               </div>
             </CalcSection>
-            <CalcSection color="#c0392b" label="Aranceles Argentina" style={{ marginTop: 10 }}>
+            <CalcSection id="calc-aranceles" color="#c0392b" label="Aranceles Argentina" style={{ marginTop: 10 }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 <div>
                   <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-3)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 7 }}>Derecho de importación</div>
@@ -561,12 +561,12 @@ export default function Calculator() {
             {/* CENTER: Donut interactivo */}
             <InteractiveDonut
               slices={[
-                { label:'FOB',           pct: c.fob/tot*100,                         color:'#1a4f8a', usd: c.fob },
-                { label:'Flete int.',    pct: (c.fleteUnit+c.seguroUnit)/tot*100,    color:'#4a8ac4', usd: c.fleteUnit+c.seguroUnit },
-                { label:'Despachante',   pct: c.despachanteUnit/tot*100,             color:'#6b9b8b', usd: c.despachanteUnit },
-                { label:'Flete interno', pct: c.fleteInternoUnit/tot*100,            color:'#5b8b7b', usd: c.fleteInternoUnit },
-                { label:'Trader',        pct: c.traderUnit/tot*100,                  color:'#7ba3d4', usd: c.traderUnit },
-                { label:'Impuestos',     pct: (c.diUnit+c.ivaUnit+c.teUnit)/tot*100, color:'#c0392b', usd: c.diUnit+c.ivaUnit+c.teUnit },
+                { label:'FOB',           pct: c.fob/tot*100,                         color:'#1a4f8a', usd: c.fob,                                sectionId:'calc-fob'      },
+                { label:'Flete int.',    pct: (c.fleteUnit+c.seguroUnit)/tot*100,    color:'#4a8ac4', usd: c.fleteUnit+c.seguroUnit,              sectionId:'calc-flete'    },
+                { label:'Despachante',   pct: c.despachanteUnit/tot*100,             color:'#6b9b8b', usd: c.despachanteUnit,                     sectionId:'calc-despacho' },
+                { label:'Flete interno', pct: c.fleteInternoUnit/tot*100,            color:'#5b8b7b', usd: c.fleteInternoUnit,                    sectionId:'calc-despacho' },
+                { label:'Trader',        pct: c.traderUnit/tot*100,                  color:'#7ba3d4', usd: c.traderUnit,                          sectionId:'calc-trader'   },
+                { label:'Impuestos',     pct: (c.diUnit+c.ivaUnit+c.teUnit)/tot*100, color:'#c0392b', usd: c.diUnit+c.ivaUnit+c.teUnit,           sectionId:'calc-aranceles'},
               ]}
               centerLabel="Costo total"
               centerValue={`U$S ${rd(c.costoUSD,2)}`}
@@ -645,9 +645,9 @@ export default function Calculator() {
   );
 }
 
-function CalcSection({ color, label, children, style }) {
+function CalcSection({ color, label, children, style, id }) {
   return (
-    <div style={{ borderLeft: `3px solid ${color}`, borderRadius: '0 8px 8px 0', overflow: 'hidden', ...style }}>
+    <div id={id} style={{ borderLeft: `3px solid ${color}`, borderRadius: '0 8px 8px 0', overflow: 'hidden', ...style }}>
       <div style={{ padding: '6px 12px', background: `${color}15`, borderBottom: `1px solid ${color}30` }}>
         <span style={{ fontSize: 10, fontWeight: 700, color, letterSpacing: '0.07em', textTransform: 'uppercase' }}>{label}</span>
       </div>
@@ -708,6 +708,12 @@ function InteractiveDonut({ slices, centerLabel, centerValue }) {
   const circ = 2 * Math.PI * R;
   const GAP_DEG = 2.5;
 
+  function scrollToSection(id) {
+    if (!id) return;
+    const el = document.getElementById(id);
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
   let cumPct = 0;
   const segs = slices.map((s, i) => {
     const startDeg = cumPct * 3.6 - 90;
@@ -740,6 +746,7 @@ function InteractiveDonut({ slices, centerLabel, centerValue }) {
                 style={{ cursor:'pointer', transition:'r 0.18s, stroke-width 0.18s', filter: active ? `drop-shadow(0 0 6px ${seg.color}90)` : 'none' }}
                 onMouseEnter={() => setHovered(i)}
                 onMouseLeave={() => setHovered(null)}
+                onClick={() => scrollToSection(seg.sectionId)}
               />
             );
           })}
@@ -764,6 +771,8 @@ function InteractiveDonut({ slices, centerLabel, centerValue }) {
           <div key={i}
             onMouseEnter={() => setHovered(i)}
             onMouseLeave={() => setHovered(null)}
+            onClick={() => scrollToSection(s.sectionId)}
+            title="Ir a la sección"
             style={{ display:'flex', alignItems:'center', gap:5, cursor:'pointer', padding:'3px 5px', borderRadius:5,
               background: hovered===i ? `${s.color}18` : 'transparent', transition:'background 0.15s' }}>
             <span style={{ width:7, height:7, borderRadius:2, background:s.color, flexShrink:0 }}/>
