@@ -357,9 +357,9 @@ export default function Calculator() {
                       {/* Open link button */}
                       <button
                         onClick={() => hasVal && window.open(inputs[key],'_blank')}
-                        style={{ flexShrink:0, width:38, border:'none', borderLeft:'1px solid var(--border-2)', background: hasVal ? `${color}12` : 'transparent', color: hasVal ? color : 'var(--border)', fontSize:13, cursor: hasVal ? 'pointer' : 'default', transition:'all 0.15s' }}
+                        style={{ flexShrink:0, width:38, border:'none', borderLeft:'1px solid var(--border-2)', background: hasVal ? `${color}18` : 'transparent', color: hasVal ? color : 'var(--border)', fontSize:hasVal ? 16 : 13, cursor: hasVal ? 'pointer' : 'default', transition:'all 0.15s', display:'flex', alignItems:'center', justifyContent:'center' }}
                         title={hasVal ? 'Abrir enlace' : 'Sin enlace'}
-                      >↗</button>
+                      >{hasVal ? '✓' : '↗'}</button>
                     </div>
                   );
                 })}
