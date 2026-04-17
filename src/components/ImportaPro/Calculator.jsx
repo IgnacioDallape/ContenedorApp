@@ -623,7 +623,7 @@ export default function Calculator() {
               </div>
 
               {/* Canal cards */}
-              <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+              <div style={{ display:'flex', flexDirection:'column', gap:10, maxHeight: canales.length > 3 ? 420 : 'none', overflowY: canales.length > 3 ? 'auto' : 'visible', paddingRight: canales.length > 3 ? 4 : 0 }}>
                 {canales.map((ch, i) => {
                   const COLORS = ['var(--accent)','var(--green)','var(--amber)','#7ba3d4','#6b9b8b'];
                   const color = COLORS[i % COLORS.length];
