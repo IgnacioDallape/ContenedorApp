@@ -38,7 +38,7 @@ const DEFAULT_INPUTS = {
 
 const useImportaproStore = create((set, get) => ({
   savedProducts: JSON.parse(localStorage.getItem('importapro-products') || '[]'),
-  canales: DEFAULT_CANALES,
+  canales: JSON.parse(JSON.stringify(DEFAULT_CANALES)),
   inputs: { ...DEFAULT_INPUTS },
   apiKey: localStorage.getItem('importapro-apikey') || '',
   loadedProductName: null,

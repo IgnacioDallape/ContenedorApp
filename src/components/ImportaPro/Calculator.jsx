@@ -641,7 +641,7 @@ export default function Calculator() {
                     <div key={i} style={{ background:'var(--bg-3)', borderRadius:'var(--radius-lg)', padding:'12px 14px', border:`1px solid ${ganNeta < 0 && ch?.precio > 0 ? '#c0392b60' : 'var(--border)'}`, borderTop:`3px solid ${ganNeta < 0 && ch?.precio > 0 ? '#c0392b' : color}` }}>
                       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom: ganNeta < 0 && ch?.precio > 0 ? 4 : 6 }}>
                         <div style={{ fontSize:12, fontWeight:700, textTransform:'uppercase', letterSpacing:'0.08em', color: ganNeta < 0 && ch?.precio > 0 ? '#c0392b' : color }}>{lbl}</div>
-                        <div style={{ fontSize:12, color:'var(--text-3)' }}>Ganancia neta: <strong style={{ color: ganNeta < 0 && ch?.precio > 0 ? '#c0392b' : 'var(--text)', fontSize:17 }}>{ars(Math.max(0, ganNeta))}</strong></div>
+                        <div style={{ fontSize:12, color:'var(--text-3)' }}>Ganancia neta: <strong style={{ color: ganNeta < 0 && ch?.precio > 0 ? '#c0392b' : 'var(--text)', fontSize:17 }}>{ars(ganNeta)}</strong></div>
                       </div>
                       {ganNeta < 0 && ch?.precio > 0 && (
                         <div style={{ fontSize:12, color:'#c0392b', fontWeight:600, background:'#c0392b12', borderRadius:4, padding:'3px 8px', marginBottom:6 }}>

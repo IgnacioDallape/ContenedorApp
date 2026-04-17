@@ -11,12 +11,15 @@ const CHANNELS = [
 
 function simCalc(costo, margenT, iva, iibb, iigg) {
   return CHANNELS.map(ch => {
-    const ivaF  = 1 + iva / 100;
-    const comF  = ch.comision / 100;
-    const iibbF = iibb / 100;
-    const base  = costo * (1 + margenT / 100 / (1 - iigg / 100)) / (1 - comF - iibbF);
-    const precio = Math.round(base * ivaF);
-    const ganB  = precio - costo - precio * comF - precio * iibbF - precio / ivaF * (iva / 100);
+    const ivaF    = 1 + iva / 100;
+    const comF    = ch.comision / 100;
+    const iibbF   = iibb / 100;
+    const iiggF   = Math.min(iigg / 100, 0.9999); // guard: iigg=100 → div/0
+    const denomCh = 1 - comF - iibbF;
+    const safeDenom = denomCh > 0.0001 ? denomCh : 0.0001; // guard: comisión+IIBB≥100%
+    const base    = costo * (1 + margenT / 100 / (1 - iiggF)) / safeDenom;
+    const precio  = Math.round(base * ivaF);
+    const ganB    = precio - costo - precio * comF - precio * iibbF - precio / ivaF * (iva / 100);
     const ganPost = ganB * (1 - iigg / 100);
     const mgReal  = costo > 0 ? Math.round(ganPost / costo * 100) : 0;
     return { ...ch, precio, ganPost, mgReal };
