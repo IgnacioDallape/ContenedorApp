@@ -77,8 +77,6 @@ export default function NcmSearch() {
     }).sort((a, b) => a.desc.localeCompare(b.desc));
   }, [filtro, catActiva]);
 
-  const iaActiva = !!apiKey && apiKey.startsWith('sk-ant-');
-
   return (
     <div className="ip-section active" id="section-ncm">
       <section id="tab-ncm" className="tab" style={{ display: 'block' }}>
@@ -91,10 +89,10 @@ export default function NcmSearch() {
           <div className="ncm-top-grid">
             <div className="card ncm-hero-card">
               <div className="ncm-hero-copy">
-                <div className="card-title">Asistente NCM</div>
-                <h2>Buscá por descripción y llevate un punto de partida claro.</h2>
+                <div className="card-title">Buscador NCM</div>
+                <h2>Buscá por descripción y encontrá una referencia rápida.</h2>
                 <p>
-                  Describí el producto en lenguaje natural y la IA te devuelve los 3 NCM más probables con su
+                  Describí el producto en lenguaje natural para obtener códigos NCM probables junto con su
                   derecho de importación estimado.
                 </p>
               </div>
@@ -103,10 +101,6 @@ export default function NcmSearch() {
                 <div className="ncm-stat">
                   <span className="ncm-stat-value">{NCM_FRECUENTES.length}</span>
                   <span className="ncm-stat-label">NCM frecuentes cargados</span>
-                </div>
-                <div className={`ncm-status ${iaActiva ? 'ready' : 'muted'}`}>
-                  <span className="ncm-status-dot" />
-                  {iaActiva ? 'Anthropic conectado' : 'Falta API key de Anthropic'}
                 </div>
               </div>
 
@@ -123,19 +117,24 @@ export default function NcmSearch() {
                     onKeyDown={e => e.key === 'Enter' && buscarNcm()}
                   />
                   <button className="btn-primary ncm-search-btn" onClick={buscarNcm} disabled={loading}>
-                    {loading ? 'Buscando…' : 'Buscar con IA'}
+                    {loading ? 'Buscando…' : 'Buscar NCM'}
                   </button>
                 </div>
                 <p className="ncm-search-help">
-                  Consejo: incluí material, uso principal y tipo de producto para obtener mejores coincidencias.
+                  Consejo: incluí material, uso principal y tipo de producto para obtener resultados más precisos.
                 </p>
+              </div>
+
+              <div className="ncm-warning">
+                <strong>Importante:</strong> este porcentaje puede estar desactualizado al momento del uso.
+                Corroborá siempre el DI con un despachante de aduanas antes de tomarlo como definitivo.
               </div>
 
               {error && <div className="ncm-error">{error}</div>}
 
               {results.length > 0 && (
                 <div className="ncm-ai-results">
-                  <div className="ncm-results-header">
+                <div className="ncm-results-header">
                     <span className="card-title">Resultados sugeridos</span>
                     <span className="ncm-results-count">{results.length} coincidencias</span>
                   </div>
