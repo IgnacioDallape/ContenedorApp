@@ -95,6 +95,7 @@ export default function AppShell() {
           {navItem('calc',      '⊞', 'Calculadora')}
           {navItem('products',   '◧', 'Mis productos')}
           {navItem('comparator','⇄', 'Comparar productos')}
+          {navItem('ncm',       '🔍', 'Buscar NCM')}
           {navItem('simulator', '⊙', 'Simulador de precio')}
           {navItem('prices',    '🏷', 'Precios a publicar')}
           <div className="nav-section">Contenedor</div>
