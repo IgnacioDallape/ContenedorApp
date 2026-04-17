@@ -80,7 +80,13 @@ export default function Calculator() {
       costoARS:  Math.round(c.costoARS),
       costoUSD:  rd(c.costoUSD, 2),
       di:        c.di,
+      ivaImp:    c.ivaImp,
+      te:        c.te,
       traderPct: c.traderPct,
+      flete:     parseFloat(inputs.flete)        || 0,
+      seguroPct: parseFloat(inputs.seguroPct)    || 0,
+      despachante:   parseFloat(inputs.despachante)   || 0,
+      fleteInterno:  parseFloat(inputs.fleteInterno)  || 0,
       canales:   JSON.parse(JSON.stringify(canales)),
       date:      new Date().toLocaleDateString('es-AR'),
       link1688:  inputs.link1688 || '',
@@ -536,9 +542,9 @@ export default function Calculator() {
             <div>
               {/* Big number */}
               <div style={{ marginBottom:16 }}>
-                <div style={{ fontSize:10, fontWeight:600, color:'var(--text-3)', textTransform:'uppercase', letterSpacing:'0.07em', marginBottom:4 }}>Costo unitario total</div>
+                <div style={{ fontSize:12, fontWeight:600, color:'var(--text-3)', textTransform:'uppercase', letterSpacing:'0.07em', marginBottom:4 }}>Costo unitario total</div>
                 <div className="big-value" style={{ fontSize:32, marginBottom:2 }}>{ars(c.costoARS)}</div>
-                <div style={{ fontSize:12, color:'var(--text-3)' }}>
+                <div style={{ fontSize:13, color:'var(--text-3)' }}>
                   U$S {rd(c.costoUSD,2)} · ¥{rd(c.costoUSD/(parseFloat(inputs.cny)||0.1466),0)} CNY · {c.qty} u = {ars(c.costoARS*c.qty)} total
                 </div>
               </div>
@@ -551,7 +557,7 @@ export default function Calculator() {
               </div>
               <div style={{ display:'flex', flexWrap:'wrap', gap:'3px 10px', marginBottom:16 }}>
                 {pctBars.map((b,i)=>(
-                  <div key={i} style={{ display:'flex', alignItems:'center', gap:4, fontSize:10, color:'var(--text-3)' }}>
+                  <div key={i} style={{ display:'flex', alignItems:'center', gap:4, fontSize:12, color:'var(--text-3)' }}>
                     <span style={{ width:7, height:7, borderRadius:1, background:b.color, flexShrink:0 }}/>
                     {b.label} <strong style={{ color:'var(--text-2)' }}>{rd(b.pct,1)}%</strong>
                   </div>
@@ -576,8 +582,8 @@ export default function Calculator() {
                   [`Tasa estadística (${c.te}%)`, `U$S ${rd(c.teUnit,3)}`],
                 ]} />
                 <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'10px 14px', background:'var(--accent)', borderRadius:8, marginTop:2 }}>
-                  <span style={{ fontSize:12, fontWeight:700, color:'#fff', letterSpacing:'0.03em' }}>COSTO UNITARIO TOTAL</span>
-                  <span style={{ fontSize:15, fontWeight:800, color:'#fff', fontFamily:"'DM Mono', monospace" }}>U$S {rd(c.costoUSD,2)}</span>
+                  <span style={{ fontSize:13, fontWeight:700, color:'#fff', letterSpacing:'0.03em' }}>COSTO UNITARIO TOTAL</span>
+                  <span style={{ fontSize:16, fontWeight:800, color:'#fff', fontFamily:"'DM Mono', monospace" }}>U$S {rd(c.costoUSD,2)}</span>
                 </div>
               </div>
             </div>
@@ -608,17 +614,17 @@ export default function Calculator() {
                 ].map(({ label, id, value, color, onChange }) => (
                   <div className="dist-chip" key={id} style={{ display:'flex', alignItems:'center', gap:6, background:'var(--bg-3)', border:'1px solid var(--border)', borderRadius:8, padding:'7px 12px', flex:1 }}>
                     <span style={{ width:7, height:7, borderRadius:2, background:color, flexShrink:0 }}/>
-                    <span style={{ fontSize:11, color:'var(--text-2)', fontWeight:500, flex:1, whiteSpace:'nowrap' }}>{label}</span>
+                    <span style={{ fontSize:13, color:'var(--text-2)', fontWeight:500, flex:1, whiteSpace:'nowrap' }}>{label}</span>
                     <input type="number" id={id} value={value} min="0" max="100" step="5"
-                      style={{ width:52, textAlign:'center', padding:'2px 6px', border:'1px solid var(--border)', borderRadius:5, fontFamily:'var(--font)', fontSize:13, fontWeight:700, color:'var(--text)', background:'var(--bg)', outline:'none' }}
+                      style={{ width:52, textAlign:'center', padding:'2px 6px', border:'1px solid var(--border)', borderRadius:5, fontFamily:'var(--font)', fontSize:14, fontWeight:700, color:'var(--text)', background:'var(--bg)', outline:'none' }}
                       onChange={e => onChange(parseFloat(e.target.value)||0)} />
-                    <span style={{ fontSize:11, color:'var(--text-3)' }}>%</span>
+                    <span style={{ fontSize:13, color:'var(--text-3)' }}>%</span>
                   </div>
                 ))}
                 <div style={{ display:'flex', alignItems:'center', gap:6, background:'var(--bg-3)', border:'1px solid var(--border)', borderRadius:8, padding:'7px 12px' }}>
                   <span style={{ width:7, height:7, borderRadius:2, background:'var(--amber)', flexShrink:0 }}/>
-                  <span style={{ fontSize:11, color:'var(--text-2)', fontWeight:500 }}>Disponible</span>
-                  <span style={{ fontSize:13, fontWeight:700, color:'var(--text)' }}>{rd(distLibre,1)}%</span>
+                  <span style={{ fontSize:13, color:'var(--text-2)', fontWeight:500 }}>Disponible</span>
+                  <span style={{ fontSize:14, fontWeight:700, color:'var(--text)' }}>{rd(distLibre,1)}%</span>
                 </div>
               </div>
 
@@ -634,11 +640,11 @@ export default function Calculator() {
                   return (
                     <div key={i} style={{ background:'var(--bg-3)', borderRadius:'var(--radius-lg)', padding:'12px 14px', border:`1px solid ${ganNeta < 0 && ch?.precio > 0 ? '#c0392b60' : 'var(--border)'}`, borderTop:`3px solid ${ganNeta < 0 && ch?.precio > 0 ? '#c0392b' : color}` }}>
                       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom: ganNeta < 0 && ch?.precio > 0 ? 4 : 6 }}>
-                        <div style={{ fontSize:10, fontWeight:700, textTransform:'uppercase', letterSpacing:'0.08em', color: ganNeta < 0 && ch?.precio > 0 ? '#c0392b' : color }}>{lbl}</div>
-                        <div style={{ fontSize:11, color:'var(--text-3)' }}>Ganancia neta: <strong style={{ color: ganNeta < 0 && ch?.precio > 0 ? '#c0392b' : 'var(--text)', fontSize:15 }}>{ars(Math.max(0, ganNeta))}</strong></div>
+                        <div style={{ fontSize:12, fontWeight:700, textTransform:'uppercase', letterSpacing:'0.08em', color: ganNeta < 0 && ch?.precio > 0 ? '#c0392b' : color }}>{lbl}</div>
+                        <div style={{ fontSize:12, color:'var(--text-3)' }}>Ganancia neta: <strong style={{ color: ganNeta < 0 && ch?.precio > 0 ? '#c0392b' : 'var(--text)', fontSize:17 }}>{ars(Math.max(0, ganNeta))}</strong></div>
                       </div>
                       {ganNeta < 0 && ch?.precio > 0 && (
-                        <div style={{ fontSize:10, color:'#c0392b', fontWeight:600, background:'#c0392b12', borderRadius:4, padding:'3px 8px', marginBottom:6 }}>
+                        <div style={{ fontSize:12, color:'#c0392b', fontWeight:600, background:'#c0392b12', borderRadius:4, padding:'3px 8px', marginBottom:6 }}>
                           ⚠ Precio de venta por debajo del costo — perdés {ars(Math.abs(ganNeta))} por unidad
                         </div>
                       )}
@@ -649,16 +655,16 @@ export default function Calculator() {
                       </div>
                       <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:5 }}>
                         <div style={{ background:'var(--accent-dim)', borderRadius:'var(--radius)', padding:'6px 8px' }}>
-                          <div style={{ fontSize:9, fontWeight:600, color:'var(--accent)', letterSpacing:'0.05em', textTransform:'uppercase', marginBottom:2 }}>Reinversión {distReinv}%</div>
-                          <div style={{ fontSize:12, fontWeight:700, color:'var(--accent)' }}>{ars(ganNeta*distReinv/100)}</div>
+                          <div style={{ fontSize:11, fontWeight:600, color:'var(--accent)', letterSpacing:'0.05em', textTransform:'uppercase', marginBottom:2 }}>Reinversión {distReinv}%</div>
+                          <div style={{ fontSize:13, fontWeight:700, color:'var(--accent)' }}>{ars(ganNeta*distReinv/100)}</div>
                         </div>
                         <div style={{ background:'var(--green-dim)', borderRadius:'var(--radius)', padding:'6px 8px' }}>
-                          <div style={{ fontSize:9, fontWeight:600, color:'var(--green)', letterSpacing:'0.05em', textTransform:'uppercase', marginBottom:2 }}>Retiro {distGan}%</div>
-                          <div style={{ fontSize:12, fontWeight:700, color:'var(--green)' }}>{ars(ganNeta*distGan/100)}</div>
+                          <div style={{ fontSize:11, fontWeight:600, color:'var(--green)', letterSpacing:'0.05em', textTransform:'uppercase', marginBottom:2 }}>Retiro {distGan}%</div>
+                          <div style={{ fontSize:13, fontWeight:700, color:'var(--green)' }}>{ars(ganNeta*distGan/100)}</div>
                         </div>
                         <div style={{ background:'var(--amber-dim)', borderRadius:'var(--radius)', padding:'6px 8px' }}>
-                          <div style={{ fontSize:9, fontWeight:600, color:'var(--amber)', letterSpacing:'0.05em', textTransform:'uppercase', marginBottom:2 }}>Disponible {rd(distLibre,1)}%</div>
-                          <div style={{ fontSize:12, fontWeight:700, color:'var(--amber)' }}>{ars(ganNeta*distLibre/100)}</div>
+                          <div style={{ fontSize:11, fontWeight:600, color:'var(--amber)', letterSpacing:'0.05em', textTransform:'uppercase', marginBottom:2 }}>Disponible {rd(distLibre,1)}%</div>
+                          <div style={{ fontSize:13, fontWeight:700, color:'var(--amber)' }}>{ars(ganNeta*distLibre/100)}</div>
                         </div>
                       </div>
                     </div>
@@ -723,13 +729,13 @@ function ResultGroup({ color, label, rows, subtotal }) {
   return (
     <div style={{ borderLeft: `3px solid ${color}`, borderRadius: '0 6px 6px 0', background: 'var(--bg-3)', overflow: 'hidden' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 12px', background: `${color}18` }}>
-        <span style={{ fontSize: 10, fontWeight: 700, color, letterSpacing: '0.07em', textTransform: 'uppercase' }}>{label}</span>
-        {subtotal && <span style={{ fontSize: 10, fontWeight: 600, color, fontFamily: "'DM Mono', monospace" }}>{subtotal}</span>}
+        <span style={{ fontSize: 12, fontWeight: 700, color, letterSpacing: '0.07em', textTransform: 'uppercase' }}>{label}</span>
+        {subtotal && <span style={{ fontSize: 12, fontWeight: 600, color, fontFamily: "'DM Mono', monospace" }}>{subtotal}</span>}
       </div>
       {rows.map(([l, val], i) => (
-        <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 12px', borderTop: '1px solid var(--border)' }}>
-          <span style={{ fontSize: 12, color: 'var(--text-2)' }}>{l}</span>
-          <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)', fontFamily: "'DM Mono', monospace" }}>{val}</span>
+        <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 12px', borderTop: '1px solid var(--border)' }}>
+          <span style={{ fontSize: 13, color: 'var(--text-2)' }}>{l}</span>
+          <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', fontFamily: "'DM Mono', monospace" }}>{val}</span>
         </div>
       ))}
     </div>
@@ -845,8 +851,8 @@ function InteractiveDonut({ slices, centerLabel, centerValue }) {
             style={{ display:'flex', alignItems:'center', gap:5, cursor:'pointer', padding:'3px 5px', borderRadius:5,
               background: hovered===i ? `${s.color}18` : 'transparent', transition:'background 0.15s' }}>
             <span style={{ width:7, height:7, borderRadius:2, background:s.color, flexShrink:0 }}/>
-            <span style={{ fontSize:9, color: hovered===i ? 'var(--text)' : 'var(--text-3)', fontWeight: hovered===i ? 700 : 400, flex:1, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{s.label}</span>
-            <span style={{ fontSize:9, color:'var(--text-2)', fontFamily:"'DM Mono',monospace" }}>{rd(s.pct,1)}%</span>
+            <span style={{ fontSize:11, color: hovered===i ? 'var(--text)' : 'var(--text-3)', fontWeight: hovered===i ? 700 : 400, flex:1, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{s.label}</span>
+            <span style={{ fontSize:11, color:'var(--text-2)', fontFamily:"'DM Mono',monospace" }}>{rd(s.pct,1)}%</span>
           </div>
         ))}
       </div>
@@ -854,7 +860,7 @@ function InteractiveDonut({ slices, centerLabel, centerValue }) {
       {/* Desglose en USD */}
       <div style={{ width:'100%', maxWidth:200, marginTop:8, borderRadius:7, overflow:'hidden', border:'1px solid var(--border)' }}>
         <div style={{ padding:'4px 10px', background:'var(--bg-3)', borderBottom:'1px solid var(--border)' }}>
-          <span style={{ fontSize:9, fontWeight:700, color:'var(--text-3)', textTransform:'uppercase', letterSpacing:'0.07em' }}>Desglose U$S</span>
+          <span style={{ fontSize:11, fontWeight:700, color:'var(--text-3)', textTransform:'uppercase', letterSpacing:'0.07em' }}>Desglose U$S</span>
         </div>
         {slices.map((s, i) => {
           const active = hovered === i;
@@ -868,8 +874,8 @@ function InteractiveDonut({ slices, centerLabel, centerValue }) {
                 borderLeft: `3px solid ${active ? s.color : 'transparent'}`,
                 borderBottom:'1px solid var(--border)', transition:'all 0.15s' }}>
               <span style={{ width:6, height:6, borderRadius:1, background:s.color, flexShrink:0 }}/>
-              <span style={{ fontSize:10, color: active ? 'var(--text)' : 'var(--text-2)', flex:1, fontWeight: active ? 600 : 400, transition:'color 0.15s' }}>{s.label}</span>
-              <span style={{ fontSize:10, fontWeight: active ? 700 : 500, color: active ? s.color : 'var(--text-3)', fontFamily:"'DM Mono',monospace", transition:'color 0.15s' }}>
+              <span style={{ fontSize:12, color: active ? 'var(--text)' : 'var(--text-2)', flex:1, fontWeight: active ? 600 : 400, transition:'color 0.15s' }}>{s.label}</span>
+              <span style={{ fontSize:12, fontWeight: active ? 700 : 500, color: active ? s.color : 'var(--text-3)', fontFamily:"'DM Mono',monospace", transition:'color 0.15s' }}>
                 U$S {rd(s.usd, 2)}
               </span>
             </div>
