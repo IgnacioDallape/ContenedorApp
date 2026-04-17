@@ -12,12 +12,12 @@ export default function NcmSearch() {
   const { apiKey, setInputs } = useImportaproStore();
   const { showToast, setActiveSection } = useAppStore();
 
-  const [query, setQuery]       = useState('');
-  const [results, setResults]   = useState([]);
-  const [loading, setLoading]   = useState(false);
-  const [error, setError]       = useState('');
-  const [filtro, setFiltro]     = useState('');
-  const [catActiva, setCat]     = useState('Todas');
+  const [query, setQuery] = useState('');
+  const [results, setResults] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [filtro, setFiltro] = useState('');
+  const [catActiva, setCat] = useState('Todas');
 
   async function buscarNcm() {
     if (!query.trim()) return;
@@ -25,7 +25,9 @@ export default function NcmSearch() {
       setError('Configurá tu API Key de Anthropic en la barra lateral para usar la búsqueda IA.');
       return;
     }
-    setLoading(true); setError(''); setResults([]);
+    setLoading(true);
+    setError('');
+    setResults([]);
     try {
       const resp = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
@@ -75,120 +77,170 @@ export default function NcmSearch() {
     }).sort((a, b) => a.desc.localeCompare(b.desc));
   }, [filtro, catActiva]);
 
+  const iaActiva = !!apiKey && apiKey.startsWith('sk-ant-');
+
   return (
     <div className="ip-section active" id="section-ncm">
       <section id="tab-ncm" className="tab" style={{ display: 'block' }}>
-        <div className="page-header">
+        <div className="page-header ncm-header">
           <h1>Búsqueda NCM</h1>
           <p className="page-sub">Encontrá el código NCM y derecho de importación para tu producto</p>
         </div>
 
-        <div className="card" style={{ maxWidth: 700 }}>
-          <div className="card-header"><span className="card-title">Buscar por IA (Claude Haiku)</span></div>
-          <p style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 16 }}>
-            Describí tu producto y la IA buscará el NCM más probable. Necesitás una API Key de Anthropic configurada en la barra lateral.
-          </p>
-          <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-            <input
-              type="text"
-              value={query}
-              placeholder="Ej: alfombra de nylon para cocina..."
-              style={{ flex: 1 }}
-              onChange={e => setQuery(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && buscarNcm()}
-            />
-            <button className="btn-primary" onClick={buscarNcm} disabled={loading}>
-              {loading ? 'Buscando…' : 'Buscar →'}
-            </button>
-          </div>
-          {error && <div style={{ color: 'var(--danger)', fontSize: 13, marginBottom: 10 }}>{error}</div>}
-
-          {results.length > 0 && (
-            <div style={{ marginTop: 12 }}>
-              {results.map((r, i) => (
-                <div key={i} className="ncm-row" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderBottom: '1px solid var(--border-2)' }}>
-                  <div>
-                    <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 13, fontWeight: 600, color: 'var(--text)', marginBottom: 3 }}>{r.code}</div>
-                    <div style={{ fontSize: 13, color: 'var(--text-2)' }}>{r.desc}</div>
-                  </div>
-                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0, marginLeft: 12 }}>
-                    <span className={`badge badge-${diToBadge(r.di)}`}>DI {r.di}%</span>
-                    <button
-                      onClick={() => applyDi(r.di)}
-                      style={{ padding: '5px 12px', fontSize: 12, borderRadius: 'var(--radius)', border: '1px solid var(--accent)', color: 'var(--accent)', background: 'transparent', cursor: 'pointer', fontFamily: 'var(--font)', fontWeight: 600 }}
-                    >
-                      Aplicar →
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        <div className="card" style={{ maxWidth: 700, marginTop: 20 }}>
-          <div className="card-header">
-            <span className="card-title">NCM frecuentes</span>
-            <span style={{ fontSize: 12, color: 'var(--text-2)', marginLeft: 8 }}>{frecuentesFiltrados.length} resultados</span>
-          </div>
-
-          {/* Filtros */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 12 }}>
-            <input
-              type="text"
-              value={filtro}
-              placeholder="Filtrar por descripción o código NCM..."
-              onChange={e => setFiltro(e.target.value)}
-              style={{ fontSize: 13 }}
-            />
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-              {CATEGORIAS.map(c => (
-                <button
-                  key={c}
-                  onClick={() => setCat(c)}
-                  style={{
-                    padding: '3px 10px',
-                    fontSize: 11,
-                    borderRadius: 'var(--radius)',
-                    border: '1px solid var(--border)',
-                    background: catActiva === c ? 'var(--accent)' : 'transparent',
-                    color: catActiva === c ? '#fff' : 'var(--text-2)',
-                    cursor: 'pointer',
-                    fontFamily: 'var(--font)',
-                    fontWeight: catActiva === c ? 600 : 400,
-                    transition: 'all 0.15s',
-                  }}
-                >
-                  {c}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div id="ncm-frecuentes">
-            {frecuentesFiltrados.length === 0 && (
-              <div style={{ textAlign: 'center', color: 'var(--text-2)', fontSize: 13, padding: '24px 0' }}>
-                Sin resultados para "{filtro}"
+        <div className="ncm-layout">
+          <div className="ncm-top-grid">
+            <div className="card ncm-hero-card">
+              <div className="ncm-hero-copy">
+                <div className="card-title">Asistente NCM</div>
+                <h2>Buscá por descripción y llevate un punto de partida claro.</h2>
+                <p>
+                  Describí el producto en lenguaje natural y la IA te devuelve los 3 NCM más probables con su
+                  derecho de importación estimado.
+                </p>
               </div>
-            )}
-            {frecuentesFiltrados.map((n, i) => (
-              <div key={n.code + i} className="ncm-row" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderBottom: '1px solid var(--border-2)' }}>
-                <span className="ncm-desc" style={{ fontSize: 13, color: 'var(--text-2)', flex: 1, minWidth: 0 }}>
-                  <span style={{ fontFamily: "'DM Mono', monospace", fontWeight: 600, color: 'var(--text)', marginRight: 8 }}>{n.code}</span>
-                  {n.desc}
-                  {n.cat && <span style={{ marginLeft: 8, fontSize: 10, color: 'var(--text-2)', opacity: 0.7 }}>{n.cat}</span>}
-                </span>
-                <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0, marginLeft: 12 }}>
-                  <span className={`badge badge-${n.badge}`}>DI {n.di}%</span>
-                  <button
-                    onClick={() => applyDi(n.di)}
-                    style={{ padding: '4px 10px', fontSize: 11, borderRadius: 'var(--radius)', border: '1px solid var(--accent)', color: 'var(--accent)', background: 'transparent', cursor: 'pointer', fontFamily: 'var(--font)' }}
-                  >
-                    Aplicar
+
+              <div className="ncm-hero-meta">
+                <div className="ncm-stat">
+                  <span className="ncm-stat-value">{NCM_FRECUENTES.length}</span>
+                  <span className="ncm-stat-label">NCM frecuentes cargados</span>
+                </div>
+                <div className={`ncm-status ${iaActiva ? 'ready' : 'muted'}`}>
+                  <span className="ncm-status-dot" />
+                  {iaActiva ? 'Anthropic conectado' : 'Falta API key de Anthropic'}
+                </div>
+              </div>
+
+              <div className="ncm-search-box">
+                <label htmlFor="ncm-ai-query" className="ncm-search-label">Descripción del producto</label>
+                <div className="ncm-search-row">
+                  <input
+                    id="ncm-ai-query"
+                    type="text"
+                    value={query}
+                    placeholder="Ej: alfombra de nylon para cocina, base antideslizante..."
+                    className="ncm-search-input"
+                    onChange={e => setQuery(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && buscarNcm()}
+                  />
+                  <button className="btn-primary ncm-search-btn" onClick={buscarNcm} disabled={loading}>
+                    {loading ? 'Buscando…' : 'Buscar con IA'}
                   </button>
                 </div>
+                <p className="ncm-search-help">
+                  Consejo: incluí material, uso principal y tipo de producto para obtener mejores coincidencias.
+                </p>
               </div>
-            ))}
+
+              {error && <div className="ncm-error">{error}</div>}
+
+              {results.length > 0 && (
+                <div className="ncm-ai-results">
+                  <div className="ncm-results-header">
+                    <span className="card-title">Resultados sugeridos</span>
+                    <span className="ncm-results-count">{results.length} coincidencias</span>
+                  </div>
+
+                  <div className="ncm-results-list">
+                    {results.map((r, i) => (
+                      <article key={i} className="ncm-result-card ncm-result-card-ai">
+                        <div className="ncm-result-main">
+                          <div className="ncm-result-code">{r.code}</div>
+                          <div className="ncm-result-desc">{r.desc}</div>
+                        </div>
+                        <div className="ncm-result-actions">
+                          <span className={`badge badge-${diToBadge(r.di)}`}>DI {r.di}%</span>
+                          <button onClick={() => applyDi(r.di)} className="ncm-apply-btn">
+                            Aplicar a calculadora
+                          </button>
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <aside className="card ncm-side-card">
+              <div className="card-title">Cómo usarlo</div>
+              <div className="ncm-side-stack">
+                <div className="ncm-tip">
+                  <span className="ncm-tip-index">01</span>
+                  <div>
+                    <strong>Describí el producto</strong>
+                    <p>Indicá material, uso, tamaño o familia del artículo para afinar la búsqueda.</p>
+                  </div>
+                </div>
+                <div className="ncm-tip">
+                  <span className="ncm-tip-index">02</span>
+                  <div>
+                    <strong>Contrastá con los frecuentes</strong>
+                    <p>Usá la base local para comparar alternativas cercanas por rubro o código.</p>
+                  </div>
+                </div>
+                <div className="ncm-tip">
+                  <span className="ncm-tip-index">03</span>
+                  <div>
+                    <strong>Aplicá el DI</strong>
+                    <p>Con un click lo llevás a la calculadora para seguir trabajando el costo final.</p>
+                  </div>
+                </div>
+              </div>
+            </aside>
+          </div>
+
+          <div className="card ncm-library-card">
+            <div className="ncm-library-head">
+              <div>
+                <div className="card-title">Biblioteca NCM</div>
+                <h3>NCM frecuentes para explorar y aplicar</h3>
+              </div>
+              <span className="ncm-results-count">{frecuentesFiltrados.length} resultados</span>
+            </div>
+
+            <div className="ncm-filter-panel">
+              <input
+                type="text"
+                value={filtro}
+                placeholder="Filtrar por descripción o código NCM..."
+                onChange={e => setFiltro(e.target.value)}
+                className="ncm-filter-input"
+              />
+
+              <div className="ncm-chip-row">
+                {CATEGORIAS.map(c => (
+                  <button
+                    key={c}
+                    onClick={() => setCat(c)}
+                    className={`ncm-chip ${catActiva === c ? 'active' : ''}`}
+                  >
+                    {c}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div id="ncm-frecuentes" className="ncm-results-list">
+              {frecuentesFiltrados.length === 0 && (
+                <div className="ncm-empty-state">
+                  Sin resultados para "{filtro}"
+                </div>
+              )}
+              {frecuentesFiltrados.map((n, i) => (
+                <article key={n.code + i} className="ncm-result-card">
+                  <div className="ncm-result-main">
+                    <div className="ncm-result-code">{n.code}</div>
+                    <div className="ncm-result-desc">{n.desc}</div>
+                    {n.cat && <div className="ncm-result-cat">{n.cat}</div>}
+                  </div>
+                  <div className="ncm-result-actions">
+                    <span className={`badge badge-${n.badge}`}>DI {n.di}%</span>
+                    <button onClick={() => applyDi(n.di)} className="ncm-apply-btn">
+                      Aplicar
+                    </button>
+                  </div>
+                </article>
+              ))}
+            </div>
           </div>
         </div>
       </section>
