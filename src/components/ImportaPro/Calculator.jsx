@@ -4,6 +4,7 @@ import useAppStore from '../../stores/appStore.js';
 import useContainerStore from '../../stores/containerStore.js';
 import { ars, rd } from '../../lib/formatters.js';
 import { PALLET_SIZES } from '../../lib/constants.js';
+import { exportCotizacionPDF } from '../../lib/exportPDF.js';
 
 export function calcCostos(inp) {
   const fob             = parseFloat(inp.fob)           || 0;
@@ -692,6 +693,7 @@ export default function Calculator() {
 
         <div className="page-actions">
           <button className="btn-primary" onClick={handleSaveProduct}>Guardar producto</button>
+          <button className="btn-outline" onClick={() => exportCotizacionPDF({ c, canales, inputs })}>Exportar PDF</button>
           <button className="btn-outline" onClick={() => exportCSV(c, canales, inputs.nombre)}>Exportar CSV</button>
         </div>
       </section>

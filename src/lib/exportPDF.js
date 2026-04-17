@@ -421,3 +421,170 @@ export async function exportShipmentPDF({ containers, currentContainerType, ship
   const filename = (shipmentName || 'embarque').replace(/\s+/g, '_').toLowerCase() + '.pdf';
   doc.save(filename);
 }
+
+export function exportCotizacionPDF({ c, canales, inputs }) {
+  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+  const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
+  const margin = 16;
+  let y = margin;
+
+  function arsStr(n) { return '$ ' + fmt(Math.round(n)); }
+
+  // ── Header ────────────────────────────────────────────────────────────────
+  doc.setFillColor(141, 121, 102);
+  doc.rect(0, 0, pageW, 42, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(22);
+  doc.setFont('helvetica', 'bold');
+  doc.text('ImportaPro', margin, 20);
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'normal');
+  doc.text('Cotizacion de importacion', margin, 30);
+  const dateStr = new Date().toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  doc.text(dateStr, pageW - margin, 30, { align: 'right' });
+
+  y = 54;
+
+  // ── Nombre y datos base ───────────────────────────────────────────────────
+  doc.setTextColor(60, 50, 40);
+  doc.setFontSize(20);
+  doc.setFont('helvetica', 'bold');
+  doc.text(ascii(inputs.nombre || 'Producto sin nombre'), margin, y);
+  y += 7;
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(120, 100, 80);
+  doc.text(ascii(`${c.qty} unidades  ·  FOB U$S ${fmt(c.fob, 3)}/u  ·  TC $ ${fmt(c.tc, 0)}`), margin, y);
+  y += 5;
+  doc.setDrawColor(200, 185, 165);
+  doc.line(margin, y, pageW - margin, y);
+  y += 8;
+
+  // ── Desglose de costos ────────────────────────────────────────────────────
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(141, 121, 102);
+  doc.text('Desglose de costos por unidad', margin, y);
+  y += 4;
+
+  const tot = c.costoUSD || 1;
+  const costItems = [
+    { label: 'Valor FOB',                        val: c.fob },
+    { label: 'Flete prorrateado',                val: c.fleteUnit },
+    { label: `Seguro (${c.seguroPct}%)`,         val: c.seguroUnit },
+    { label: `Trader (${c.traderPct}%)`,         val: c.traderUnit },
+    { label: `D.I. (${c.di}%)`,                  val: c.diUnit },
+    { label: `IVA imp. (${c.ivaImp}%)`,          val: c.ivaUnit },
+    { label: `Tasa estadistica (${c.te}%)`,      val: c.teUnit },
+    { label: 'Despachante / aduana',             val: c.despachanteUnit },
+    { label: 'Flete interno / puerto',           val: c.fleteInternoUnit },
+  ].filter(item => item.val > 0);
+
+  autoTable(doc, {
+    startY: y,
+    margin: { left: margin, right: margin },
+    head: [['Componente', 'USD / unidad', 'ARS / unidad', '% del costo']],
+    body: costItems.map(item => [
+      ascii(item.label),
+      usd(item.val),
+      arsStr(item.val * c.tc),
+      fmt(item.val / tot * 100, 1) + '%',
+    ]),
+    foot: [['COSTO UNITARIO TOTAL', usd(c.costoUSD), arsStr(c.costoARS), '100%']],
+    styles: { fontSize: 8.5, cellPadding: 3, textColor: [60, 50, 40] },
+    headStyles: { fillColor: [141, 121, 102], textColor: 255, fontStyle: 'bold', fontSize: 8 },
+    footStyles: { fillColor: [80, 60, 45], textColor: 255, fontStyle: 'bold', fontSize: 9 },
+    alternateRowStyles: { fillColor: [250, 247, 243] },
+    columnStyles: {
+      0: { cellWidth: 72 },
+      1: { cellWidth: 34, halign: 'right' },
+      2: { cellWidth: 42, halign: 'right' },
+      3: { cellWidth: 26, halign: 'right' },
+    },
+  });
+  y = doc.lastAutoTable.finalY + 8;
+
+  // ── Costo total del lote ──────────────────────────────────────────────────
+  doc.setFillColor(245, 240, 233);
+  doc.setDrawColor(200, 185, 165);
+  doc.rect(margin, y, pageW - margin * 2, 17, 'FD');
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(100, 80, 60);
+  doc.text(ascii(`Costo total del lote (${c.qty} u):`), margin + 6, y + 6.5);
+  doc.setFontSize(12);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(60, 50, 40);
+  doc.text(arsStr(c.costoARS * c.qty), margin + 6, y + 13.5);
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(120, 100, 80);
+  doc.text(`= U$S ${fmt(c.costoUSD * c.qty)}`, pageW - margin - 6, y + 10, { align: 'right' });
+  y += 23;
+
+  // ── Canales de venta ──────────────────────────────────────────────────────
+  const canalesConPrecio = (canales || []).filter(ch => ch.precio > 0);
+  if (canalesConPrecio.length > 0) {
+    if (y > 210) { doc.addPage(); y = 20; }
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(141, 121, 102);
+    doc.text('Canales de venta', margin, y);
+    y += 4;
+
+    autoTable(doc, {
+      startY: y,
+      margin: { left: margin, right: margin },
+      head: [['Canal', 'Precio venta', 'Comision %', 'Cuotas ARS', 'Ganancia / u', 'Margen %']],
+      body: canalesConPrecio.map(ch => {
+        const com = ch.precio * (ch.comision || 0) / 100;
+        const gan = ch.precio - com - (ch.cuotas || 0) - c.costoARS;
+        const margen = c.costoARS > 0 ? gan / c.costoARS * 100 : 0;
+        return [
+          ascii(ch.nombre),
+          arsStr(ch.precio),
+          `${fmt(ch.comision || 0, 1)}%`,
+          ch.cuotas > 0 ? arsStr(ch.cuotas) : '-',
+          arsStr(gan),
+          `${fmt(margen, 1)}%`,
+        ];
+      }),
+      styles: { fontSize: 8.5, cellPadding: 3, textColor: [60, 50, 40] },
+      headStyles: { fillColor: [141, 121, 102], textColor: 255, fontStyle: 'bold', fontSize: 8 },
+      alternateRowStyles: { fillColor: [250, 247, 243] },
+      columnStyles: {
+        0: { cellWidth: 44 },
+        1: { cellWidth: 32, halign: 'right' },
+        2: { cellWidth: 22, halign: 'center' },
+        3: { cellWidth: 26, halign: 'right' },
+        4: { cellWidth: 32, halign: 'right' },
+        5: { cellWidth: 22, halign: 'right' },
+      },
+      didParseCell(data) {
+        if (data.section === 'body' && data.column.index === 4) {
+          const ch = canalesConPrecio[data.row.index];
+          if (!ch) return;
+          const com = ch.precio * (ch.comision || 0) / 100;
+          const gan = ch.precio - com - (ch.cuotas || 0) - c.costoARS;
+          data.cell.styles.textColor = gan < 0 ? [192, 57, 43] : [39, 174, 96];
+          data.cell.styles.fontStyle = 'bold';
+        }
+      },
+    });
+  }
+
+  // ── Footer en todas las páginas ───────────────────────────────────────────
+  const totalPages = doc.getNumberOfPages();
+  for (let p = 1; p <= totalPages; p++) {
+    doc.setPage(p);
+    doc.setFontSize(7.5);
+    doc.setTextColor(180, 165, 150);
+    doc.setFont('helvetica', 'normal');
+    doc.text('Generado por ImportaPro', margin, pageH - 8);
+    doc.text('fleetloader.vercel.app', pageW - margin, pageH - 8, { align: 'right' });
+  }
+
+  const filename = `cotizacion-${(inputs.nombre || 'producto').replace(/\s+/g, '-').toLowerCase()}-${new Date().toISOString().slice(0, 10)}.pdf`;
+  doc.save(filename);
+}

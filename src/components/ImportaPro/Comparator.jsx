@@ -191,7 +191,7 @@ export default function Comparator() {
             )}
 
             {/* Slots lado a lado */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, alignItems: 'start' }}>
+            <div className="comparator-slots-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, alignItems: 'start' }}>
               <ProductCard slotIdx={0} product={prodA} onSelect={setProdA} savedProducts={savedProducts} c={cA} />
               <ProductCard slotIdx={1} product={prodB} onSelect={setProdB} savedProducts={savedProducts} c={cB} />
             </div>
@@ -295,7 +295,8 @@ export default function Comparator() {
                 </div>
 
                 {/* Column headers */}
-                <div style={{ display: 'grid', gridTemplateColumns: '180px 1fr 1fr', borderBottom: '2px solid var(--border)', paddingBottom: 8, marginBottom: 4 }}>
+                <div className="comparator-summary-wrapper">
+                <div className="comparator-summary-grid" style={{ display: 'grid', gridTemplateColumns: '180px 1fr 1fr', borderBottom: '2px solid var(--border)', paddingBottom: 8, marginBottom: 4 }}>
                   <div />
                   {[{ prod: prodA, color: SLOT_COLORS[0] }, { prod: prodB, color: SLOT_COLORS[1] }].map(({ prod, color }, si) => (
                     <div key={si} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 14px' }}>
@@ -319,7 +320,7 @@ export default function Comparator() {
                   const bWins = higherIsBetter ? valB > valA : valB < valA;
                   const tie   = valA === valB;
                   return (
-                    <div key={rowIdx} style={{ display: 'grid', gridTemplateColumns: '180px 1fr 1fr',
+                    <div key={rowIdx} className="comparator-summary-grid" style={{ display: 'grid', gridTemplateColumns: '180px 1fr 1fr',
                       borderTop: '1px solid var(--border)' }}>
                       <div style={{ padding: '12px 14px', display: 'flex', alignItems: 'center' }}>
                         <span style={{ fontSize: 13, color: 'var(--text-3)', fontWeight: 500 }}>{label}</span>
@@ -343,6 +344,7 @@ export default function Comparator() {
                     </div>
                   );
                 })}
+                </div>{/* comparator-summary-wrapper */}
               </div>
             )}
           </>

@@ -1057,6 +1057,11 @@ header { display: none !important; }
   .ip-section { padding: 1rem 1rem !important; }
   .calc-split-grid { grid-template-columns: 1fr !important; }
   .dist-main-grid  { grid-template-columns: 1fr !important; }
+
+  /* Comparator mobile */
+  .comparator-slots-grid { grid-template-columns: 1fr !important; }
+  .comparator-summary-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .comparator-summary-grid { min-width: 420px; }
 }
 
 /* IP sections */
