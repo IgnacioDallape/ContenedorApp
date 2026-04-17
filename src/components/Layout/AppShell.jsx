@@ -11,6 +11,7 @@ import NcmSearch from '../ImportaPro/NcmSearch.jsx';
 import Simulator from '../ImportaPro/Simulator.jsx';
 import Prices from '../ImportaPro/Prices.jsx';
 import Settings from '../ImportaPro/Settings.jsx';
+import Comparator from '../ImportaPro/Comparator.jsx';
 import UpgradeModal from './UpgradeModal.jsx';
 
 const ContainerLoader = lazy(() => import('../ContainerLoader/ContainerLoader.jsx'));
@@ -23,7 +24,7 @@ const Loader = () => (
   </div>
 );
 
-const IP_SECTIONS = ['calc','products','ncm','simulator','settings','prices'];
+const IP_SECTIONS = ['calc','products','ncm','simulator','settings','prices','comparator'];
 const CL_SECTIONS = ['container','catalog','palletbuilder'];
 
 export default function AppShell() {
@@ -92,7 +93,8 @@ export default function AppShell() {
         <nav className="nav">
           <div className="nav-section">Importación</div>
           {navItem('calc',      '⊞', 'Calculadora')}
-          {navItem('products',  '◧', 'Mis productos')}
+          {navItem('products',   '◧', 'Mis productos')}
+          {navItem('comparator','⇄', 'Comparar productos')}
           {navItem('simulator', '⊙', 'Simulador de precio')}
           {navItem('prices',    '🏷', 'Precios a publicar')}
           <div className="nav-section">Contenedor</div>
@@ -148,6 +150,7 @@ export default function AppShell() {
       <div className="main">
         {activeSection === 'calc'          && <Calculator />}
         {activeSection === 'products'      && <Products />}
+        {activeSection === 'comparator'    && <Comparator />}
         {activeSection === 'ncm'           && <NcmSearch />}
         {activeSection === 'simulator'     && <Simulator />}
         {activeSection === 'prices'        && <Prices />}

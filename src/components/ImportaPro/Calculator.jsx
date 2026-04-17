@@ -850,6 +850,32 @@ function InteractiveDonut({ slices, centerLabel, centerValue }) {
           </div>
         ))}
       </div>
+
+      {/* Desglose en USD */}
+      <div style={{ width:'100%', maxWidth:200, marginTop:8, borderRadius:7, overflow:'hidden', border:'1px solid var(--border)' }}>
+        <div style={{ padding:'4px 10px', background:'var(--bg-3)', borderBottom:'1px solid var(--border)' }}>
+          <span style={{ fontSize:9, fontWeight:700, color:'var(--text-3)', textTransform:'uppercase', letterSpacing:'0.07em' }}>Desglose U$S</span>
+        </div>
+        {slices.map((s, i) => {
+          const active = hovered === i;
+          return (
+            <div key={i}
+              onMouseEnter={() => setHovered(i)}
+              onMouseLeave={() => setHovered(null)}
+              onClick={() => scrollToSection(s.sectionId)}
+              style={{ display:'flex', alignItems:'center', gap:6, padding:'5px 10px', cursor:'pointer',
+                background: active ? `${s.color}14` : 'var(--bg)',
+                borderLeft: `3px solid ${active ? s.color : 'transparent'}`,
+                borderBottom:'1px solid var(--border)', transition:'all 0.15s' }}>
+              <span style={{ width:6, height:6, borderRadius:1, background:s.color, flexShrink:0 }}/>
+              <span style={{ fontSize:10, color: active ? 'var(--text)' : 'var(--text-2)', flex:1, fontWeight: active ? 600 : 400, transition:'color 0.15s' }}>{s.label}</span>
+              <span style={{ fontSize:10, fontWeight: active ? 700 : 500, color: active ? s.color : 'var(--text-3)', fontFamily:"'DM Mono',monospace", transition:'color 0.15s' }}>
+                U$S {rd(s.usd, 2)}
+              </span>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
