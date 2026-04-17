@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import useImportaproStore from '../../stores/importaproStore.js';
+import useAppStore from '../../stores/appStore.js';
 
 export default function Settings() {
   const { apiKey, setApiKey, inputs, updateGlobalTC, tcUpdatedAt } = useImportaproStore();
+  const { setActiveSection } = useAppStore();
   const [showKey, setShowKey] = useState(false);
   const [fetching, setFetching] = useState(false);
   const [fetchError, setFetchError] = useState(null);
@@ -29,7 +31,17 @@ export default function Settings() {
     <div className="ip-section active" id="section-settings">
       <section className="tab" style={{ display: 'block' }}>
         <div className="page-header">
-          <h1>Configuración</h1>
+          <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:4 }}>
+            <h1 style={{ margin:0 }}>Configuración</h1>
+            <button
+              onClick={() => setActiveSection('calc')}
+              style={{ display:'flex', alignItems:'center', gap:5, padding:'5px 12px', borderRadius:20, border:'1px solid var(--border)', background:'var(--bg-3)', color:'var(--text-2)', fontSize:12, fontWeight:500, cursor:'pointer', fontFamily:'var(--font)', transition:'all 0.15s' }}
+              onMouseEnter={e => { e.currentTarget.style.background='var(--accent)'; e.currentTarget.style.color='#fff'; e.currentTarget.style.borderColor='var(--accent)'; }}
+              onMouseLeave={e => { e.currentTarget.style.background='var(--bg-3)'; e.currentTarget.style.color='var(--text-2)'; e.currentTarget.style.borderColor='var(--border)'; }}
+            >
+              ← Volver a la calculadora
+            </button>
+          </div>
           <p className="page-sub">Tipo de cambio y acceso a IA</p>
         </div>
 
