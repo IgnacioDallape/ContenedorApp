@@ -601,15 +601,17 @@ export default function Calculator() {
               {/* Controles */}
               <div className="dist-chip-row" style={{ display:'flex', gap:8, marginBottom:14, flexWrap:'wrap' }}>
                 {[
-                  { label:'Reinversión', id:'dist-reinversion', value:distReinv, color:'var(--accent)', setter:setDistReinv },
-                  { label:'Retiro personal', id:'dist-ganancia', value:distGan, color:'var(--green)', setter:setDistGan },
-                ].map(({ label, id, value, color, setter }) => (
+                  { label:'Reinversión',    id:'dist-reinversion', value:distReinv, color:'var(--accent)',
+                    onChange: v => { const clamped = Math.min(100, Math.max(0, v)); setDistReinv(clamped); setDistGan(g => Math.min(g, 100 - clamped)); } },
+                  { label:'Retiro personal', id:'dist-ganancia',   value:distGan,   color:'var(--green)',
+                    onChange: v => { const clamped = Math.min(100, Math.max(0, v)); setDistGan(clamped);   setDistReinv(r => Math.min(r, 100 - clamped)); } },
+                ].map(({ label, id, value, color, onChange }) => (
                   <div className="dist-chip" key={id} style={{ display:'flex', alignItems:'center', gap:6, background:'var(--bg-3)', border:'1px solid var(--border)', borderRadius:8, padding:'7px 12px', flex:1 }}>
                     <span style={{ width:7, height:7, borderRadius:2, background:color, flexShrink:0 }}/>
                     <span style={{ fontSize:11, color:'var(--text-2)', fontWeight:500, flex:1, whiteSpace:'nowrap' }}>{label}</span>
                     <input type="number" id={id} value={value} min="0" max="100" step="5"
                       style={{ width:52, textAlign:'center', padding:'2px 6px', border:'1px solid var(--border)', borderRadius:5, fontFamily:'var(--font)', fontSize:13, fontWeight:700, color:'var(--text)', background:'var(--bg)', outline:'none' }}
-                      onChange={e => setter(Math.min(100, Math.max(0, parseFloat(e.target.value)||0)))} />
+                      onChange={e => onChange(parseFloat(e.target.value)||0)} />
                     <span style={{ fontSize:11, color:'var(--text-3)' }}>%</span>
                   </div>
                 ))}
@@ -622,9 +624,12 @@ export default function Calculator() {
 
               {/* Canal cards */}
               <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
-                {[{ ch:mlCh, label:mlCh?.nombre||'Mercado Libre', color:'var(--accent)' },
-                  { ch:tpCh, label:tpCh?.nombre||'Tienda propia',  color:'var(--green)'  }
-                ].map(({ ch, label:lbl, color }, i) => {
+                {canales.map((ch, i) => {
+                  const COLORS = ['var(--accent)','var(--green)','var(--amber)','#7ba3d4','#6b9b8b'];
+                  const color = COLORS[i % COLORS.length];
+                  const lbl = ch.nombre;
+                  return ({ ch, lbl, color });
+                }).map(({ ch, lbl, color }, i) => {
                   const ganNeta = chanGan(ch);
                   return (
                     <div key={i} style={{ background:'var(--bg-3)', borderRadius:'var(--radius-lg)', padding:'12px 14px', border:`1px solid ${ganNeta < 0 && ch?.precio > 0 ? '#c0392b60' : 'var(--border)'}`, borderTop:`3px solid ${ganNeta < 0 && ch?.precio > 0 ? '#c0392b' : color}` }}>
@@ -741,26 +746,41 @@ function InteractiveDonut({ slices, centerLabel, centerValue }) {
     if (!id) return;
     const el = document.getElementById(id);
     if (!el) return;
-    // Find scrollable ancestor
+
     function getScrollParent(node) {
       if (!node || node === document.body) return null;
       const { overflowY } = window.getComputedStyle(node);
       if ((overflowY === 'auto' || overflowY === 'scroll') && node.scrollHeight > node.clientHeight) return node;
       return getScrollParent(node.parentElement);
     }
-    const container = getScrollParent(el);
-    if (container) {
-      const containerRect = container.getBoundingClientRect();
-      const elRect = el.getBoundingClientRect();
-      const targetScroll = container.scrollTop + (elRect.top - containerRect.top) - container.clientHeight / 2 + el.offsetHeight / 2;
-      container.scrollTo({ top: targetScroll, behavior: 'smooth' });
-    } else {
-      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+    function easeInOutCubic(t) {
+      return t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t + 2, 3) / 2;
     }
-    setTimeout(() => {
+
+    function highlight() {
       el.classList.add('calc-highlight-pulse');
       el.addEventListener('animationend', () => el.classList.remove('calc-highlight-pulse'), { once: true });
-    }, 650);
+    }
+
+    const container = getScrollParent(el);
+    if (!container) { el.scrollIntoView({ behavior:'smooth', block:'center' }); setTimeout(highlight, 700); return; }
+
+    const containerRect = container.getBoundingClientRect();
+    const elRect = el.getBoundingClientRect();
+    const target = container.scrollTop + (elRect.top - containerRect.top) - container.clientHeight / 2 + el.offsetHeight / 2;
+    const start = container.scrollTop;
+    const dist  = target - start;
+    const duration = 600;
+    const t0 = performance.now();
+
+    function step(now) {
+      const progress = Math.min((now - t0) / duration, 1);
+      container.scrollTop = start + dist * easeInOutCubic(progress);
+      if (progress < 1) requestAnimationFrame(step);
+      else highlight();
+    }
+    requestAnimationFrame(step);
   }
 
   let cumPct = 0;
