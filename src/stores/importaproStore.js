@@ -38,6 +38,7 @@ const DEFAULT_INPUTS = {
 
 const useImportaproStore = create((set, get) => ({
   savedProducts: JSON.parse(localStorage.getItem('importapro-products') || '[]'),
+  publicationPlans: JSON.parse(localStorage.getItem('importapro-publication-plans') || '[]'),
   canales: JSON.parse(JSON.stringify(DEFAULT_CANALES)),
   inputs: { ...DEFAULT_INPUTS },
   apiKey: localStorage.getItem('importapro-apikey') || '',
@@ -79,9 +80,31 @@ const useImportaproStore = create((set, get) => ({
 
   deleteProduct(idx) {
     const { savedProducts } = get();
+    const removed = savedProducts[idx];
     const updated = savedProducts.filter((_, i) => i !== idx);
+    const updatedPlans = removed
+      ? get().publicationPlans.filter(plan => plan.productId !== removed.id)
+      : get().publicationPlans;
     localStorage.setItem('importapro-products', JSON.stringify(updated));
-    set({ savedProducts: updated });
+    localStorage.setItem('importapro-publication-plans', JSON.stringify(updatedPlans));
+    set({ savedProducts: updated, publicationPlans: updatedPlans });
+  },
+
+  savePublicationPlan(plan) {
+    const { publicationPlans } = get();
+    const idx = publicationPlans.findIndex(p => p.productId === plan.productId);
+    const updated = idx >= 0
+      ? publicationPlans.map((p, i) => i === idx ? plan : p)
+      : [...publicationPlans, plan];
+    localStorage.setItem('importapro-publication-plans', JSON.stringify(updated));
+    set({ publicationPlans: updated });
+    return updated;
+  },
+
+  removePublicationPlan(productId) {
+    const updated = get().publicationPlans.filter(plan => plan.productId !== productId);
+    localStorage.setItem('importapro-publication-plans', JSON.stringify(updated));
+    set({ publicationPlans: updated });
   },
 
   loadProductToCalc(prod) {

@@ -1,89 +1,115 @@
-import { useState } from 'react';
 import useImportaproStore from '../../stores/importaproStore.js';
 import useAppStore from '../../stores/appStore.js';
 import { ars } from '../../lib/formatters.js';
 
-export default function Prices() {
-  const { savedProducts } = useImportaproStore();
-  const { setActiveSection } = useAppStore();
-  const [targetMargen, setTargetMargen] = useState(30);
+function formatDate(value) {
+  if (!value) return 'Sin fecha';
+  try {
+    return new Date(value).toLocaleString('es-AR', { dateStyle: 'short', timeStyle: 'short' });
+  } catch {
+    return value;
+  }
+}
 
-  if (!savedProducts.length) {
+export default function Prices() {
+  const { publicationPlans, removePublicationPlan } = useImportaproStore();
+  const { setActiveSection, showToast } = useAppStore();
+
+  if (!publicationPlans.length) {
     return (
       <div className="ip-section active" id="section-prices">
         <section className="tab" style={{ display: 'block' }}>
           <div className="page-header">
-            <h1>Precios a publicar</h1>
-            <p className="page-sub">Márgenes y precios sugeridos por canal de venta para cada producto calculado</p>
+            <h1>Precios confirmados</h1>
+            <p className="page-sub">Acá quedan los precios definidos desde el simulador para revisar antes de publicar</p>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '60px 20px', gap: 16, color: 'var(--text-3)' }}>
             <div style={{ fontSize: 48 }}>🏷</div>
-            <p style={{ fontSize: 14, fontWeight: 500 }}>No hay productos con análisis de precios</p>
-            <p style={{ fontSize: 13, color: 'var(--text-3)' }}>Calculá un producto y guardalo para ver sus precios sugeridos acá.</p>
-            <button className="btn-primary" onClick={() => setActiveSection('calc')} style={{ marginTop: 8 }}>Ir a calculadora</button>
+            <p style={{ fontSize: 14, fontWeight: 500 }}>Todavía no confirmaste precios para publicar</p>
+            <p style={{ fontSize: 13, color: 'var(--text-3)', textAlign: 'center', maxWidth: 420 }}>
+              Primero simulá un producto, elegí qué canales vas a usar y confirmá esos precios desde la sección de simulador.
+            </p>
+            <button className="btn-primary" onClick={() => setActiveSection('simulator')} style={{ marginTop: 8 }}>
+              Ir al simulador
+            </button>
           </div>
         </section>
       </div>
     );
   }
 
+  const totalChannels = publicationPlans.reduce((acc, plan) => acc + plan.channels.filter(ch => ch.publicar && ch.precio > 0).length, 0);
+
   return (
     <div className="ip-section active" id="section-prices">
       <section className="tab" style={{ display: 'block' }}>
         <div className="page-header">
-          <h1>Precios a publicar</h1>
-          <p className="page-sub">Márgenes y precios sugeridos por canal de venta para cada producto calculado</p>
+          <h1>Precios confirmados</h1>
+          <p className="page-sub">Listado confirmado desde el simulador, listo para revisar antes de publicar</p>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
-          <span style={{ fontSize: 13, color: 'var(--text-2)', fontWeight: 500 }}>Margen objetivo para precio sugerido:</span>
-          <input
-            type="number" value={targetMargen} min="0" max="500" step="5"
-            onChange={e => setTargetMargen(parseFloat(e.target.value) || 0)}
-            style={{ width: 70, padding: '6px 10px', borderRadius: 'var(--radius)', border: '1px solid var(--border-2)', background: 'var(--bg-3)', color: 'var(--text)', fontFamily: 'var(--font)', fontSize: 13, textAlign: 'center' }}
-          />
-          <span style={{ fontSize: 13, color: 'var(--text-3)' }}>%</span>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14, marginBottom: 20 }}>
+          <div className="card" style={{ padding: '1rem 1.1rem', background: 'linear-gradient(180deg, rgba(26,79,138,0.05), #fff)' }}>
+            <div className="card-title">Productos listos</div>
+            <div style={{ fontFamily: 'var(--font-head)', fontSize: 34, color: 'var(--accent)', lineHeight: 1, marginTop: 8 }}>{publicationPlans.length}</div>
+          </div>
+          <div className="card" style={{ padding: '1rem 1.1rem', background: 'linear-gradient(180deg, rgba(26,122,74,0.05), #fff)' }}>
+            <div className="card-title">Canales confirmados</div>
+            <div style={{ fontFamily: 'var(--font-head)', fontSize: 34, color: 'var(--green)', lineHeight: 1, marginTop: 8 }}>{totalChannels}</div>
+          </div>
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          {savedProducts.map(p => {
-            const canales = p.canales || [];
+          {publicationPlans.map(plan => {
+            const activeChannels = plan.channels.filter(ch => ch.publicar && ch.precio > 0);
             return (
-              <div key={p.id} className="card">
-                <div className="card-header">
-                  <span className="card-title">{p.nombre}</span>
-                  <span style={{ fontSize: 12, color: 'var(--text-3)' }}>Costo: {ars(p.costoARS)} · {p.qty} u · {p.date}</span>
+              <div key={plan.productId} className="card" style={{ overflow: 'hidden' }}>
+                <div className="card-header" style={{ alignItems: 'start' }}>
+                  <div>
+                    <span className="card-title">{plan.productName}</span>
+                    <div style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                      <span className="badge badge-blue">Costo {ars(plan.costoARS)}</span>
+                      <span className="badge badge-green">Margen objetivo {plan.targetMargin}%</span>
+                      <span className="badge badge-amber">{activeChannels.length} canal{activeChannels.length === 1 ? '' : 'es'}</span>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}>
+                    <span style={{ fontSize: 11, color: 'var(--text-3)' }}>Actualizado {formatDate(plan.updatedAt)}</span>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <button className="btn-outline" onClick={() => setActiveSection('simulator')}>Editar</button>
+                      <button
+                        className="btn-outline"
+                        onClick={() => {
+                          removePublicationPlan(plan.productId);
+                          showToast(`Se quitó "${plan.productName}" de precios a publicar`);
+                        }}
+                      >
+                        Quitar
+                      </button>
+                    </div>
+                  </div>
                 </div>
+
                 <div style={{ overflowX: 'auto' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                     <thead>
                       <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                        {['Canal', 'Precio actual', 'Comisión', 'Cuotas', 'Ganancia/u', 'Margen', `Precio p/${targetMargen}%`].map(h => (
-                          <th key={h} style={{ textAlign: 'left', padding: '7px 10px', color: 'var(--text-3)', fontWeight: 500, fontSize: 11 }}>{h}</th>
+                        {['Canal', 'Precio confirmado', 'Sugerido', 'Comisión', 'Ganancia/u', 'Margen post-IIGG'].map(h => (
+                          <th key={h} style={{ textAlign: 'left', padding: '8px 10px', color: 'var(--text-3)', fontWeight: 500, fontSize: 11 }}>{h}</th>
                         ))}
                       </tr>
                     </thead>
                     <tbody>
-                      {canales.map((ch, i) => {
-                        const com = ch.precio * (ch.comision || 0) / 100;
-                        const neto = ch.precio - com - (ch.cuotas || 0);
-                        const gan = neto - p.costoARS;
-                        const margen = p.costoARS > 0 ? Math.round(gan / p.costoARS * 100) : 0;
-                        const badge = margen >= 50 ? 'green' : margen >= 20 ? 'amber' : 'red';
-                        // precio sugerido para alcanzar targetMargen: costo*(1+M%) / (1 - comision%) + cuotas
-                        const comF = (ch.comision || 0) / 100;
-                        const precioSug = p.costoARS > 0
-                          ? Math.ceil((p.costoARS * (1 + targetMargen / 100) + (ch.cuotas || 0)) / (1 - comF))
-                          : 0;
+                      {activeChannels.map(ch => {
+                        const badge = ch.mgReal >= 30 ? 'green' : ch.mgReal >= 10 ? 'amber' : 'red';
                         return (
-                          <tr key={i} style={{ borderBottom: '1px solid var(--border-2)' }}>
-                            <td style={{ padding: '9px 10px', fontWeight: 500 }}>{ch.nombre}</td>
-                            <td style={{ padding: '9px 10px', fontWeight: 700 }}>{ch.precio ? ars(ch.precio) : <span style={{ color: 'var(--text-3)' }}>Sin precio</span>}</td>
-                            <td style={{ padding: '9px 10px', color: 'var(--text-2)' }}>{ch.comision}%</td>
-                            <td style={{ padding: '9px 10px', color: 'var(--text-2)' }}>{ch.cuotas ? ars(ch.cuotas) : '—'}</td>
-                            <td style={{ padding: '9px 10px', fontWeight: 600, color: gan >= 0 ? 'var(--green)' : 'var(--red)' }}>{ch.precio ? ars(gan) : '—'}</td>
-                            <td style={{ padding: '9px 10px' }}>{ch.precio ? <span className={`badge badge-${badge}`}>{margen}%</span> : '—'}</td>
-                            <td style={{ padding: '9px 10px', fontWeight: 700, color: 'var(--accent)' }}>{p.costoARS > 0 ? ars(precioSug) : '—'}</td>
+                          <tr key={ch.nombre} style={{ borderBottom: '1px solid var(--border-2)' }}>
+                            <td style={{ padding: '10px', fontWeight: 600 }}>{ch.nombre}</td>
+                            <td style={{ padding: '10px', fontWeight: 800, color: 'var(--accent)' }}>{ars(ch.precio)}</td>
+                            <td style={{ padding: '10px', color: 'var(--text-2)' }}>{ars(ch.sugerido)}</td>
+                            <td style={{ padding: '10px', color: 'var(--text-2)' }}>{ch.comision}%</td>
+                            <td style={{ padding: '10px', fontWeight: 600, color: ch.ganPost >= 0 ? 'var(--green)' : 'var(--red)' }}>{ars(ch.ganPost)}</td>
+                            <td style={{ padding: '10px' }}><span className={`badge badge-${badge}`}>{ch.mgReal}%</span></td>
                           </tr>
                         );
                       })}
@@ -94,39 +120,6 @@ export default function Prices() {
             );
           })}
         </div>
-
-        {savedProducts.length >= 2 && (
-          <div className="card" style={{ marginTop: '1.5rem' }}>
-            <div className="card-header"><span className="card-title">Comparación de productos</span></div>
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-                <thead>
-                  <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                    {['Producto','Costo/u','Costo total','Mejor precio','Margen'].map(h => (
-                      <th key={h} style={{ textAlign: 'left', padding: '7px 10px', color: 'var(--text-3)', fontWeight: 500, fontSize: 11 }}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {savedProducts.map(p => {
-                    const best = (p.canales || []).reduce((a, b) => (b.precio > a.precio ? b : a), { precio: 0, nombre: '' });
-                    const margen = best.precio > 0 ? Math.round((best.precio - p.costoARS) / p.costoARS * 100) : 0;
-                    const badge = margen >= 50 ? 'green' : margen >= 20 ? 'amber' : 'red';
-                    return (
-                      <tr key={p.id} style={{ borderBottom: '1px solid var(--border-2)' }}>
-                        <td style={{ padding: '10px' }}><strong>{p.nombre}</strong><br/><span style={{ fontSize: 11, color: 'var(--text-3)' }}>{p.qty} u · DI {p.di}%</span></td>
-                        <td style={{ padding: '10px' }}>{ars(p.costoARS)}</td>
-                        <td style={{ padding: '10px' }}>{ars(p.costoARS * p.qty)}</td>
-                        <td style={{ padding: '10px' }}>{ars(best.precio)}<br/><span style={{ fontSize: 11, color: 'var(--text-3)' }}>{best.nombre}</span></td>
-                        <td style={{ padding: '10px' }}><span className={`badge badge-${badge}`}>{margen}%</span></td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
       </section>
     </div>
   );
