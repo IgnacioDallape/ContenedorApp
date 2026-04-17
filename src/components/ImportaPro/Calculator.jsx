@@ -35,7 +35,7 @@ export function calcCostos(inp) {
 }
 
 export default function Calculator() {
-  const { inputs, setInputs, canales, addCanal, updateCanal, removeCanal, saveProduct } = useImportaproStore();
+  const { inputs, setInputs, canales, addCanal, updateCanal, removeCanal, saveProduct, loadedProductName, tcUpdatedAt } = useImportaproStore();
   const { showToast, setActiveSection } = useAppStore();
   const { addToCatalog } = useContainerStore();
 
@@ -142,7 +142,7 @@ export default function Calculator() {
     if (!ch || !ch.precio) return 0;
     const com = ch.precio * (ch.comision || 0) / 100;
     const neto = ch.precio - com - (ch.cuotas || 0);
-    return Math.max(0, neto - c.costoARS);
+    return neto - c.costoARS;
   }
 
   const tot = c.costoUSD || 1;
@@ -170,13 +170,37 @@ export default function Calculator() {
   return (
     <div className="ip-section active" id="section-calc">
       <section id="tab-calc" className="tab" style={{ display:'block' }}>
+        {loadedProductName && (
+          <div style={{ display:'flex', alignItems:'center', gap:10, background:'var(--accent-dim)', border:'1px solid var(--accent)', borderRadius:8, padding:'9px 14px', marginBottom:16 }}>
+            <span style={{ fontSize:18 }}>📦</span>
+            <div style={{ flex:1 }}>
+              <span style={{ fontSize:11, fontWeight:700, color:'var(--accent)', textTransform:'uppercase', letterSpacing:'0.06em' }}>Producto cargado</span>
+              <span style={{ fontSize:13, color:'var(--text)', fontWeight:600, marginLeft:8 }}>{loadedProductName}</span>
+            </div>
+            <span style={{ fontSize:11, color:'var(--text-3)' }}>Editando · los cambios no se guardan automáticamente</span>
+          </div>
+        )}
         <div className="page-header">
-          <h1>Calculadora de costos</h1>
+          <h1>{inputs.nombre ? inputs.nombre : 'Calculadora de costos'}</h1>
           <p className="page-sub">Costo real de importar desde 1688 a Argentina, incluyendo impuestos, logística y trader</p>
         </div>
 
         <div>
           <div className="col">
+            {/* Alerta TC desactualizado */}
+            {(() => {
+              const stale = !tcUpdatedAt || (Date.now() - tcUpdatedAt > 3 * 24 * 60 * 60 * 1000);
+              if (!stale) return null;
+              return (
+                <div style={{ display:'flex', alignItems:'center', gap:8, background:'#7c5c3220', border:'1px solid #7c5c3240', borderRadius:8, padding:'8px 12px', marginBottom:12, fontSize:11 }}>
+                  <span>⏰</span>
+                  <span style={{ color:'var(--text-2)' }}>TC: <strong>${inputs.globalTC?.toLocaleString('es-AR')}</strong> — {tcUpdatedAt ? 'hace más de 3 días' : 'nunca actualizado'}</span>
+                  <span style={{ color:'var(--text-3)', marginLeft:4 }}>· Actualizalo en</span>
+                  <button onClick={() => useAppStore.getState().setActiveSection('settings')}
+                    style={{ background:'none', border:'none', color:'var(--accent)', fontWeight:700, cursor:'pointer', fontSize:11, padding:0 }}>Configuración →</button>
+                </div>
+              );
+            })()}
             {/* ── Datos del producto ── */}
             <div className="card">
               <div className="card-header"><span className="card-title">Datos del producto</span></div>
@@ -421,7 +445,7 @@ export default function Calculator() {
                 Gestiona fabricantes, calidad y despacho en origen. Rango habitual: 4 – 8 % del FOB.
               </div>
             </CalcSection>
-            <CalcSection id="calc-aranceles" color="#c0392b" label="Aranceles Argentina" style={{ marginTop: 10 }}>
+            <CalcSection id="calc-aranceles" color="#c0392b" label={`Aranceles Argentina${c.di >= 35 ? ' ⚠' : ''}`} style={{ marginTop: 10 }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 <div>
                   <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-3)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 7 }}>Derecho de importación</div>
@@ -603,11 +627,16 @@ export default function Calculator() {
                 ].map(({ ch, label:lbl, color }, i) => {
                   const ganNeta = chanGan(ch);
                   return (
-                    <div key={i} style={{ background:'var(--bg-3)', borderRadius:'var(--radius-lg)', padding:'12px 14px', border:'1px solid var(--border)', borderTop:`3px solid ${color}` }}>
-                      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:6 }}>
-                        <div style={{ fontSize:10, fontWeight:700, textTransform:'uppercase', letterSpacing:'0.08em', color }}>{lbl}</div>
-                        <div style={{ fontSize:11, color:'var(--text-3)' }}>Ganancia neta: <strong style={{ color:'var(--text)', fontSize:15 }}>{ars(ganNeta)}</strong></div>
+                    <div key={i} style={{ background:'var(--bg-3)', borderRadius:'var(--radius-lg)', padding:'12px 14px', border:`1px solid ${ganNeta < 0 && ch?.precio > 0 ? '#c0392b60' : 'var(--border)'}`, borderTop:`3px solid ${ganNeta < 0 && ch?.precio > 0 ? '#c0392b' : color}` }}>
+                      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom: ganNeta < 0 && ch?.precio > 0 ? 4 : 6 }}>
+                        <div style={{ fontSize:10, fontWeight:700, textTransform:'uppercase', letterSpacing:'0.08em', color: ganNeta < 0 && ch?.precio > 0 ? '#c0392b' : color }}>{lbl}</div>
+                        <div style={{ fontSize:11, color:'var(--text-3)' }}>Ganancia neta: <strong style={{ color: ganNeta < 0 && ch?.precio > 0 ? '#c0392b' : 'var(--text)', fontSize:15 }}>{ars(Math.max(0, ganNeta))}</strong></div>
                       </div>
+                      {ganNeta < 0 && ch?.precio > 0 && (
+                        <div style={{ fontSize:10, color:'#c0392b', fontWeight:600, background:'#c0392b12', borderRadius:4, padding:'3px 8px', marginBottom:6 }}>
+                          ⚠ Precio de venta por debajo del costo — perdés {ars(Math.abs(ganNeta))} por unidad
+                        </div>
+                      )}
                       <div style={{ display:'flex', height:4, borderRadius:3, overflow:'hidden', gap:1, marginBottom:10 }}>
                         <div style={{ flex:distReinv||0.5, background:'var(--accent)', borderRadius:2 }}/>
                         <div style={{ flex:distGan||0.5, background:'var(--green)', borderRadius:2 }}/>
@@ -711,7 +740,27 @@ function InteractiveDonut({ slices, centerLabel, centerValue }) {
   function scrollToSection(id) {
     if (!id) return;
     const el = document.getElementById(id);
-    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    if (!el) return;
+    // Find scrollable ancestor
+    function getScrollParent(node) {
+      if (!node || node === document.body) return null;
+      const { overflowY } = window.getComputedStyle(node);
+      if ((overflowY === 'auto' || overflowY === 'scroll') && node.scrollHeight > node.clientHeight) return node;
+      return getScrollParent(node.parentElement);
+    }
+    const container = getScrollParent(el);
+    if (container) {
+      const containerRect = container.getBoundingClientRect();
+      const elRect = el.getBoundingClientRect();
+      const targetScroll = container.scrollTop + (elRect.top - containerRect.top) - container.clientHeight / 2 + el.offsetHeight / 2;
+      container.scrollTo({ top: targetScroll, behavior: 'smooth' });
+    } else {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+    setTimeout(() => {
+      el.classList.add('calc-highlight-pulse');
+      el.addEventListener('animationend', () => el.classList.remove('calc-highlight-pulse'), { once: true });
+    }, 650);
   }
 
   let cumPct = 0;

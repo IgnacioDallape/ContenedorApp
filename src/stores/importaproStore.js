@@ -41,6 +41,8 @@ const useImportaproStore = create((set, get) => ({
   canales: DEFAULT_CANALES,
   inputs: { ...DEFAULT_INPUTS },
   apiKey: localStorage.getItem('importapro-apikey') || '',
+  loadedProductName: null,
+  tcUpdatedAt: null,
 
   setInputs(patch) {
     set(s => ({ inputs: { ...s.inputs, ...patch } }));
@@ -102,7 +104,12 @@ const useImportaproStore = create((set, get) => ({
         currencyMode: prod.currencyMode ?? 'cny',
       },
       canales: prod.canales ? JSON.parse(JSON.stringify(prod.canales)) : DEFAULT_CANALES,
+      loadedProductName: prod.nombre,
     }));
+  },
+
+  updateGlobalTC(value) {
+    set(s => ({ inputs: { ...s.inputs, globalTC: value }, tcUpdatedAt: Date.now() }));
   },
 
   setApiKey(key) {

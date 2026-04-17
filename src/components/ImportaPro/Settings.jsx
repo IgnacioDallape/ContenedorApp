@@ -2,10 +2,28 @@ import { useState } from 'react';
 import useImportaproStore from '../../stores/importaproStore.js';
 
 export default function Settings() {
-  const { apiKey, setApiKey, inputs, setInputs } = useImportaproStore();
+  const { apiKey, setApiKey, inputs, updateGlobalTC, tcUpdatedAt } = useImportaproStore();
   const [showKey, setShowKey] = useState(false);
+  const [fetching, setFetching] = useState(false);
+  const [fetchError, setFetchError] = useState(null);
 
   const keyStatus = apiKey?.startsWith('sk-ant-') ? 'ok' : apiKey ? 'warn' : 'none';
+
+  async function handleFetchTC() {
+    setFetching(true);
+    setFetchError(null);
+    try {
+      const res = await fetch('https://api.bluelytics.com.ar/v2/latest');
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      const value = Math.round(data.blue.value_avg);
+      updateGlobalTC(value);
+    } catch (e) {
+      setFetchError(e.message || 'Error al obtener el tipo de cambio');
+    } finally {
+      setFetching(false);
+    }
+  }
 
   return (
     <div className="ip-section active" id="section-settings">
@@ -22,9 +40,23 @@ export default function Settings() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <input
                 type="number" value={inputs.globalTC} min="1" style={{ flex: 1 }}
-                onChange={e => setInputs({ globalTC: parseFloat(e.target.value) || 1450 })}
+                onChange={e => updateGlobalTC(parseFloat(e.target.value) || 1450)}
               />
               <span className="tc-badge">USD/ARS</span>
+              <button
+                onClick={handleFetchTC}
+                disabled={fetching}
+                style={{ padding: '0 12px', height: 38, background: 'var(--accent)', border: 'none', borderRadius: 'var(--radius)', cursor: fetching ? 'not-allowed' : 'pointer', fontSize: 13, color: '#fff', fontWeight: 600, opacity: fetching ? 0.6 : 1, whiteSpace: 'nowrap' }}
+              >
+                {fetching ? '...' : '🔄 Actualizar dólar blue'}
+              </button>
+            </div>
+            <div style={{ marginTop: 6, fontSize: 11 }}>
+              {tcUpdatedAt
+                ? <span style={{ color: 'var(--green)' }}>Actualizado: {new Date(tcUpdatedAt).toLocaleString('es-AR')}</span>
+                : <span style={{ color: 'var(--amber, #e6a817)' }}>Sin actualizar</span>
+              }
+              {fetchError && <span style={{ color: 'var(--red)', marginLeft: 10 }}>{fetchError}</span>}
             </div>
           </div>
         </div>
