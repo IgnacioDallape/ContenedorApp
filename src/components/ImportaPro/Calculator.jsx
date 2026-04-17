@@ -316,7 +316,7 @@ export default function Calculator() {
                       <div style={{ display:'flex', alignItems:'center', gap:10 }}>
                         <input type="range" id="p-pallet-height" min="30" max="220" value={inputs.palletHeight || 120}
                           style={{ flex:1, accentColor:'var(--accent)' }}
-                          onChange={e => { setInputs({ palletHeight: parseInt(e.target.value) }); syncPalletDims(); }} />
+                          onChange={e => { const h = parseInt(e.target.value); setInputs({ palletHeight: h, dimH: h }); syncPalletDims(); }} />
                         <span style={{ fontSize:12, fontWeight:600, color:'var(--accent)', whiteSpace:'nowrap', minWidth:48 }}>
                           {inputs.palletHeight || 120} cm
                         </span>
@@ -327,16 +327,18 @@ export default function Calculator() {
               )}
 
               <div id="dims-section">
-                <div className="form-grid-3">
+                <div className={inputs.tipoUnidad === 'pallet' ? 'form-grid-2' : 'form-grid-3'}>
                   <div className="field"><label>Largo <span className="unit">cm</span></label>
                     <input type="number" id="p-dim-l" value={inputs.dimL||''} placeholder="60" min="1" step="0.5"
                       onChange={e => setInputs({ dimL: e.target.value })} /></div>
                   <div className="field"><label>Ancho <span className="unit">cm</span></label>
                     <input type="number" id="p-dim-w" value={inputs.dimW||''} placeholder="40" min="1" step="0.5"
                       onChange={e => setInputs({ dimW: e.target.value })} /></div>
-                  <div className="field"><label>Alto <span className="unit">cm</span></label>
-                    <input type="number" id="p-dim-h" value={inputs.dimH||''} placeholder="30" min="1" step="0.5"
-                      onChange={e => setInputs({ dimH: e.target.value })} /></div>
+                  {inputs.tipoUnidad !== 'pallet' && (
+                    <div className="field"><label>Alto <span className="unit">cm</span></label>
+                      <input type="number" id="p-dim-h" value={inputs.dimH||''} placeholder="30" min="1" step="0.5"
+                        onChange={e => setInputs({ dimH: e.target.value })} /></div>
+                  )}
                 </div>
               </div>
 
@@ -453,6 +455,18 @@ export default function Calculator() {
             </CalcSection>
             <CalcSection id="calc-aranceles" color="#c0392b" label={`Aranceles Argentina${c.di >= 35 ? ' ⚠' : ''}`} style={{ marginTop: 10 }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                  <button
+                    onClick={() => setActiveSection('ncm')}
+                    style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 12px', borderRadius: 20,
+                      border: '1px solid #c0392b50', background: '#c0392b12', color: '#c0392b',
+                      fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font)', transition: 'all 0.15s' }}
+                    onMouseEnter={e => { e.currentTarget.style.background = '#c0392b'; e.currentTarget.style.color = '#fff'; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = '#c0392b12'; e.currentTarget.style.color = '#c0392b'; }}
+                  >
+                    🔍 Consultar NCM
+                  </button>
+                </div>
                 <div>
                   <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-3)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 7 }}>Derecho de importación</div>
                   <TaxToggle
@@ -542,7 +556,7 @@ export default function Calculator() {
             <div>
               {/* Big number */}
               <div style={{ marginBottom:16 }}>
-                <div style={{ fontSize:12, fontWeight:600, color:'var(--text-3)', textTransform:'uppercase', letterSpacing:'0.07em', marginBottom:4 }}>Costo unitario total</div>
+                <div style={{ fontSize:12, fontWeight:600, color:'var(--text-3)', textTransform:'uppercase', letterSpacing:'0.07em', marginBottom:4 }}>Costo por unidad</div>
                 <div className="big-value" style={{ fontSize:32, marginBottom:2 }}>{ars(c.costoARS)}</div>
                 <div style={{ fontSize:13, color:'var(--text-3)' }}>
                   U$S {rd(c.costoUSD,2)} · ¥{rd(c.costoUSD/(parseFloat(inputs.cny)||0.1466),0)} CNY · {c.qty} u = {ars(c.costoARS*c.qty)} total
