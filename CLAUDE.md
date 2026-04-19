@@ -163,6 +163,12 @@ No asumir schema extra en Supabase para esto. Hoy el comportamiento vive en el p
 - Ya no muestra la columna `Referencia`.
 - Usa el nombre del pedido si el usuario lo definio.
 
+### Cotizacion de importacion (Calculator)
+- Sale desde `Calculator.jsx` con boton "Exportar PDF".
+- Usa `exportCotizacionPDF()` en `src/lib/exportPDF.js`.
+- Incluye: desglose de costos por unidad (USD/ARS/%), costo total del lote, tabla de canales con ganancia coloreada.
+- Filtra filas con valor cero para no mostrar componentes no configurados.
+
 ### PDF de embarque
 - Limpia links de ML / 1688 de la columna Notas.
 - Tambien limpia textos genericos tipo `Pedido definitivo`.
@@ -316,6 +322,8 @@ Zonas donde conviene ir con cuidado:
 - Fixes sucesivos del outline amarillo/seleccion.
 - Moneda default en calculadora: USD.
 - Configuracion sin bloque de API key Anthropic.
+- Exportacion PDF de cotizacion desde Calculator (boton "Exportar PDF").
+- Comparator mobile fix: slots colapsan a 1 columna, tabla resumen con scroll horizontal.
 
 ---
 
