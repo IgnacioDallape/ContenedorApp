@@ -10,12 +10,32 @@ import { _sb } from '../../lib/supabase.js';
 import { exportShipmentPDF } from '../../lib/exportPDF.js';
 
 const STATUS_CONFIG = {
-  preparacion: { label: 'En preparación', color: '#C0614A', bg: '#FDF0ED', icon: '🔴' },
-  en_transito: { label: 'En tránsito',    color: '#7A5C8A', bg: '#F3EEF8', icon: '🚛' },
-  embarcado:   { label: 'Embarcado',      color: '#2E7DC0', bg: '#EBF4FD', icon: '🚢' },
-  en_puerto:   { label: 'En puerto',      color: '#C08A1A', bg: '#FDF6E3', icon: '🟡' },
-  entregado:   { label: 'Entregado',      color: '#3A8C52', bg: '#EDF7F1', icon: '✅' },
+  preparacion:            { label: 'En preparación',              color: '#C0614A', bg: '#FDF0ED', icon: '🔴' },
+  en_transito_puerto:     { label: 'En tránsito al puerto',       color: '#7A5C8A', bg: '#F3EEF8', icon: '🚛' },
+  en_puerto_partida:      { label: 'En puerto de partida',        color: '#8C6B3C', bg: '#FBF3E6', icon: '⚓' },
+  embarcado:              { label: 'Embarcado',                   color: '#2E7DC0', bg: '#EBF4FD', icon: '🚢' },
+  en_puerto_destino:      { label: 'En puerto destino',           color: '#C08A1A', bg: '#FDF6E3', icon: '🟡' },
+  en_transito_destino:    { label: 'En tránsito a destino final', color: '#4D7C8A', bg: '#EDF6F8', icon: '🚚' },
+  entregado:              { label: 'Entregado',                   color: '#3A8C52', bg: '#EDF7F1', icon: '✅' },
+  en_transito:            { label: 'En tránsito al puerto',       color: '#7A5C8A', bg: '#F3EEF8', icon: '🚛' },
+  en_puerto:              { label: 'En puerto destino',           color: '#C08A1A', bg: '#FDF6E3', icon: '🟡' },
 };
+
+const STATUS_ORDER = [
+  'preparacion',
+  'en_transito_puerto',
+  'en_puerto_partida',
+  'embarcado',
+  'en_puerto_destino',
+  'en_transito_destino',
+  'entregado',
+];
+
+function normalizeShipmentStatus(status) {
+  if (status === 'en_transito') return 'en_transito_puerto';
+  if (status === 'en_puerto') return 'en_puerto_destino';
+  return STATUS_CONFIG[status] ? status : 'preparacion';
+}
 
 export default function ContainerLoader() {
   const {
@@ -560,7 +580,7 @@ export default function ContainerLoader() {
       setShipmentNotes('');
       loadShipmentData(data);
     }
-    setCurrentShipmentStatus(data.status || 'preparacion');
+    setCurrentShipmentStatus(normalizeShipmentStatus(data.status));
     setShowShipments(false);
     showToast(`✓ Embarque "${data.name}" cargado`, 'success');
   }
@@ -568,7 +588,7 @@ export default function ContainerLoader() {
   async function updateShipmentStatus(id, status) {
     await _sb.from('shipments').update({ status }).eq('id', id);
     setShipmentsList(prev => prev.map(s => s.id === id ? { ...s, status } : s));
-    if (String(id) === String(currentShipmentId)) setCurrentShipmentStatus(status);
+    if (String(id) === String(currentShipmentId)) setCurrentShipmentStatus(normalizeShipmentStatus(status));
   }
 
   // ── Export CSV from stored shipment data (without loading) ──
@@ -966,13 +986,16 @@ export default function ContainerLoader() {
                     </button>
                     {showCurrentStatusPicker && (
                       <div style={{ position: 'absolute', top: 'calc(100% + 4px)', right: 0, zIndex: 400, background: '#fff', borderRadius: 10, border: '1px solid #E8E0D8', boxShadow: '0 4px 16px rgba(0,0,0,0.14)', padding: 6, display: 'flex', flexDirection: 'column', gap: 3, minWidth: 170 }}>
-                        {Object.entries(STATUS_CONFIG).map(([key, cfg]) => (
-                          <button key={key}
-                            onClick={() => { updateShipmentStatus(currentShipmentId, key); setShowCurrentStatusPicker(false); }}
-                            style={{ background: currentShipmentStatus === key ? cfg.bg : 'transparent', border: `1.5px solid ${currentShipmentStatus === key ? cfg.color + '55' : 'transparent'}`, borderRadius: 7, padding: '6px 10px', cursor: 'pointer', textAlign: 'left', color: cfg.color, fontFamily: "'DM Mono', monospace", fontSize: 10, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 7 }}>
-                            <span>{cfg.icon}</span><span>{cfg.label}</span>
-                          </button>
-                        ))}
+                        {STATUS_ORDER.map((key) => {
+                          const cfg = STATUS_CONFIG[key];
+                          return (
+                            <button key={key}
+                              onClick={() => { updateShipmentStatus(currentShipmentId, key); setShowCurrentStatusPicker(false); }}
+                              style={{ background: currentShipmentStatus === key ? cfg.bg : 'transparent', border: `1.5px solid ${currentShipmentStatus === key ? cfg.color + '55' : 'transparent'}`, borderRadius: 7, padding: '6px 10px', cursor: 'pointer', textAlign: 'left', color: cfg.color, fontFamily: "'DM Mono', monospace", fontSize: 10, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 7 }}>
+                              <span>{cfg.icon}</span><span>{cfg.label}</span>
+                            </button>
+                          );
+                        })}
                       </div>
                     )}
                   </div>
@@ -1340,7 +1363,8 @@ export default function ContainerLoader() {
                 const sNotes = Array.isArray(rawC) ? '' : (rawC?.notes || '');
                 const totalConts = conts.length || 1;
                 const totalProds = conts.reduce((acc, c) => acc + (c.products?.length || 0), 0);
-                const st = STATUS_CONFIG[s.status] || STATUS_CONFIG.preparacion;
+                const normalizedStatus = normalizeShipmentStatus(s.status);
+                const st = STATUS_CONFIG[normalizedStatus] || STATUS_CONFIG.preparacion;
                 const isOpen = openStatusId === s.id;
                 return (
                   <div key={s.id} style={{
@@ -1386,10 +1410,12 @@ export default function ContainerLoader() {
                         background: '#fff', borderRadius: 10, border: '1px solid #E8E0D8',
                         boxShadow: '0 4px 16px rgba(0,0,0,0.12)', padding: 6, display: 'flex', flexDirection: 'column', gap: 3, minWidth: 160,
                       }}>
-                        {Object.entries(STATUS_CONFIG).map(([key, cfg]) => (
+                        {STATUS_ORDER.map((key) => {
+                          const cfg = STATUS_CONFIG[key];
+                          return (
                           <button key={key} onClick={() => { updateShipmentStatus(s.id, key); setOpenStatusId(null); }} style={{
-                            background: (s.status || 'preparacion') === key ? cfg.bg : 'transparent',
-                            border: `1.5px solid ${(s.status || 'preparacion') === key ? cfg.color + '55' : 'transparent'}`,
+                            background: normalizedStatus === key ? cfg.bg : 'transparent',
+                            border: `1.5px solid ${normalizedStatus === key ? cfg.color + '55' : 'transparent'}`,
                             borderRadius: 7, padding: '6px 10px', cursor: 'pointer', textAlign: 'left',
                             color: cfg.color, fontFamily: "'DM Mono', monospace", fontSize: 10, fontWeight: 600,
                             display: 'flex', alignItems: 'center', gap: 7,
@@ -1397,7 +1423,8 @@ export default function ContainerLoader() {
                             <span>{cfg.icon}</span>
                             <span>{cfg.label}</span>
                           </button>
-                        ))}
+                          );
+                        })}
                       </div>
                     )}
 

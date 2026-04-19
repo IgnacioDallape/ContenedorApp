@@ -8,12 +8,22 @@ const ThreeCanvas = lazy(() => import('../ContainerLoader/ThreeCanvas.jsx'));
 const fmt = (n, dec = 2) => Number(n).toLocaleString('es-AR', { minimumFractionDigits: dec, maximumFractionDigits: dec });
 
 const STATUS_CONFIG = {
-  preparacion: { label: 'En preparación', color: '#C0614A', bg: '#FDF0ED', icon: '🔴' },
-  en_transito: { label: 'En tránsito',   color: '#7A5C8A', bg: '#F3EEF8', icon: '🚛' },
-  embarcado:   { label: 'Embarcado',      color: '#2E7DC0', bg: '#EBF4FD', icon: '🚢' },
-  en_puerto:   { label: 'En puerto',      color: '#C08A1A', bg: '#FDF6E3', icon: '⚓' },
-  entregado:   { label: 'Entregado',      color: '#3A8C52', bg: '#EDF7F1', icon: '✅' },
+  preparacion:         { label: 'En preparación',              color: '#C0614A', bg: '#FDF0ED', icon: '🔴' },
+  en_transito_puerto:  { label: 'En tránsito al puerto',       color: '#7A5C8A', bg: '#F3EEF8', icon: '🚛' },
+  en_puerto_partida:   { label: 'En puerto de partida',        color: '#8C6B3C', bg: '#FBF3E6', icon: '⚓' },
+  embarcado:           { label: 'Embarcado',                   color: '#2E7DC0', bg: '#EBF4FD', icon: '🚢' },
+  en_puerto_destino:   { label: 'En puerto destino',           color: '#C08A1A', bg: '#FDF6E3', icon: '🟡' },
+  en_transito_destino: { label: 'En tránsito a destino final', color: '#4D7C8A', bg: '#EDF6F8', icon: '🚚' },
+  entregado:           { label: 'Entregado',                   color: '#3A8C52', bg: '#EDF7F1', icon: '✅' },
+  en_transito:         { label: 'En tránsito al puerto',       color: '#7A5C8A', bg: '#F3EEF8', icon: '🚛' },
+  en_puerto:           { label: 'En puerto destino',           color: '#C08A1A', bg: '#FDF6E3', icon: '🟡' },
 };
+
+function normalizeShipmentStatus(status) {
+  if (status === 'en_transito') return 'en_transito_puerto';
+  if (status === 'en_puerto') return 'en_puerto_destino';
+  return STATUS_CONFIG[status] ? status : 'preparacion';
+}
 
 export default function SharePage({ shipmentId }) {
   const [shipment, setShipment] = useState(null);
@@ -72,7 +82,7 @@ export default function SharePage({ shipmentId }) {
   const totV = allProds.reduce((s, p) => s + p.vol * p.qty, 0);
   const totW = allProds.reduce((s, p) => s + (p.weight || 0) * p.qty, 0);
   const totVal = allProds.reduce((s, p) => s + (p.price || 0) * p.qty, 0);
-  const st = STATUS_CONFIG[shipment.status] || STATUS_CONFIG.preparacion;
+  const st = STATUS_CONFIG[normalizeShipmentStatus(shipment.status)] || STATUS_CONFIG.preparacion;
   const date = new Date(shipment.created_at).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
 
   return (
