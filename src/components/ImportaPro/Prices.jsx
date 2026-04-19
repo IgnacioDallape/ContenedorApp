@@ -28,7 +28,9 @@ export default function Prices() {
     savedProducts,
     publicationPlans,
     publicationOrderDraft,
+    publicationOrderName,
     setPublicationOrderQty,
+    setPublicationOrderName,
     removePublicationPlan,
     removePublicationOrderItem,
     clearPublicationOrder,
@@ -89,7 +91,7 @@ export default function Prices() {
         productName: item.productName,
         orderQty: item.orderQty,
       })),
-      orderTitle: `pedido-${new Date().toLocaleDateString('es-AR')}`,
+      orderTitle: publicationOrderName.trim() || `pedido-${new Date().toLocaleDateString('es-AR')}`,
     });
 
     showToast('PDF de pedido generado', 'success');
@@ -125,7 +127,7 @@ export default function Prices() {
         qty: item.orderQty,
         price: product.costoUSD || product.fob || 0,
         weight: product.pesoUnit || 0,
-        notes: `Pedido definitivo${product.link1688 ? ` · 1688: ${product.link1688}` : ''}`,
+        notes: `${publicationOrderName.trim() || 'Pedido definitivo'}${product.link1688 ? ` · 1688: ${product.link1688}` : ''}`,
       });
       added += 1;
     });
@@ -242,6 +244,15 @@ export default function Prices() {
               <span className="card-title">Cierre del pedido</span>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 5, marginBottom: 2 }}>
+                <label style={{ fontSize: 11, color: 'var(--text-3)', fontWeight: 600 }}>Nombre del pedido</label>
+                <input
+                  type="text"
+                  value={publicationOrderName}
+                  onChange={e => setPublicationOrderName(e.target.value)}
+                  placeholder="Ej: Pedido junio proveedor China"
+                />
+              </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
                 <span style={{ color: 'var(--text-3)' }}>Productos</span>
                 <strong>{orderItems.length}</strong>

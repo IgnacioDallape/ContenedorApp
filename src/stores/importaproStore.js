@@ -40,6 +40,7 @@ const useImportaproStore = create((set, get) => ({
   savedProducts: JSON.parse(localStorage.getItem('importapro-products') || '[]'),
   publicationPlans: JSON.parse(localStorage.getItem('importapro-publication-plans') || '[]'),
   publicationOrderDraft: JSON.parse(localStorage.getItem('importapro-publication-order-draft') || '[]'),
+  publicationOrderName: localStorage.getItem('importapro-publication-order-name') || '',
   canales: JSON.parse(JSON.stringify(DEFAULT_CANALES)),
   inputs: { ...DEFAULT_INPUTS },
   apiKey: localStorage.getItem('importapro-apikey') || '',
@@ -144,7 +145,13 @@ const useImportaproStore = create((set, get) => ({
 
   clearPublicationOrder() {
     localStorage.setItem('importapro-publication-order-draft', '[]');
-    set({ publicationOrderDraft: [] });
+    localStorage.setItem('importapro-publication-order-name', '');
+    set({ publicationOrderDraft: [], publicationOrderName: '' });
+  },
+
+  setPublicationOrderName(name) {
+    localStorage.setItem('importapro-publication-order-name', name);
+    set({ publicationOrderName: name });
   },
 
   loadProductToCalc(prod) {

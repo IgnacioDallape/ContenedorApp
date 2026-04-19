@@ -624,7 +624,7 @@ export function exportPurchaseOrderPDF({ items, orderTitle = 'pedido-definitivo'
   autoTable(doc, {
     startY: y,
     margin: { left: margin, right: margin },
-    head: [['Producto', 'Cant.', 'Tipo', 'Dims (cm)', 'Peso/u', 'Costo/u USD', 'Subtotal USD', 'Referencia']],
+    head: [['Producto', 'Cant.', 'Tipo', 'Dims (cm)', 'Peso/u', 'Costo/u USD', 'Subtotal USD']],
     body: items.map(item => [
       ascii(item.nombre || item.productName || 'Producto'),
       item.orderQty,
@@ -633,11 +633,10 @@ export function exportPurchaseOrderPDF({ items, orderTitle = 'pedido-definitivo'
       item.pesoUnit ? fmt(item.pesoUnit, 1) + ' kg' : '-',
       item.costoUSD || item.fob ? usd(item.costoUSD || item.fob) : '-',
       item.costoUSD || item.fob ? usd((item.costoUSD || item.fob) * item.orderQty) : '-',
-      ascii(item.link1688 || item.linkML || '-'),
     ]),
     foot: [[
       'TOTAL', totalUnits, '', '', '', '',
-      usd(totalUsd), totalArs > 0 ? ascii('$ ' + fmt(Math.round(totalArs), 0)) : ''
+      usd(totalUsd)
     ]],
     styles: { fontSize: 8, cellPadding: 2.6, textColor: [60, 50, 40] },
     headStyles: { fillColor: [141, 121, 102], textColor: 255, fontStyle: 'bold', fontSize: 7.5 },
@@ -650,15 +649,15 @@ export function exportPurchaseOrderPDF({ items, orderTitle = 'pedido-definitivo'
       3: { cellWidth: 22, halign: 'center' },
       4: { cellWidth: 18, halign: 'right' },
       5: { cellWidth: 22, halign: 'right' },
-      6: { cellWidth: 24, halign: 'right' },
-      7: { cellWidth: 28 },
+      6: { cellWidth: 26, halign: 'right' },
     },
   });
 
   y = doc.lastAutoTable.finalY + 10;
   doc.setFontSize(9);
   doc.setTextColor(120, 100, 80);
-  doc.text(ascii('Observacion: verificar cantidades y medidas antes de concretar el pedido con el proveedor.'), margin, y);
+  const totalsLine = totalArs > 0 ? `Costo estimado total ARS: $ ${fmt(Math.round(totalArs), 0)}` : '';
+  doc.text(ascii(`Observacion: verificar cantidades y medidas antes de concretar el pedido con el proveedor.${totalsLine ? ` ${totalsLine}` : ''}`), margin, y);
 
   const totalPages = doc.getNumberOfPages();
   for (let p = 1; p <= totalPages; p++) {

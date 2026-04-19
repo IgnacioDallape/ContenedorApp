@@ -551,10 +551,10 @@ export default function Calculator() {
         <div className="card dist-card" style={{ marginTop:'1.5rem' }}>
           <div className="card-header"><span className="card-title">Resultado y distribución de ganancia</span></div>
 
-          <div className="dist-main-grid" style={{ display:'grid', gridTemplateColumns:'1fr 220px 1fr', gap:24, alignItems:'start' }}>
+          <div className="dist-main-grid" style={{ display:'grid', gridTemplateColumns:'1fr 220px minmax(0, 1.08fr)', gap:34, alignItems:'start' }}>
 
             {/* LEFT: Desglose completo del costo */}
-            <div>
+            <div style={{ paddingLeft: 6 }}>
               {/* Big number */}
               <div style={{ marginBottom:16 }}>
                 <div style={{ fontSize:12, fontWeight:600, color:'var(--text-3)', textTransform:'uppercase', letterSpacing:'0.07em', marginBottom:4 }}>Costo por unidad</div>
@@ -857,24 +857,8 @@ function InteractiveDonut({ slices, centerLabel, centerValue }) {
           )}
         </div>
       </div>
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'3px 10px', width:'100%', maxWidth:200 }}>
-        {slices.map((s, i) => (
-          <div key={i}
-            onMouseEnter={() => setHovered(i)}
-            onMouseLeave={() => setHovered(null)}
-            onClick={() => scrollToSection(s.sectionId)}
-            title="Ir a la sección"
-            style={{ display:'flex', alignItems:'center', gap:5, cursor:'pointer', padding:'3px 5px', borderRadius:5,
-              background: hovered===i ? `${s.color}18` : 'transparent', transition:'background 0.15s' }}>
-            <span style={{ width:7, height:7, borderRadius:2, background:s.color, flexShrink:0 }}/>
-            <span style={{ fontSize:11, color: hovered===i ? 'var(--text)' : 'var(--text-3)', fontWeight: hovered===i ? 700 : 400, flex:1, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{s.label}</span>
-            <span style={{ fontSize:11, color:'var(--text-2)', fontFamily:"'DM Mono',monospace" }}>{rd(s.pct,1)}%</span>
-          </div>
-        ))}
-      </div>
-
       {/* Desglose en USD */}
-      <div style={{ width:'100%', maxWidth:200, marginTop:8, borderRadius:7, overflow:'hidden', border:'1px solid var(--border)' }}>
+      <div style={{ width:'100%', maxWidth:200, marginTop:12, borderRadius:7, overflow:'hidden', border:'1px solid var(--border)' }}>
         <div style={{ padding:'4px 10px', background:'var(--bg-3)', borderBottom:'1px solid var(--border)' }}>
           <span style={{ fontSize:11, fontWeight:700, color:'var(--text-3)', textTransform:'uppercase', letterSpacing:'0.07em' }}>Desglose U$S</span>
         </div>
@@ -924,4 +908,3 @@ function exportCSV(c, canales, nombre) {
   Object.assign(document.createElement('a'), { href:url, download:`importa-${(nombre||'producto').replace(/\s+/g,'-')}-${new Date().toISOString().slice(0,10)}.csv` }).click();
   URL.revokeObjectURL(url);
 }
-
