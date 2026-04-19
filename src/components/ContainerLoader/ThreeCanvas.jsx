@@ -604,14 +604,21 @@ function ThreeCanvas({ onSelectInstance, onSetZone, onClearZone, readOnly = fals
       }
     });
     if (t._selectedMeshes.length > 0) {
-      const bb = new THREE.Box3();
-      t._selectedMeshes.forEach((mesh) => bb.expandByObject(mesh));
-      if (!bb.isEmpty()) {
-        const size = bb.getSize(new THREE.Vector3());
-        const center = bb.getCenter(new THREE.Vector3());
-        const outGeo = new THREE.EdgesGeometry(new THREE.BoxGeometry(size.x + 3, size.y + 3, size.z + 3));
+      const state = useContainerStore.getState();
+      const { packed } = runPackingCached(state.loadedProducts);
+      const packedItem = packed.find(item => item.instanceId === instanceId);
+      if (packedItem) {
+        const outGeo = new THREE.EdgesGeometry(new THREE.BoxGeometry(
+          packedItem.dX + 3,
+          packedItem.dY + 3,
+          packedItem.dZ + 3
+        ));
         const outline = new THREE.LineSegments(outGeo, new THREE.LineBasicMaterial({ color: 0xFFCC44 }));
-        outline.position.copy(center);
+        outline.position.set(
+          packedItem.x + packedItem.dX / 2,
+          packedItem.y + packedItem.dY / 2,
+          packedItem.z + packedItem.dZ / 2
+        );
         t._scene?.add(outline) || t.scene.add(outline);
         t._selectedOutlines.push(outline);
       }
