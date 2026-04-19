@@ -1245,7 +1245,7 @@ export default function ContainerLoader() {
             )}
 
             {/* 3D canvas wrapper */}
-            <div className="canvas-wrap" id="canvasWrap" style={{ position: 'relative', overflow: 'visible', borderRadius: 6, paddingRight: inspector ? 292 : 0, transition: 'padding-right 0.18s ease' }}>
+            <div className="canvas-wrap" id="canvasWrap" style={{ position: 'relative', overflow: 'visible', borderRadius: 6 }}>
               <ThreeErrorBoundary>
                 <ThreeCanvas
                   ref={canvasRef}
@@ -1263,7 +1263,7 @@ export default function ContainerLoader() {
 
               {/* Inspector panel */}
               {inspector && (
-                <div style={{ position: 'absolute', right: 14, top: 44, zIndex: 60, width: 272, maxWidth: 'calc(100vw - 48px)', background: 'linear-gradient(180deg, rgba(251,247,241,0.98), rgba(243,236,227,0.98))', border: '1px solid rgba(141,121,102,0.22)', borderRadius: 18, boxShadow: '0 20px 44px rgba(97,78,60,0.18)', fontFamily: "'DM Mono', monospace", backdropFilter: 'blur(14px)', overflow: 'hidden' }}>
+                <div style={{ position: 'absolute', right: 14, top: 14, zIndex: 60, width: 'min(272px, calc(100% - 28px))', maxHeight: 'calc(100% - 28px)', background: 'linear-gradient(180deg, rgba(251,247,241,0.98), rgba(243,236,227,0.98))', border: '1px solid rgba(141,121,102,0.22)', borderRadius: 18, boxShadow: '0 20px 44px rgba(97,78,60,0.18)', fontFamily: "'DM Mono', monospace", backdropFilter: 'blur(14px)', overflowX: 'hidden', overflowY: 'auto' }}>
                   <div style={{ padding: '14px 14px 12px', background: 'linear-gradient(135deg, var(--c1), #a48f7d)', color: 'var(--c5)', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
                       <div style={{ width: 34, height: 34, borderRadius: 10, background: 'rgba(248,241,233,0.16)', display: 'grid', placeItems: 'center', fontSize: 16, flexShrink: 0 }}>
