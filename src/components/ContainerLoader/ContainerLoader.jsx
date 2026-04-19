@@ -112,9 +112,20 @@ export default function ContainerLoader() {
   const weightLimit = currentContainerType.startsWith('semi') ? semiWeightLimit : (WEIGHT_LIMITS[currentContainerType] || 28000);
   const weightOver  = totalWeight > weightLimit;
   const isSemi      = currentContainerType.startsWith('semi');
+  const canEditShipment = !currentShipmentId || currentShipmentStatus === 'preparacion';
+  const filteredShipments = shipmentsList.filter(s => !shipmentsFilter || s.name.toLowerCase().includes(shipmentsFilter.toLowerCase()));
+  const activeShipments = filteredShipments.filter(s => !parseShipmentPayload(s.containers).isFinalized);
+  const finalizedShipments = filteredShipments.filter(s => parseShipmentPayload(s.containers).isFinalized);
+
+  function ensureEditable(action = 'editar este embarque') {
+    if (canEditShipment) return true;
+    showToast(`Solo podés ${action} cuando el embarque está en "En preparación"`, 'error');
+    return false;
+  }
 
   // ── Add product (manual) ──
   function handleAddProduct() {
+    if (!ensureEditable('agregar o quitar mercadería')) return;
     setFormError('');
     if (!prodName.trim()) { setFormError('Ingresá el nombre del producto'); return; }
     const q = parseInt(qty);
@@ -403,6 +414,7 @@ export default function ContainerLoader() {
 
   // ── Rotation ──
   function rotateSelected(axis) {
+    if (!ensureEditable('reubicar la carga')) return;
     if (!inspector) return;
     const { instanceId } = inspector;
     const productId = instanceId.split('_').slice(0, -1).join('_');
@@ -438,6 +450,7 @@ export default function ContainerLoader() {
   }
 
   function clearRotation() {
+    if (!ensureEditable('reubicar la carga')) return;
     if (!inspector) return;
     const { instanceId } = inspector;
     setInstanceLockedOri(instanceId, null);
@@ -446,6 +459,7 @@ export default function ContainerLoader() {
   }
 
   function nudgeSelected(dx, dz) {
+    if (!ensureEditable('mover la carga')) return;
     if (!inspector) return;
     const { instanceId } = inspector;
     const state = useContainerStore.getState();
@@ -462,6 +476,7 @@ export default function ContainerLoader() {
   }
 
   function removeSelectedProduct() {
+    if (!ensureEditable('agregar o quitar mercadería')) return;
     if (!inspector) return;
     const { instanceId } = inspector;
     const productId = instanceId.split('_').slice(0, -1).join('_');
@@ -478,6 +493,7 @@ export default function ContainerLoader() {
   }
 
   function duplicateSelectedProduct() {
+    if (!ensureEditable('agregar o quitar mercadería')) return;
     if (!inspector) return;
     const productId = inspector.instanceId.split('_').slice(0, -1).join('_');
     const p = loadedProducts.find(p => String(p.id) == productId);
@@ -500,6 +516,27 @@ export default function ContainerLoader() {
     const blob = new Blob(['\uFEFF'+csv], { type: 'text/csv;charset=utf-8;' });
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
     a.download = `${currentShipmentName || 'embarque'}.csv`; a.click();
+  }
+
+  function parseShipmentPayload(raw) {
+    if (Array.isArray(raw)) return { items: raw, notes: '', isFinalized: false, finalizedAt: null };
+    return {
+      items: raw?.items || [],
+      notes: raw?.notes || '',
+      isFinalized: Boolean(raw?.isFinalized),
+      finalizedAt: raw?.finalizedAt || null,
+    };
+  }
+
+  function buildShipmentPayload(items, extra = {}) {
+    return {
+      v: 2,
+      notes: shipmentNotes,
+      items,
+      isFinalized: false,
+      finalizedAt: null,
+      ...extra,
+    };
   }
 
   // ── Shipments ──
@@ -529,7 +566,7 @@ export default function ContainerLoader() {
         setOverwriteId(existing[0].id); setOverwriteName(saveName.trim());
         setShowSave(false); setShowOverwrite(true); return;
       }
-      const payload = { v: 2, notes: shipmentNotes, items: containers };
+      const payload = buildShipmentPayload(containers);
       const { data: inserted, error } = await _sb.from('shipments').insert({ user_id: session.user.id, name: saveName.trim(), containers: payload, status: 'preparacion' }).select('id').single();
       if (error) { showToast('Error al guardar: ' + error.message, 'error'); return; }
       loadShipmentData({ id: inserted.id, name: saveName.trim(), containers }, { activeContainerIdx });
@@ -547,7 +584,9 @@ export default function ContainerLoader() {
       try { ({ data: { session } } = await _sb.auth.getSession()); }
       catch { showToast('Error de conexión', 'error'); return; }
       const containers = syncActiveContainer();
-      const payload = { v: 2, notes: shipmentNotes, items: containers };
+      const { data: existingShipment } = await _sb.from('shipments').select('containers').eq('id', overwriteId).single();
+      const meta = parseShipmentPayload(existingShipment?.containers);
+      const payload = buildShipmentPayload(containers, { isFinalized: meta.isFinalized, finalizedAt: meta.finalizedAt });
       const { error } = await _sb.from('shipments').update({ name: overwriteName, containers: payload }).eq('id', overwriteId);
       if (error) { showToast('Error al guardar: ' + error.message, 'error'); return; }
       loadShipmentData({ id: overwriteId, name: overwriteName, containers }, { activeContainerIdx });
@@ -574,8 +613,9 @@ export default function ContainerLoader() {
     // Support notes stored in containers JSONB wrapper {v:2, notes, items}
     const raw = data.containers;
     if (!Array.isArray(raw) && raw?.v === 2) {
-      setShipmentNotes(raw.notes || '');
-      loadShipmentData({ ...data, containers: raw.items });
+      const parsed = parseShipmentPayload(raw);
+      setShipmentNotes(parsed.notes || '');
+      loadShipmentData({ ...data, containers: parsed.items });
     } else {
       setShipmentNotes('');
       loadShipmentData(data);
@@ -589,6 +629,31 @@ export default function ContainerLoader() {
     await _sb.from('shipments').update({ status }).eq('id', id);
     setShipmentsList(prev => prev.map(s => s.id === id ? { ...s, status } : s));
     if (String(id) === String(currentShipmentId)) setCurrentShipmentStatus(normalizeShipmentStatus(status));
+  }
+
+  async function finalizeShipment(id) {
+    let target = shipmentsList.find(s => String(s.id) === String(id));
+    if (!target) {
+      const { data, error } = await _sb.from('shipments').select('id,containers').eq('id', id).single();
+      if (error || !data) return showToast('No pude encontrar ese embarque para finalizarlo', 'error');
+      target = data;
+    }
+    if (!target) return;
+    const parsed = parseShipmentPayload(target.containers);
+    const payload = {
+      ...buildShipmentPayload(parsed.items, {
+        notes: parsed.notes,
+        isFinalized: true,
+        finalizedAt: new Date().toISOString(),
+      }),
+      notes: parsed.notes,
+    };
+    const { error } = await _sb.from('shipments').update({ containers: payload }).eq('id', id);
+    if (error) return showToast('Error al finalizar embarque: ' + error.message, 'error');
+    setShipmentsList(prev => prev.map(s => String(s.id) === String(id)
+      ? { ...s, containers: payload }
+      : s));
+    showToast('Embarque movido a finalizados', 'success');
   }
 
   // ── Export CSV from stored shipment data (without loading) ──
@@ -722,6 +787,98 @@ export default function ContainerLoader() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showWeightMap, loadedProducts, CONT_L, CONT_W]);
 
+  function renderShipmentCard(s, isFinalizedSection = false) {
+    const date = new Date(s.created_at).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    const parsed = parseShipmentPayload(s.containers);
+    const conts = parsed.items;
+    const sNotes = parsed.notes || '';
+    const totalConts = conts.length || 1;
+    const totalProds = conts.reduce((acc, c) => acc + (c.products?.length || 0), 0);
+    const normalizedStatus = normalizeShipmentStatus(s.status);
+    const st = STATUS_CONFIG[normalizedStatus] || STATUS_CONFIG.preparacion;
+    const isOpen = openStatusId === s.id;
+    const finalizedLabel = parsed.finalizedAt
+      ? new Date(parsed.finalizedAt).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+      : null;
+
+    return (
+      <div key={s.id} style={{ background: '#fff', borderRadius: 10, border: '1px solid #E8E0D8', borderLeft: `4px solid ${st.color}`, marginBottom: 10, overflow: 'visible', boxShadow: '0 1px 4px rgba(0,0,0,0.05)', position: 'relative', opacity: isFinalizedSection ? 0.96 : 1 }}>
+        <div style={{ padding: '12px 14px 10px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontWeight: 700, fontSize: 14, color: '#3d2e24', marginBottom: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.name}</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              <span style={{ fontSize: 10, color: '#9a8778', fontFamily: "'DM Mono', monospace" }}>{date}</span>
+              <span style={{ width: 3, height: 3, borderRadius: '50%', background: '#C8B8A8', flexShrink: 0 }} />
+              <span style={{ fontSize: 10, color: '#9a8778', fontFamily: "'DM Mono', monospace" }}>{totalConts} cont{totalConts > 1 ? 's' : ''}</span>
+              <span style={{ width: 3, height: 3, borderRadius: '50%', background: '#C8B8A8', flexShrink: 0 }} />
+              <span style={{ fontSize: 10, color: '#9a8778', fontFamily: "'DM Mono', monospace" }}>{totalProds} prod{totalProds !== 1 ? 's' : ''}</span>
+              {finalizedLabel && (
+                <>
+                  <span style={{ width: 3, height: 3, borderRadius: '50%', background: '#C8B8A8', flexShrink: 0 }} />
+                  <span style={{ fontSize: 10, color: '#9a8778', fontFamily: "'DM Mono', monospace" }}>Finalizado {finalizedLabel}</span>
+                </>
+              )}
+            </div>
+            {sNotes && <div style={{ marginTop: 5, fontSize: 11, color: '#8D7966', fontStyle: 'italic', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>📝 {sNotes}</div>}
+          </div>
+          <button onClick={() => setOpenStatusId(isOpen ? null : s.id)} style={{ flexShrink: 0, cursor: isFinalizedSection ? 'default' : 'pointer', border: `1.5px solid ${st.color}55`, borderRadius: 20, padding: '4px 10px', background: st.bg, color: st.color, fontFamily: "'DM Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: '0.3px', display: 'flex', alignItems: 'center', gap: 5 }} disabled={isFinalizedSection}>
+            <span>{st.icon}</span>
+            <span>{st.label}</span>
+            {!isFinalizedSection && <span style={{ fontSize: 8, opacity: 0.6 }}>▾</span>}
+          </button>
+        </div>
+
+        {isOpen && !isFinalizedSection && (
+          <div style={{ position: 'absolute', top: 44, right: 14, zIndex: 50, background: '#fff', borderRadius: 10, border: '1px solid #E8E0D8', boxShadow: '0 4px 16px rgba(0,0,0,0.12)', padding: 6, display: 'flex', flexDirection: 'column', gap: 3, minWidth: 160 }}>
+            {STATUS_ORDER.map((key) => {
+              const cfg = STATUS_CONFIG[key];
+              return (
+                <button key={key} onClick={() => { updateShipmentStatus(s.id, key); setOpenStatusId(null); }} style={{ background: normalizedStatus === key ? cfg.bg : 'transparent', border: `1.5px solid ${normalizedStatus === key ? cfg.color + '55' : 'transparent'}`, borderRadius: 7, padding: '6px 10px', cursor: 'pointer', textAlign: 'left', color: cfg.color, fontFamily: "'DM Mono', monospace", fontSize: 10, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 7 }}>
+                  <span>{cfg.icon}</span>
+                  <span>{cfg.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        <div style={{ borderTop: '1px solid #F0EBE3', padding: '8px 14px', display: 'flex', alignItems: 'center', gap: 6, background: '#FAFAF8', flexWrap: 'wrap' }}>
+          {!isFinalizedSection && (
+            <button onClick={() => toggleShipmentPublic(s.id, s.is_public)} style={{ padding: '4px 10px', fontSize: 10, fontFamily: "'DM Mono', monospace", borderRadius: 6, cursor: 'pointer', border: `1px solid ${s.is_public ? '#3A8C52' : '#D8CFC6'}`, color: s.is_public ? '#3A8C52' : '#9a8778', background: s.is_public ? '#EDF7F1' : 'transparent' }}>
+              {s.is_public ? '🔗 Link activo' : '🔗 Compartir'}
+            </button>
+          )}
+          <button onClick={() => handleExportShipmentCSV(s)} title="Exportar CSV" style={{ padding: '4px 10px', fontSize: 10, fontFamily: "'DM Mono', monospace", borderRadius: 6, cursor: 'pointer', border: '1px solid #D8CFC6', color: '#9a8778', background: 'transparent' }}>
+            📊 CSV
+          </button>
+          <button
+            onClick={async () => {
+              if (String(currentShipmentId) !== String(s.id)) {
+                showToast('Cargá el embarque primero para exportar PDF', 'error'); return;
+              }
+              const containers = syncActiveContainer();
+              const views = canvasRef.current ? await canvasRef.current.captureViews() : [];
+              await exportShipmentPDF({ containers, currentContainerType, views, shipmentName: currentShipmentName, shipmentId: currentShipmentId });
+            }}
+            title={String(currentShipmentId) === String(s.id) ? 'Exportar PDF' : 'Cargá el embarque para exportar PDF'}
+            style={{ padding: '4px 10px', fontSize: 10, fontFamily: "'DM Mono', monospace", borderRadius: 6, cursor: 'pointer', border: `1px solid ${String(currentShipmentId) === String(s.id) ? '#D8CFC6' : '#EDE8E3'}`, color: String(currentShipmentId) === String(s.id) ? '#9a8778' : '#C8B8A8', background: 'transparent', opacity: String(currentShipmentId) === String(s.id) ? 1 : 0.5 }}>
+            📄 PDF
+          </button>
+          {!isFinalizedSection && normalizedStatus === 'entregado' && (
+            <button onClick={() => finalizeShipment(s.id)} style={{ padding: '4px 10px', fontSize: 10, fontFamily: "'DM Mono', monospace", borderRadius: 6, cursor: 'pointer', border: '1px solid rgba(58,140,82,0.22)', color: '#3A8C52', background: '#EDF7F1' }}>
+              ✓ Finalizar
+            </button>
+          )}
+          <div style={{ flex: 1 }} />
+          <button onClick={() => loadShipment(s.id)} style={{ padding: '4px 14px', fontSize: 10, fontFamily: "'DM Mono', monospace", borderRadius: 6, border: '1.5px solid #8D7966', color: '#fff', background: '#8D7966', cursor: 'pointer', fontWeight: 600 }}>Cargar →</button>
+          {!isFinalizedSection && (
+            <button onClick={() => { setDeleteShipId(s.id); setShowDeleteShip(true); }} style={{ padding: '4px 8px', fontSize: 12, borderRadius: 6, border: '1px solid #E8E0D8', color: '#b85c5c', background: 'transparent', cursor: 'pointer', lineHeight: 1 }}>✕</button>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   const activeZoneCount = priorityZones.filter(z => z !== null).length;
 
   return (
@@ -838,13 +995,20 @@ export default function ContainerLoader() {
               ⚠ {formError}
             </div>
           )}
-          <button className="btn-primary" onClick={handleAddProduct}>+ Agregar al Contenedor</button>
+          <button
+            className="btn-primary"
+            onClick={handleAddProduct}
+            disabled={!canEditShipment}
+            style={{ opacity: canEditShipment ? 1 : 0.55, cursor: canEditShipment ? 'pointer' : 'not-allowed' }}
+          >
+            + Agregar al Contenedor
+          </button>
 
           <hr className="divider" />
 
           {loadedProducts.length > 0 && (
             <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
-              <button className="btn-secondary" onClick={clearAllProducts} style={{ fontSize: 11, flex: 1 }}>× Vaciar</button>
+              <button className="btn-secondary" onClick={() => { if (!ensureEditable('agregar o quitar mercadería')) return; clearAllProducts(); }} disabled={!canEditShipment} style={{ fontSize: 11, flex: 1, opacity: canEditShipment ? 1 : 0.45, cursor: canEditShipment ? 'pointer' : 'not-allowed' }}>× Vaciar</button>
               <button className="btn-secondary" onClick={undo} disabled={!canUndo} title="Deshacer (Ctrl+Z)" style={{ fontSize: 13, padding: '5px 10px', opacity: canUndo ? 1 : 0.35, cursor: canUndo ? 'pointer' : 'default' }}>↩</button>
               <button className="btn-secondary" onClick={redo} disabled={!canRedo} title="Rehacer (Ctrl+Y)" style={{ fontSize: 13, padding: '5px 10px', opacity: canRedo ? 1 : 0.35, cursor: canRedo ? 'pointer' : 'default' }}>↪</button>
             </div>
@@ -872,19 +1036,18 @@ export default function ContainerLoader() {
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: 3, flexShrink: 0, alignItems: 'center' }}>
-                    <button onClick={() => reorderOneProduct(p.id)} title="Reordenar"
-                      style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 3, padding: '2px 5px', fontSize: 9, color: 'var(--muted)', cursor: 'pointer', fontFamily: "'DM Mono', monospace" }}>⟳</button>
-                    <button onClick={() => moveProductToZone(p.id)} title="Asignar zona"
-                      style={{ background: activeZoneCount > 0 ? ZONE_COLORS_HEX[selectedZoneSlot] + '22' : 'none', border: `1px solid ${activeZoneCount > 0 ? ZONE_COLORS_HEX[selectedZoneSlot] : 'var(--border)'}`, borderRadius: 3, padding: '2px 5px', fontSize: 9, color: activeZoneCount > 0 ? ZONE_COLORS_HEX[selectedZoneSlot] : 'var(--muted)', cursor: 'pointer', fontFamily: "'DM Mono', monospace" }}>
+                    <button onClick={() => { if (!ensureEditable('reordenar la carga')) return; reorderOneProduct(p.id); }} title="Reordenar" disabled={!canEditShipment}
+                      style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 3, padding: '2px 5px', fontSize: 9, color: 'var(--muted)', cursor: canEditShipment ? 'pointer' : 'not-allowed', fontFamily: "'DM Mono', monospace", opacity: canEditShipment ? 1 : 0.45 }}>⟳</button>
+                    <button onClick={() => { if (!ensureEditable('reordenar la carga')) return; moveProductToZone(p.id); }} title="Asignar zona" disabled={!canEditShipment}
+                      style={{ background: activeZoneCount > 0 ? ZONE_COLORS_HEX[selectedZoneSlot] + '22' : 'none', border: `1px solid ${activeZoneCount > 0 ? ZONE_COLORS_HEX[selectedZoneSlot] : 'var(--border)'}`, borderRadius: 3, padding: '2px 5px', fontSize: 9, color: activeZoneCount > 0 ? ZONE_COLORS_HEX[selectedZoneSlot] : 'var(--muted)', cursor: canEditShipment ? 'pointer' : 'not-allowed', fontFamily: "'DM Mono', monospace", opacity: canEditShipment ? 1 : 0.45 }}>
                       {activeZoneCount > 0 ? `Z${selectedZoneSlot+1}` : 'Z'}
                     </button>
-                    {/* Inline qty adjustment */}
-                    <button onClick={() => p.qty > 1 ? updateProductQty(p.id, p.qty - 1) : removeProduct(p.id)} title="Reducir cantidad"
-                      style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 3, padding: '2px 6px', fontSize: 12, color: 'var(--muted)', cursor: 'pointer', lineHeight: 1 }}>−</button>
+                    <button onClick={() => { if (!ensureEditable('agregar o quitar mercadería')) return; p.qty > 1 ? updateProductQty(p.id, p.qty - 1) : removeProduct(p.id); }} title="Reducir cantidad" disabled={!canEditShipment}
+                      style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 3, padding: '2px 6px', fontSize: 12, color: 'var(--muted)', cursor: canEditShipment ? 'pointer' : 'not-allowed', lineHeight: 1, opacity: canEditShipment ? 1 : 0.45 }}>−</button>
                     <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, minWidth: 18, textAlign: 'center', color: 'var(--text)' }}>{p.qty}</span>
-                    <button onClick={() => updateProductQty(p.id, p.qty + 1)} title="Aumentar cantidad"
-                      style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 3, padding: '2px 6px', fontSize: 12, color: 'var(--muted)', cursor: 'pointer', lineHeight: 1 }}>+</button>
-                    <button className="btn-remove" onClick={() => removeProduct(p.id)} title="Eliminar">×</button>
+                    <button onClick={() => { if (!ensureEditable('agregar o quitar mercadería')) return; updateProductQty(p.id, p.qty + 1); }} title="Aumentar cantidad" disabled={!canEditShipment}
+                      style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 3, padding: '2px 6px', fontSize: 12, color: 'var(--muted)', cursor: canEditShipment ? 'pointer' : 'not-allowed', lineHeight: 1, opacity: canEditShipment ? 1 : 0.45 }}>+</button>
+                    <button className="btn-remove" onClick={() => { if (!ensureEditable('agregar o quitar mercadería')) return; removeProduct(p.id); }} title="Eliminar" disabled={!canEditShipment} style={{ opacity: canEditShipment ? 1 : 0.45, cursor: canEditShipment ? 'pointer' : 'not-allowed' }}>×</button>
                   </div>
                 </div>
               );
@@ -933,13 +1096,13 @@ export default function ContainerLoader() {
                       <span style={{ opacity: 0.5, fontSize: 10, letterSpacing: 0 }}>⠿</span>
                       🚢 Cont. {c.id} <span style={{ opacity: 0.7 }}>{cpct}%</span>
                       {shipmentContainers.length > 1 && (
-                        <span onClick={e => { e.stopPropagation(); if (!removeContainer(i)) showToast('No podés eliminar el único contenedor', 'error'); }} style={{ marginLeft: 3, opacity: 0.6, fontSize: 12, cursor: 'pointer' }}>×</span>
+                        <span onClick={e => { e.stopPropagation(); if (!ensureEditable('editar este embarque')) return; if (!removeContainer(i)) showToast('No podés eliminar el único contenedor', 'error'); }} style={{ marginLeft: 3, opacity: canEditShipment ? 0.6 : 0.3, fontSize: 12, cursor: canEditShipment ? 'pointer' : 'not-allowed' }}>×</span>
                       )}
                     </button>
                   );
                 })}
-                <button onClick={addNewContainer}
-                  style={{ padding: '6px 12px', fontSize: 11, fontFamily: "'DM Mono', monospace", borderRadius: 6, cursor: 'pointer', border: '1.5px dashed var(--border)', background: 'transparent', color: 'var(--muted)' }}>
+                <button onClick={() => { if (!ensureEditable('editar este embarque')) return; addNewContainer(); }} disabled={!canEditShipment}
+                  style={{ padding: '6px 12px', fontSize: 11, fontFamily: "'DM Mono', monospace", borderRadius: 6, cursor: canEditShipment ? 'pointer' : 'not-allowed', border: '1.5px dashed var(--border)', background: 'transparent', color: 'var(--muted)', opacity: canEditShipment ? 1 : 0.45 }}>
                   + Nuevo contenedor
                 </button>
               </div>
@@ -999,6 +1162,14 @@ export default function ContainerLoader() {
                       </div>
                     )}
                   </div>
+                  {currentShipmentStatus === 'entregado' && (
+                    <button
+                      onClick={() => finalizeShipment(currentShipmentId)}
+                      style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid rgba(58,140,82,0.28)', background: 'rgba(58,140,82,0.08)', color: '#3A8C52', fontFamily: "'DM Mono', monospace", fontSize: 10, cursor: 'pointer', whiteSpace: 'nowrap' }}
+                    >
+                      ✓ Finalizar embarque
+                    </button>
+                  )}
                 </div>
               );
             })()}
@@ -1014,15 +1185,27 @@ export default function ContainerLoader() {
                 ['semi155', '🚛', 'Semi 15.5m',   '15.5×2.44×2.70m'],
               ].map(([type, icon, label, dims]) => (
                 <button key={type} className={`cont-type-btn${currentContainerType === type ? ' active' : ''}`}
-                  onClick={() => handleChangeContainerType(type)}>
+                  onClick={() => { if (!ensureEditable('editar este embarque')) return; handleChangeContainerType(type); }}
+                  disabled={!canEditShipment}
+                  style={{ opacity: canEditShipment ? 1 : 0.5, cursor: canEditShipment ? 'pointer' : 'not-allowed' }}>
                   <span>{icon}</span>{label}<br/><small style={{ fontSize: 9, opacity: 0.7 }}>{dims}</small>
                 </button>
               ))}
             </div>
 
-            <button className="reorder-btn" onClick={reorderCargo}>
+            <button className="reorder-btn" onClick={() => { if (!ensureEditable('reordenar la carga')) return; reorderCargo(); }} disabled={!canEditShipment} style={{ opacity: canEditShipment ? 1 : 0.5, cursor: canEditShipment ? 'pointer' : 'not-allowed' }}>
               <span className="spin">⟳</span> Reordenar Carga Optimizada
             </button>
+
+            {!canEditShipment && (
+              <div style={{ marginTop: 10, marginBottom: 8, padding: '10px 12px', borderRadius: 10, border: '1px solid rgba(122,92,138,0.2)', background: 'linear-gradient(135deg, rgba(243,238,248,0.95), rgba(248,244,238,0.96))', color: '#6C587C', display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ fontSize: 15, lineHeight: 1 }}>🔒</span>
+                <div>
+                  <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, letterSpacing: 1.2 }}>MODO VISUAL</div>
+                  <div style={{ fontSize: 12, lineHeight: 1.45 }}>Este embarque solo se puede editar cuando vuelve a <b>En preparación</b>.</div>
+                </div>
+              </div>
+            )}
 
             {/* Volume progress */}
             <div className="progress-row">
@@ -1066,6 +1249,8 @@ export default function ContainerLoader() {
               <ThreeErrorBoundary>
                 <ThreeCanvas
                   ref={canvasRef}
+                  readOnly={!canEditShipment}
+                  suppressTooltip={Boolean(inspector)}
                   onSelectInstance={info => {
                     setInspector(info);
                     if (info) setSelectedInstance(info.instanceId);
@@ -1078,59 +1263,61 @@ export default function ContainerLoader() {
 
               {/* Inspector panel */}
               {inspector && (
-                <div style={{ position: 'absolute', right: 10, top: 44, zIndex: 60, width: 200, background: 'rgba(248,241,233,0.97)', border: '1.5px solid var(--c1)', borderRadius: 12, boxShadow: '0 8px 28px rgba(141,121,102,0.28)', fontFamily: "'DM Mono', monospace", backdropFilter: 'blur(10px)', overflow: 'hidden' }}>
-
-                  {/* Header */}
-                  <div style={{ background: 'var(--c1)', padding: '9px 12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 7, minWidth: 0 }}>
-                      <span style={{ fontSize: 15, flexShrink: 0 }}>{inspector.type === 'pallet' ? '🟫' : '📦'}</span>
+                <div style={{ position: 'absolute', right: 14, top: 44, zIndex: 60, width: 246, background: 'linear-gradient(180deg, rgba(251,247,241,0.98), rgba(243,236,227,0.98))', border: '1px solid rgba(141,121,102,0.22)', borderRadius: 18, boxShadow: '0 20px 44px rgba(97,78,60,0.18)', fontFamily: "'DM Mono', monospace", backdropFilter: 'blur(14px)', overflow: 'hidden' }}>
+                  <div style={{ padding: '14px 14px 12px', background: 'linear-gradient(135deg, var(--c1), #a48f7d)', color: 'var(--c5)', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+                      <div style={{ width: 34, height: 34, borderRadius: 10, background: 'rgba(248,241,233,0.16)', display: 'grid', placeItems: 'center', fontSize: 16, flexShrink: 0 }}>
+                        {inspector.type === 'pallet' ? '🟫' : '📦'}
+                      </div>
                       <div style={{ minWidth: 0 }}>
-                        <div style={{ fontSize: 11, color: 'var(--c5)', fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{inspector.label}</div>
-                        <div style={{ fontSize: 9, color: 'rgba(248,241,233,0.7)', letterSpacing: '0.3px' }}>unidad #{inspector.unitIdx}</div>
+                        <div style={{ fontSize: 12, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{inspector.label}</div>
+                        <div style={{ fontSize: 9, color: 'rgba(248,241,233,0.78)', letterSpacing: 0.8 }}>UNIDAD #{inspector.unitIdx}</div>
                       </div>
                     </div>
-                    <button onClick={() => { setInspector(null); setSelectedInstance(null); }} style={{ background: 'rgba(248,241,233,0.15)', border: 'none', color: 'var(--c5)', cursor: 'pointer', fontSize: 14, width: 24, height: 24, borderRadius: 5, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>×</button>
+                    <button onClick={() => { setInspector(null); setSelectedInstance(null); }} style={{ width: 28, height: 28, borderRadius: 9, border: '1px solid rgba(248,241,233,0.18)', background: 'rgba(248,241,233,0.12)', color: 'var(--c5)', cursor: 'pointer', display: 'grid', placeItems: 'center', flexShrink: 0 }}>×</button>
                   </div>
 
-                  {/* Dims + weight */}
-                  <div style={{ padding: '8px 12px', fontSize: 10, color: 'var(--muted)', borderBottom: '1px solid var(--border)', letterSpacing: '0.3px' }}>
-                    {inspector.dims}{inspector.weight > 0 ? <span style={{ marginLeft: 6, color: 'var(--text2)' }}>⚖ {inspector.weight} kg</span> : ''}
+                  <div style={{ padding: '12px 14px 10px', borderBottom: '1px solid rgba(141,121,102,0.12)' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                      <div style={{ padding: '9px 10px', borderRadius: 12, background: 'rgba(255,255,255,0.52)', border: '1px solid rgba(141,121,102,0.1)' }}>
+                        <div style={{ fontSize: 9, color: 'var(--muted)', letterSpacing: 1 }}>MEDIDAS</div>
+                        <div style={{ fontSize: 11, color: 'var(--text)', marginTop: 4 }}>{inspector.dims}</div>
+                      </div>
+                      <div style={{ padding: '9px 10px', borderRadius: 12, background: 'rgba(255,255,255,0.52)', border: '1px solid rgba(141,121,102,0.1)' }}>
+                        <div style={{ fontSize: 9, color: 'var(--muted)', letterSpacing: 1 }}>PESO</div>
+                        <div style={{ fontSize: 11, color: 'var(--text)', marginTop: 4 }}>{inspector.weight > 0 ? `${inspector.weight} kg` : '—'}</div>
+                      </div>
+                    </div>
                   </div>
 
-                  {/* Rotation */}
-                  <div style={{ padding: '10px 12px', borderBottom: '1px solid var(--border)' }}>
-                    <div style={{ fontSize: 9, color: 'var(--muted)', letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 8 }}>Rotación</div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 5 }}>
-                      <button onClick={() => rotateSelected('Y')}
-                        style={{ padding: '7px 6px', fontSize: 10, fontFamily: "'DM Mono', monospace", borderRadius: 6, cursor: 'pointer', border: '1.5px solid var(--border2)', background: 'var(--surface2)', color: 'var(--text)', textAlign: 'center', lineHeight: 1.3 }}>
-                        <div style={{ fontSize: 14, marginBottom: 2 }}>↻</div>
-                        <div style={{ fontSize: 8, color: 'var(--muted)', letterSpacing: '0.3px' }}>Horizontal</div>
+                  <div style={{ padding: '12px 14px', borderBottom: '1px solid rgba(141,121,102,0.12)' }}>
+                    <div style={{ fontSize: 9, color: 'var(--muted)', letterSpacing: 1.4, marginBottom: 9 }}>ORIENTACIÓN Y POSICIÓN</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
+                      <button onClick={() => rotateSelected('Y')} disabled={!canEditShipment}
+                        style={{ padding: '10px 8px', borderRadius: 12, border: '1px solid rgba(141,121,102,0.14)', background: 'rgba(255,255,255,0.56)', color: 'var(--text)', cursor: canEditShipment ? 'pointer' : 'not-allowed', opacity: canEditShipment ? 1 : 0.45 }}>
+                        Giro horizontal
                       </button>
-                      <button onClick={() => rotateSelected('X')}
-                        disabled={inspector.type === 'pallet'}
-                        style={{ padding: '7px 6px', fontSize: 10, fontFamily: "'DM Mono', monospace", borderRadius: 6, cursor: inspector.type === 'pallet' ? 'not-allowed' : 'pointer', border: '1.5px solid var(--border2)', background: 'var(--surface2)', color: inspector.type === 'pallet' ? 'var(--muted)' : 'var(--text)', textAlign: 'center', lineHeight: 1.3, opacity: inspector.type === 'pallet' ? 0.35 : 1 }}>
-                        <div style={{ fontSize: 14, marginBottom: 2 }}>↕</div>
-                        <div style={{ fontSize: 8, color: 'var(--muted)', letterSpacing: '0.3px' }}>Adelante</div>
+                      <button onClick={() => rotateSelected('X')} disabled={!canEditShipment || inspector.type === 'pallet'}
+                        style={{ padding: '10px 8px', borderRadius: 12, border: '1px solid rgba(141,121,102,0.14)', background: 'rgba(255,255,255,0.56)', color: 'var(--text)', cursor: canEditShipment && inspector.type !== 'pallet' ? 'pointer' : 'not-allowed', opacity: canEditShipment && inspector.type !== 'pallet' ? 1 : 0.38 }}>
+                        Frente / base
                       </button>
-                      <button onClick={() => rotateSelected('Z')}
-                        disabled={inspector.type === 'pallet'}
-                        style={{ padding: '7px 6px', fontSize: 10, fontFamily: "'DM Mono', monospace", borderRadius: 6, cursor: inspector.type === 'pallet' ? 'not-allowed' : 'pointer', border: '1.5px solid var(--border2)', background: 'var(--surface2)', color: inspector.type === 'pallet' ? 'var(--muted)' : 'var(--text)', textAlign: 'center', lineHeight: 1.3, opacity: inspector.type === 'pallet' ? 0.35 : 1 }}>
-                        <div style={{ fontSize: 14, marginBottom: 2 }}>↔</div>
-                        <div style={{ fontSize: 8, color: 'var(--muted)', letterSpacing: '0.3px' }}>Lateral</div>
+                      <button onClick={() => rotateSelected('Z')} disabled={!canEditShipment || inspector.type === 'pallet'}
+                        style={{ padding: '10px 8px', borderRadius: 12, border: '1px solid rgba(141,121,102,0.14)', background: 'rgba(255,255,255,0.56)', color: 'var(--text)', cursor: canEditShipment && inspector.type !== 'pallet' ? 'pointer' : 'not-allowed', opacity: canEditShipment && inspector.type !== 'pallet' ? 1 : 0.38 }}>
+                        Cambio lateral
                       </button>
-                      <button onClick={clearRotation}
-                        style={{ padding: '7px 6px', fontSize: 9, fontFamily: "'DM Mono', monospace", borderRadius: 6, cursor: 'pointer', border: '1.5px solid var(--border)', background: 'transparent', color: 'var(--muted)', textAlign: 'center', lineHeight: 1.3 }}>
-                        <div style={{ fontSize: 14, marginBottom: 2 }}>✕</div>
-                        <div style={{ fontSize: 8, letterSpacing: '0.3px' }}>Reset</div>
+                      <button onClick={clearRotation} disabled={!canEditShipment}
+                        style={{ padding: '10px 8px', borderRadius: 12, border: '1px solid rgba(141,121,102,0.14)', background: 'transparent', color: 'var(--text2)', cursor: canEditShipment ? 'pointer' : 'not-allowed', opacity: canEditShipment ? 1 : 0.45 }}>
+                        Restaurar
                       </button>
                     </div>
-                    <div style={{ fontSize: 9, color: 'rgba(141,121,102,0.5)', textAlign: 'center', marginTop: 8, letterSpacing: '0.3px' }}>🖱 arrastrá para mover</div>
+                    <div style={{ marginTop: 10, padding: '8px 10px', borderRadius: 10, background: canEditShipment ? 'rgba(141,121,102,0.08)' : 'rgba(122,92,138,0.08)', color: canEditShipment ? 'var(--muted)' : '#6C587C', fontSize: 10, lineHeight: 1.45 }}>
+                      {canEditShipment ? 'Podés arrastrar directamente la unidad en la escena 3D para reubicarla.' : 'El embarque está fuera de preparación, así que esta unidad quedó en modo visual.'}
+                    </div>
                   </div>
 
-                  {/* Actions */}
-                  <div style={{ padding: '8px 12px', display: 'flex', gap: 6 }}>
-                    <button onClick={removeSelectedProduct} style={{ flex: 1, padding: '7px 6px', fontSize: 9, fontFamily: "'DM Mono', monospace", letterSpacing: '0.5px', border: '1px solid rgba(184,92,92,0.35)', borderRadius: 6, background: 'rgba(184,92,92,0.06)', color: 'var(--danger)', cursor: 'pointer' }}>🗑 Eliminar</button>
-                    <button onClick={duplicateSelectedProduct} style={{ flex: 1, padding: '7px 6px', fontSize: 9, fontFamily: "'DM Mono', monospace", letterSpacing: '0.5px', border: '1px solid var(--border2)', borderRadius: 6, background: 'transparent', color: 'var(--text2)', cursor: 'pointer' }}>⧉ Duplicar</button>
+                  <div style={{ padding: '12px 14px 14px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                    <button onClick={removeSelectedProduct} disabled={!canEditShipment} style={{ padding: '10px 8px', borderRadius: 12, border: '1px solid rgba(184,92,92,0.26)', background: 'rgba(184,92,92,0.06)', color: 'var(--danger)', cursor: canEditShipment ? 'pointer' : 'not-allowed', opacity: canEditShipment ? 1 : 0.45 }}>Eliminar unidad</button>
+                    <button onClick={duplicateSelectedProduct} disabled={!canEditShipment} style={{ padding: '10px 8px', borderRadius: 12, border: '1px solid rgba(141,121,102,0.14)', background: 'rgba(255,255,255,0.56)', color: 'var(--text2)', cursor: canEditShipment ? 'pointer' : 'not-allowed', opacity: canEditShipment ? 1 : 0.45 }}>Duplicar unidad</button>
                   </div>
                 </div>
               )}
@@ -1142,14 +1329,14 @@ export default function ContainerLoader() {
                   const isSet = priorityZones[i] !== null;
                   const isSel = selectedZoneSlot === i;
                   return (
-                    <button key={i} onClick={() => setSelectedZoneSlot(i)}
-                      style={{ padding: '3px 9px', fontSize: 11, fontFamily: "'DM Mono', monospace", borderRadius: 4, cursor: 'pointer', border: `1.5px solid ${ZONE_COLORS_HEX[i]}`, color: isSet ? '#fff' : ZONE_COLORS_HEX[i], background: isSet ? ZONE_COLORS_HEX[i] : 'transparent', fontWeight: isSel ? 700 : 400, outline: isSel ? `2px solid ${ZONE_COLORS_HEX[i]}` : 'none', outlineOffset: 1 }}>
+                    <button key={i} onClick={() => { if (!canEditShipment) return; setSelectedZoneSlot(i); }}
+                      style={{ padding: '3px 9px', fontSize: 11, fontFamily: "'DM Mono', monospace", borderRadius: 4, cursor: canEditShipment ? 'pointer' : 'not-allowed', border: `1.5px solid ${ZONE_COLORS_HEX[i]}`, color: isSet ? '#fff' : ZONE_COLORS_HEX[i], background: isSet ? ZONE_COLORS_HEX[i] : 'transparent', fontWeight: isSel ? 700 : 400, outline: isSel ? `2px solid ${ZONE_COLORS_HEX[i]}` : 'none', outlineOffset: 1, opacity: canEditShipment ? 1 : 0.5 }}>
                       {i+1}
                     </button>
                   );
                 })}
-                <button onClick={() => clearPriorityZones()}
-                  style={{ padding: '3px 9px', fontSize: 9, fontFamily: "'DM Mono', monospace", borderRadius: 4, cursor: 'pointer', border: '1px solid var(--muted)', color: 'var(--muted)', background: 'transparent', letterSpacing: '0.5px' }}>
+                <button onClick={() => { if (!ensureEditable('reordenar la carga')) return; clearPriorityZones(); }}
+                  style={{ padding: '3px 9px', fontSize: 9, fontFamily: "'DM Mono', monospace", borderRadius: 4, cursor: canEditShipment ? 'pointer' : 'not-allowed', border: '1px solid var(--muted)', color: 'var(--muted)', background: 'transparent', letterSpacing: '0.5px', opacity: canEditShipment ? 1 : 0.45 }}>
                   ✕ Sin zonas
                 </button>
               </div>
@@ -1163,7 +1350,7 @@ export default function ContainerLoader() {
 
               {/* Hint bar */}
               <div id="hintBar" style={{ position: 'absolute', bottom: 8, left: '50%', transform: 'translateX(-50%)', fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'rgba(141,121,102,0.6)', letterSpacing: 1, pointerEvents: 'none', whiteSpace: 'nowrap' }}>
-                🖱 ROTAR · SCROLL ZOOM · CLIC = SELECCIONAR · DOBLE CLIC = FIJAR ZONA
+                {canEditShipment ? '🖱 DRAG PARA MOVER · SCROLL ZOOM · CLIC = SELECCIONAR · DOBLE CLIC = FIJAR ZONA' : '👁 SCROLL ZOOM · CLIC = SELECCIONAR · VISTA SOLO LECTURA'}
               </div>
             </div>
 
@@ -1353,129 +1540,24 @@ export default function ContainerLoader() {
             <div style={{ overflowY: 'auto', flex: 1, minHeight: 0 }}>
               {shipmentsLoading ? (
                 <div style={{ textAlign: 'center', color: 'var(--muted)', padding: 24, fontSize: 13 }}>Cargando...</div>
-              ) : shipmentsList.length === 0 ? (
-                <div style={{ textAlign: 'center', color: 'var(--muted)', padding: 24, fontSize: 13 }}>No tenés embarques guardados aún.</div>
-              ) : shipmentsList.filter(s => !shipmentsFilter || s.name.toLowerCase().includes(shipmentsFilter.toLowerCase())).map(s => {
-                const date = new Date(s.created_at).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
-                // Support v2 containers format {v:2, notes, items}
-                const rawC = s.containers;
-                const conts = Array.isArray(rawC) ? rawC : (rawC?.items || []);
-                const sNotes = Array.isArray(rawC) ? '' : (rawC?.notes || '');
-                const totalConts = conts.length || 1;
-                const totalProds = conts.reduce((acc, c) => acc + (c.products?.length || 0), 0);
-                const normalizedStatus = normalizeShipmentStatus(s.status);
-                const st = STATUS_CONFIG[normalizedStatus] || STATUS_CONFIG.preparacion;
-                const isOpen = openStatusId === s.id;
-                return (
-                  <div key={s.id} style={{
-                    background: '#fff',
-                    borderRadius: 10,
-                    border: '1px solid #E8E0D8',
-                    borderLeft: `4px solid ${st.color}`,
-                    marginBottom: 10,
-                    overflow: 'visible',
-                    boxShadow: '0 1px 4px rgba(0,0,0,0.05)',
-                    position: 'relative',
-                  }}>
-                    {/* Top row */}
-                    <div style={{ padding: '12px 14px 10px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontWeight: 700, fontSize: 14, color: '#3d2e24', marginBottom: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.name}</div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                          <span style={{ fontSize: 10, color: '#9a8778', fontFamily: "'DM Mono', monospace" }}>{date}</span>
-                          <span style={{ width: 3, height: 3, borderRadius: '50%', background: '#C8B8A8', flexShrink: 0 }} />
-                          <span style={{ fontSize: 10, color: '#9a8778', fontFamily: "'DM Mono', monospace" }}>{totalConts} cont{totalConts > 1 ? 's' : ''}</span>
-                          <span style={{ width: 3, height: 3, borderRadius: '50%', background: '#C8B8A8', flexShrink: 0 }} />
-                          <span style={{ fontSize: 10, color: '#9a8778', fontFamily: "'DM Mono', monospace" }}>{totalProds} prod{totalProds !== 1 ? 's' : ''}</span>
-                        </div>
-                        {sNotes && <div style={{ marginTop: 5, fontSize: 11, color: '#8D7966', fontStyle: 'italic', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>📝 {sNotes}</div>}
-                      </div>
-                      {/* Status badge — clickable */}
-                      <button onClick={() => setOpenStatusId(isOpen ? null : s.id)} style={{
-                        flexShrink: 0, cursor: 'pointer', border: `1.5px solid ${st.color}55`,
-                        borderRadius: 20, padding: '4px 10px', background: st.bg,
-                        color: st.color, fontFamily: "'DM Mono', monospace", fontSize: 10,
-                        fontWeight: 700, letterSpacing: '0.3px', display: 'flex', alignItems: 'center', gap: 5,
-                      }}>
-                        <span>{st.icon}</span>
-                        <span>{st.label}</span>
-                        <span style={{ fontSize: 8, opacity: 0.6 }}>▾</span>
-                      </button>
-                    </div>
-
-                    {/* Status picker dropdown */}
-                    {isOpen && (
-                      <div style={{
-                        position: 'absolute', top: 44, right: 14, zIndex: 50,
-                        background: '#fff', borderRadius: 10, border: '1px solid #E8E0D8',
-                        boxShadow: '0 4px 16px rgba(0,0,0,0.12)', padding: 6, display: 'flex', flexDirection: 'column', gap: 3, minWidth: 160,
-                      }}>
-                        {STATUS_ORDER.map((key) => {
-                          const cfg = STATUS_CONFIG[key];
-                          return (
-                          <button key={key} onClick={() => { updateShipmentStatus(s.id, key); setOpenStatusId(null); }} style={{
-                            background: normalizedStatus === key ? cfg.bg : 'transparent',
-                            border: `1.5px solid ${normalizedStatus === key ? cfg.color + '55' : 'transparent'}`,
-                            borderRadius: 7, padding: '6px 10px', cursor: 'pointer', textAlign: 'left',
-                            color: cfg.color, fontFamily: "'DM Mono', monospace", fontSize: 10, fontWeight: 600,
-                            display: 'flex', alignItems: 'center', gap: 7,
-                          }}>
-                            <span>{cfg.icon}</span>
-                            <span>{cfg.label}</span>
-                          </button>
-                          );
-                        })}
-                      </div>
-                    )}
-
-                    {/* Bottom actions */}
-                    <div style={{ borderTop: '1px solid #F0EBE3', padding: '8px 14px', display: 'flex', alignItems: 'center', gap: 6, background: '#FAFAF8', flexWrap: 'wrap' }}>
-                      <button onClick={() => toggleShipmentPublic(s.id, s.is_public)} style={{
-                        padding: '4px 10px', fontSize: 10, fontFamily: "'DM Mono', monospace", borderRadius: 6, cursor: 'pointer',
-                        border: `1px solid ${s.is_public ? '#3A8C52' : '#D8CFC6'}`,
-                        color: s.is_public ? '#3A8C52' : '#9a8778',
-                        background: s.is_public ? '#EDF7F1' : 'transparent',
-                      }}>
-                        {s.is_public ? '🔗 Link activo' : '🔗 Compartir'}
-                      </button>
-                      <button onClick={() => handleExportShipmentCSV(s)} title="Exportar CSV" style={{
-                        padding: '4px 10px', fontSize: 10, fontFamily: "'DM Mono', monospace", borderRadius: 6, cursor: 'pointer',
-                        border: '1px solid #D8CFC6', color: '#9a8778', background: 'transparent',
-                      }}>
-                        📊 CSV
-                      </button>
-                      <button
-                        onClick={async () => {
-                          if (String(currentShipmentId) !== String(s.id)) {
-                            showToast('Cargá el embarque primero para exportar PDF', 'error'); return;
-                          }
-                          const containers = syncActiveContainer();
-                          const views = canvasRef.current ? await canvasRef.current.captureViews() : [];
-                          await exportShipmentPDF({ containers, currentContainerType, views, shipmentName: currentShipmentName, shipmentId: currentShipmentId });
-                        }}
-                        title={String(currentShipmentId) === String(s.id) ? 'Exportar PDF' : 'Cargá el embarque para exportar PDF'}
-                        style={{
-                          padding: '4px 10px', fontSize: 10, fontFamily: "'DM Mono', monospace", borderRadius: 6, cursor: 'pointer',
-                          border: `1px solid ${String(currentShipmentId) === String(s.id) ? '#D8CFC6' : '#EDE8E3'}`,
-                          color: String(currentShipmentId) === String(s.id) ? '#9a8778' : '#C8B8A8',
-                          background: 'transparent',
-                          opacity: String(currentShipmentId) === String(s.id) ? 1 : 0.5,
-                        }}>
-                        📄 PDF
-                      </button>
-                      <div style={{ flex: 1 }} />
-                      <button onClick={() => loadShipment(s.id)} style={{
-                        padding: '4px 14px', fontSize: 10, fontFamily: "'DM Mono', monospace", borderRadius: 6,
-                        border: '1.5px solid #8D7966', color: '#fff', background: '#8D7966', cursor: 'pointer', fontWeight: 600,
-                      }}>Cargar →</button>
-                      <button onClick={() => { setDeleteShipId(s.id); setShowDeleteShip(true); }} style={{
-                        padding: '4px 8px', fontSize: 12, borderRadius: 6, border: '1px solid #E8E0D8',
-                        color: '#b85c5c', background: 'transparent', cursor: 'pointer', lineHeight: 1,
-                      }}>✕</button>
-                    </div>
+              ) : filteredShipments.length === 0 ? (
+                <div style={{ textAlign: 'center', color: 'var(--muted)', padding: 24, fontSize: 13 }}>No encontré embarques con ese criterio.</div>
+              ) : (
+                <>
+                  <div style={{ marginBottom: 14 }}>
+                    <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--muted)', letterSpacing: 1.4, marginBottom: 8 }}>EMBARQUES ACTIVOS</div>
+                    {activeShipments.length === 0 ? (
+                      <div style={{ background: '#FAFAF8', border: '1px dashed #D8CFC6', borderRadius: 10, padding: 16, color: '#9a8778', fontSize: 12 }}>No hay embarques activos en esta vista.</div>
+                    ) : activeShipments.map((s) => renderShipmentCard(s))}
                   </div>
-                );
-              })}
+                  <div>
+                    <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--muted)', letterSpacing: 1.4, marginBottom: 8 }}>EMBARQUES FINALIZADOS</div>
+                    {finalizedShipments.length === 0 ? (
+                      <div style={{ background: '#FAFAF8', border: '1px dashed #D8CFC6', borderRadius: 10, padding: 16, color: '#9a8778', fontSize: 12 }}>Todavía no finalizaste embarques entregados.</div>
+                    ) : finalizedShipments.map((s) => renderShipmentCard(s, true))}
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>

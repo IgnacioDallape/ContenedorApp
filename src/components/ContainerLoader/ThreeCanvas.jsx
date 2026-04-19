@@ -37,7 +37,7 @@ function makeBoxMaterials(hex) {
   return _matTemplates.get(h).clone();
 }
 
-function ThreeCanvas({ onSelectInstance, onSetZone, onClearZone, readOnly = false }, ref) {
+function ThreeCanvas({ onSelectInstance, onSetZone, onClearZone, readOnly = false, suppressTooltip = false }, ref) {
   const wrapRef = useRef(null);
   const threeRef = useRef(null); // { scene, camera, renderer, controls, containerGroup, priorityGroup, floorMesh }
 
@@ -726,7 +726,7 @@ function ThreeCanvas({ onSelectInstance, onSetZone, onClearZone, readOnly = fals
     const hits = t._raycaster.intersectObjects(t.containerGroup.children, true);
     const hit = hits.find(h => h.object.userData?.label);
     const tooltip = document.getElementById('tooltip3d');
-    if (hit && !t._isDragging && tooltip) {
+    if (hit && !t._isDragging && tooltip && !suppressTooltip) {
       const ud = hit.object.userData;
       tooltip.style.display = 'block';
       tooltip.style.left = (e.clientX - rect.left + 14) + 'px';
@@ -755,7 +755,7 @@ function ThreeCanvas({ onSelectInstance, onSetZone, onClearZone, readOnly = fals
       }
     }
     t.renderer.domElement.style.cursor = hit ? (readOnly ? 'grab' : 'pointer') : 'default';
-  }, [readOnly]);
+  }, [readOnly, suppressTooltip]);
 
   const handleMouseUp = useCallback((e) => {
     const t = threeRef.current;
