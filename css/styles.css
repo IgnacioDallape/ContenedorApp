@@ -505,13 +505,89 @@ header {
 .page.active { display: block; }
 
 .stats-strip {
-  background: var(--c1); padding: 0 40px 20px;
-  display: grid; grid-template-columns: repeat(5, 1fr); gap: 24px;
-  border-bottom: 3px solid var(--c3);
+  background:
+    linear-gradient(180deg, rgba(141,121,102,0.16), rgba(141,121,102,0.04)),
+    linear-gradient(135deg, rgba(255,255,255,0.42), rgba(255,255,255,0));
+  padding: 18px 24px 22px;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 14px;
+  border: 1px solid rgba(141,121,102,0.2);
+  border-radius: 18px;
+  margin: 12px 16px 0;
+  box-shadow: 0 14px 34px rgba(91,72,52,0.08);
 }
-.stat-item { padding-top: 16px; }
-.stat-label { font-family: 'DM Mono', monospace; font-size: 9px; color: var(--c3); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 4px; }
-.stat-value { font-family: 'Cormorant Garamond', serif; font-size: 32px; font-weight: 400; color: var(--c5); line-height: 1; transition: color 0.3s; }
+.stat-item {
+  padding: 16px 16px 14px;
+  border-radius: 16px;
+  background: rgba(255,255,255,0.7);
+  border: 1px solid rgba(141,121,102,0.12);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.55);
+  min-width: 0;
+}
+.stat-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.stat-label { font-family: 'DM Mono', monospace; font-size: 9px; color: var(--c3); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 0; }
+.stat-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: rgba(141,121,102,0.12);
+  border: 1px solid rgba(141,121,102,0.16);
+  color: var(--c1);
+  font-family: 'DM Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 0.7px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.stat-chip.is-alert {
+  background: rgba(184,92,92,0.12);
+  border-color: rgba(184,92,92,0.24);
+  color: var(--danger);
+}
+.stat-value {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 34px;
+  font-weight: 500;
+  color: var(--c5);
+  line-height: 0.95;
+  transition: color 0.3s;
+}
+.stat-value span {
+  font-size: 18px;
+  color: var(--c2);
+  margin-left: 4px;
+}
+.stat-progress {
+  height: 7px;
+  border-radius: 999px;
+  background: rgba(141,121,102,0.12);
+  overflow: hidden;
+  margin: 12px 0 10px;
+}
+.stat-progress span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #8d7966, #c8a37f);
+}
+.stat-progress-weight span {
+  background: linear-gradient(90deg, #6c8c7d, #8d7966);
+}
+.stat-item.is-alert .stat-progress span {
+  background: linear-gradient(90deg, #c0614a, #d98d68);
+}
+.stat-item.is-alert .stat-value {
+  color: var(--danger);
+}
 
 .weight-badge {
   display: inline-flex; align-items: center; gap: 3px;
@@ -530,7 +606,7 @@ tr:hover td { background: var(--surface2); }
 .td-mono { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--text2); }
 .td-price { font-family: 'DM Mono', monospace; color: var(--c1); font-weight: 500; }
 .td-pct { font-family: 'Cormorant Garamond', serif; font-size: 20px; font-weight: 500; }
-.stat-sub { font-size: 11px; color: var(--c2); margin-top: 2px; }
+.stat-sub { font-size: 11px; color: var(--c2); margin-top: 0; line-height: 1.35; }
 
 .layout { display: grid; grid-template-columns: 360px 1fr; min-height: calc(100vh - 64px); }
 
@@ -805,11 +881,13 @@ canvas { display: block; width: 100%; height: auto; }
 @media (max-width: 900px) {
   .layout { grid-template-columns: 1fr; }
   .sidebar { position: static; max-height: none; }
-  .stats-strip { grid-template-columns: 1fr 1fr; }
+  .stats-strip { grid-template-columns: 1fr 1fr; padding: 16px; margin: 12px 12px 0; }
   .catalog-grid { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); }
 }
 @media (max-width: 600px) {
-  .stats-strip { grid-template-columns: 1fr 1fr; padding: 0 16px 16px; }
+  .stats-strip { grid-template-columns: 1fr; padding: 14px; margin: 10px 10px 0; gap: 10px; }
+  .stat-item { padding: 14px; }
+  .stat-head { align-items: flex-start; flex-direction: column; gap: 8px; }
   .header-brand h1 { font-size: 20px; }
 }
 

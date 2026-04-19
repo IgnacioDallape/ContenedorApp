@@ -37,6 +37,70 @@ function normalizeShipmentStatus(status) {
   return STATUS_CONFIG[status] ? status : 'preparacion';
 }
 
+function StatsStrip({ totalVol, ct, pctVol, totalUnits, activeZoneCount, totalWeight, weightOver, weightLimit, totalValue }) {
+  const freeVol = Math.max(0, ct.vol - totalVol);
+  const weightPct = (totalWeight / weightLimit) * 100 || 0;
+
+  return (
+    <div className="stats-strip">
+      <div className="stat-item stat-item-volume">
+        <div className="stat-head">
+          <div className="stat-label">Volumen usado</div>
+          <div className="stat-chip">{freeVol.toFixed(2)} m3 libres</div>
+        </div>
+        <div className="stat-value">{totalVol.toFixed(2)} <span>m3</span></div>
+        <div className="stat-progress">
+          <span style={{ width: `${Math.min(pctVol, 100)}%` }} />
+        </div>
+        <div className="stat-sub">de {ct.vol.toFixed(2)} m3 del contenedor {ct.label}</div>
+      </div>
+
+      <div className="stat-item stat-item-occupancy">
+        <div className="stat-head">
+          <div className="stat-label">Ocupacion</div>
+          <div className="stat-chip">{totalUnits} unidades</div>
+        </div>
+        <div className="stat-value">{pctVol.toFixed(1)}<span>%</span></div>
+        <div className="stat-sub">capacidad aprovechada sobre el total disponible</div>
+      </div>
+
+      <div className="stat-item stat-item-units">
+        <div className="stat-head">
+          <div className="stat-label">Unidades totales</div>
+          <div className="stat-chip">{activeZoneCount} zonas activas</div>
+        </div>
+        <div className="stat-value">{totalUnits}</div>
+        <div className="stat-sub">cajas y pallets cargados en esta configuracion</div>
+      </div>
+
+      <div className={`stat-item stat-item-weight${weightOver ? ' is-alert' : ''}`}>
+        <div className="stat-head">
+          <div className="stat-label">Peso total</div>
+          <div className={`stat-chip${weightOver ? ' is-alert' : ''}`}>{weightPct.toFixed(1)}%</div>
+        </div>
+        <div className="stat-value">
+          {totalWeight >= 1000 ? `${(totalWeight / 1000).toFixed(2)} t` : `${totalWeight.toFixed(0)} kg`}
+        </div>
+        <div className="stat-progress stat-progress-weight">
+          <span style={{ width: `${Math.min(weightPct, 100)}%` }} />
+        </div>
+        <div className="stat-sub" style={{ color: weightOver ? 'var(--danger)' : '' }}>
+          {weightOver ? `supera el limite de ${(weightLimit / 1000).toFixed(1)} t` : `limite estimado ${(weightLimit / 1000).toFixed(1)} t`}
+        </div>
+      </div>
+
+      <div className="stat-item stat-item-value">
+        <div className="stat-head">
+          <div className="stat-label">Valor total USD</div>
+          <div className="stat-chip">mercaderia</div>
+        </div>
+        <div className="stat-value">$ {fmt(totalValue)}</div>
+        <div className="stat-sub">valor consolidado de la carga actual</div>
+      </div>
+    </div>
+  );
+}
+
 export default function ContainerLoader() {
   const {
     loadedProducts, CONT_L, CONT_W, CONT_H, CONTAINER_VOL,
@@ -885,7 +949,18 @@ export default function ContainerLoader() {
     <div className="cl-section active" id="section-container" style={{ width: '100%', overflow: 'hidden' }}>
 
       {/* Stats strip */}
-      <div className="stats-strip">
+      <StatsStrip
+        totalVol={totalVol}
+        ct={ct}
+        pctVol={pctVol}
+        totalUnits={totalUnits}
+        activeZoneCount={activeZoneCount}
+        totalWeight={totalWeight}
+        weightOver={weightOver}
+        weightLimit={weightLimit}
+        totalValue={totalValue}
+      />
+      <div className="stats-strip" style={{ display: 'none' }}>
         <div className="stat-item">
           <div className="stat-label">Volumen Usado</div>
           <div className="stat-value">{totalVol.toFixed(2)}</div>

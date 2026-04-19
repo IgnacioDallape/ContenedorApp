@@ -37,6 +37,40 @@ function makeBoxMaterials(hex) {
   return _matTemplates.get(h).clone();
 }
 
+function makeSelectionOutlineFromMeshes(meshes, targetScene, existingOutline) {
+  if (!meshes?.length || !targetScene) return existingOutline || null;
+  const bb = new THREE.Box3();
+  meshes.forEach(mesh => {
+    mesh.updateWorldMatrix(true, false);
+    bb.expandByObject(mesh);
+  });
+  if (bb.isEmpty()) return existingOutline || null;
+
+  const size = bb.getSize(new THREE.Vector3());
+  const center = bb.getCenter(new THREE.Vector3());
+  const nextGeo = new THREE.EdgesGeometry(new THREE.BoxGeometry(
+    Math.max(0.1, size.x + 3),
+    Math.max(0.1, size.y + 3),
+    Math.max(0.1, size.z + 3)
+  ));
+
+  const outline = existingOutline || new THREE.LineSegments(
+    nextGeo,
+    new THREE.LineBasicMaterial({ color: 0xFFCC44 })
+  );
+
+  if (existingOutline) {
+    existingOutline.geometry?.dispose();
+    existingOutline.geometry = nextGeo;
+  } else {
+    targetScene.add(outline);
+  }
+
+  outline.position.copy(center);
+  outline.updateMatrixWorld(true);
+  return outline;
+}
+
 function ThreeCanvas({ onSelectInstance, onSetZone, onClearZone, readOnly = false, suppressTooltip = false }, ref) {
   const wrapRef = useRef(null);
   const threeRef = useRef(null); // { scene, camera, renderer, controls, containerGroup, priorityGroup, floorMesh }
@@ -137,6 +171,14 @@ function ThreeCanvas({ onSelectInstance, onSetZone, onClearZone, readOnly = fals
         }
         if (allDone) { threeRef.current._animItems = []; }
         needsShadowUpdate = true;
+      }
+      if (threeRef.current?._selectedMeshes?.length) {
+        const outline = makeSelectionOutlineFromMeshes(
+          threeRef.current._selectedMeshes,
+          scene,
+          threeRef.current._selectedOutlines[0]
+        );
+        if (outline) threeRef.current._selectedOutlines = [outline];
       }
       if (threeRef.current?._shadowDirty) {
         needsShadowUpdate = true;
@@ -604,24 +646,9 @@ function ThreeCanvas({ onSelectInstance, onSetZone, onClearZone, readOnly = fals
       }
     });
     if (t._selectedMeshes.length > 0) {
-      const state = useContainerStore.getState();
-      const { packed } = runPackingCached(state.loadedProducts);
-      const packedItem = packed.find(item => item.instanceId === instanceId);
-      if (packedItem) {
-        const outGeo = new THREE.EdgesGeometry(new THREE.BoxGeometry(
-          packedItem.dX + 3,
-          packedItem.dY + 3,
-          packedItem.dZ + 3
-        ));
-        const outline = new THREE.LineSegments(outGeo, new THREE.LineBasicMaterial({ color: 0xFFCC44 }));
-        outline.position.set(
-          packedItem.x + packedItem.dX / 2,
-          packedItem.y + packedItem.dY / 2,
-          packedItem.z + packedItem.dZ / 2
-        );
-        t._scene?.add(outline) || t.scene.add(outline);
-        t._selectedOutlines.push(outline);
-      }
+      const outline = makeSelectionOutlineFromMeshes(t._selectedMeshes, t.scene, t._selectedOutlines[0]);
+      t._selectedOutlines = outline ? [outline] : [];
+      t._requestRender?.();
     }
   }
 
@@ -713,13 +740,8 @@ function ThreeCanvas({ onSelectInstance, onSetZone, onClearZone, readOnly = fals
               m.position.y = supportY + height / 2;
             }
           });
-          t._selectedOutlines.forEach(o => {
-            const box = new THREE.Box3().setFromObject(o);
-            const height = Math.max(0.1, box.max.y - box.min.y);
-            o.position.x = cx;
-            o.position.z = cz;
-            o.position.y = supportY + height / 2;
-          });
+          const outline = makeSelectionOutlineFromMeshes(t._selectedMeshes, t.scene, t._selectedOutlines[0]);
+          t._selectedOutlines = outline ? [outline] : [];
           t._requestRender?.();
         }
         return;
