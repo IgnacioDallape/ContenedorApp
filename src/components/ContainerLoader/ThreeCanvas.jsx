@@ -44,7 +44,7 @@ function ThreeCanvas({ onSelectInstance, onSetZone, onClearZone, readOnly = fals
   const {
     loadedProducts, CONT_L, CONT_W, CONT_H, CONTAINER_VOL, currentContainerType,
     priorityZones, instanceManualPos, instanceLockedOri, selectedZoneSlot,
-    setInstanceManualPos, setSelectedInstance,
+    setLayoutSnapshot, setSelectedInstance,
   } = useContainerStore();
   const { showToast } = useAppStore();
 
@@ -168,7 +168,7 @@ function ThreeCanvas({ onSelectInstance, onSetZone, onClearZone, readOnly = fals
       _selectedInstanceId: null, _selectedMeshes: [], _selectedOutlines: [],
       _hoveredMesh: null, _raycaster: new THREE.Raycaster(), _mouse: new THREE.Vector2(),
       _isDragging: false, _dragFloorStart: null, _dragInstanceStart: null, _dragCachedDims: null,
-      _dragPrevManualPos: null,
+      _dragPrevManualPos: null, _dragLayoutManualPos: null, _dragLayoutLockedOri: null,
       _mouseDownPos: { x: 0, y: 0 }, _mouseDownTime: 0, _lastDblClickTime: 0,
       _requestRender: () => { _needsRender = true; },
     };
@@ -579,6 +579,17 @@ function ThreeCanvas({ onSelectInstance, onSetZone, onClearZone, readOnly = fals
     return maxTop;
   }
 
+  function buildLayoutSnapshot(products) {
+    const { packed } = runPackingCached(products);
+    const manualPos = {};
+    const lockedOri = {};
+    packed.forEach(item => {
+      manualPos[item.instanceId] = { x: item.x, z: item.z };
+      lockedOri[item.instanceId] = { dX: item.dX, dZ: item.dZ, dY: item.dY };
+    });
+    return { manualPos, lockedOri };
+  }
+
   function selectInstance(instanceId) {
     const t = threeRef.current;
     if (!t) return;
@@ -646,9 +657,12 @@ function ThreeCanvas({ onSelectInstance, onSetZone, onClearZone, readOnly = fals
           if (item) {
             t._dragInstanceStart = { x: item.x, z: item.z };
             t._dragCachedDims = { dX: item.dX, dZ: item.dZ };
-            t._dragPrevManualPos = state.instanceManualPos[t._selectedInstanceId]
-              ? { ...state.instanceManualPos[t._selectedInstanceId] }
-              : null;
+            t._dragPrevManualPos = { x: item.x, z: item.z };
+            const snapshot = buildLayoutSnapshot(state.loadedProducts);
+            t._dragLayoutManualPos = snapshot.manualPos;
+            t._dragLayoutLockedOri = snapshot.lockedOri;
+            window._instanceManualPos = { ...snapshot.manualPos };
+            window._instanceLockedOri = { ...snapshot.lockedOri };
           }
           t.controls.enabled = false;
         }
@@ -678,6 +692,7 @@ function ThreeCanvas({ onSelectInstance, onSetZone, onClearZone, readOnly = fals
           let nz = Math.round((t._dragInstanceStart.z + ddz) / snap) * snap;
           nx = Math.max(0, Math.min(state.CONT_L - dX, nx));
           nz = Math.max(0, Math.min(state.CONT_W - dZ, nz));
+          if (!window._instanceManualPos) window._instanceManualPos = {};
           window._instanceManualPos[t._selectedInstanceId] = { x: nx, z: nz };
           const supportY = getSupportHeightAtCursor(e, t._selectedInstanceId);
           const cx = nx + dX / 2, cz = nz + dZ / 2;
@@ -768,13 +783,19 @@ function ThreeCanvas({ onSelectInstance, onSetZone, onClearZone, readOnly = fals
         showToast('No hay espacio ahí — volvió a su posición anterior', 'error');
       }
 
-      useContainerStore.getState()._syncWindowGlobals();
+      setLayoutSnapshot(
+        window._instanceManualPos || t._dragLayoutManualPos || {},
+        window._instanceLockedOri || t._dragLayoutLockedOri || {}
+      );
       drawContainer();
       setTimeout(() => { selectInstance(iid); }, 60);
       t._dragPrevManualPos = null;
+      t._dragLayoutManualPos = null;
+      t._dragLayoutLockedOri = null;
       return;
     }
-    t._dragFloorStart = null; t._dragInstanceStart = null; t._dragCachedDims = null; t._dragPrevManualPos = null;
+    t._dragFloorStart = null; t._dragInstanceStart = null; t._dragCachedDims = null;
+    t._dragPrevManualPos = null; t._dragLayoutManualPos = null; t._dragLayoutLockedOri = null;
 
     if (Date.now() - t._mouseDownTime > 300) return;
     if (Date.now() - t._lastDblClickTime < 400) return;

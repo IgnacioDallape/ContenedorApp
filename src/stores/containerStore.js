@@ -274,6 +274,15 @@ const useContainerStore = create((set, get) => {
     get()._syncWindowGlobals();
   },
 
+  setLayoutSnapshot(manualPos = {}, lockedOri = {}) {
+    invalidatePackingCache();
+    set({
+      instanceManualPos: { ...manualPos },
+      instanceLockedOri: { ...lockedOri },
+    });
+    get()._syncWindowGlobals();
+  },
+
   setSelectedInstance(iid) { set({ selectedInstanceId: iid }); },
   setInteractMode(mode) { set({ interactMode: mode }); },
 
