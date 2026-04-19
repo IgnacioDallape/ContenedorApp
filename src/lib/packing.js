@@ -1,15 +1,16 @@
 // ── PRECISE HEIGHTMAP PACKING ENGINE ──
 const GRID_RES = 5; // 5cm cells — accurate pallet fitting
-let _GRID_COLS = Math.ceil((590 + 5) / GRID_RES);
-let _GRID_ROWS = Math.ceil((235 + 5) / GRID_RES);
+const FIT_EPS = 0.1;
+let _GRID_COLS = Math.ceil(590 / GRID_RES);
+let _GRID_ROWS = Math.ceil(235 / GRID_RES);
 
 // Container dimensions — set via setContainerDimensions() when type changes
 let CONT_L = 589, CONT_W = 235, CONT_H = 239, CONTAINER_VOL = (589*235*239)/1e6;
 
 export function setContainerDimensions(L, W, H, vol) {
   CONT_L = L; CONT_W = W; CONT_H = H; CONTAINER_VOL = vol;
-  _GRID_COLS = Math.ceil((L + 5) / GRID_RES);
-  _GRID_ROWS = Math.ceil((W + 5) / GRID_RES);
+  _GRID_COLS = Math.ceil(L / GRID_RES);
+  _GRID_ROWS = Math.ceil(W / GRID_RES);
   invalidatePackingCache();
 }
 
@@ -122,7 +123,7 @@ function runPacking(products) {
     const oris = [
       { dX: u.dims.L, dZ: u.dims.W, dY: u.dims.H },
       { dX: u.dims.W, dZ: u.dims.L, dY: u.dims.H }
-    ].filter(o => o.dX <= CONT_L + 5 && o.dZ <= CONT_W + 5);
+    ].filter(o => o.dX <= CONT_L + FIT_EPS && o.dZ <= CONT_W + FIT_EPS);
     // Pick orientation that fits most floor positions (lowest dZ preferred for multi-row layouts)
     let bestOri = oris[0];
     let bestRows = 0;
@@ -146,7 +147,7 @@ function runPacking(products) {
         const dom = dominantPalletOri[u.id];
         if (dom) {
           const alt = { dX: dom.dZ, dZ: dom.dX, dY: dom.dY };
-          orientations = [dom, alt].filter(o => o.dX <= CONT_L + 5 && o.dZ <= CONT_W + 5);
+          orientations = [dom, alt].filter(o => o.dX <= CONT_L + FIT_EPS && o.dZ <= CONT_W + FIT_EPS);
         } else {
           orientations = [
             { dX: u.dims.L, dZ: u.dims.W, dY: u.dims.H },
@@ -171,7 +172,7 @@ function runPacking(products) {
     // Filter out orientations that exceed container in any axis
     orientations = orientations.filter(o =>
       o.dX > 0 && o.dZ > 0 && o.dY > 0 &&
-      o.dX <= CONT_L + 5 && o.dZ <= CONT_W + 5 && o.dY <= CONT_H + 0.1
+      o.dX <= CONT_L + FIT_EPS && o.dZ <= CONT_W + FIT_EPS && o.dY <= CONT_H + FIT_EPS
     );
     if (!orientations.length) return false;
 
@@ -180,7 +181,7 @@ function runPacking(products) {
       const px = Math.max(0, Math.min(CONT_L - ori.dX, manualPosOverride.x));
       const pz = Math.max(0, Math.min(CONT_W - ori.dZ, manualPosOverride.z));
       const h = hmGetMax(hm, px, pz, ori.dX, ori.dZ);
-      const posBlocked = (u.type === 'pallet' && h > 1) || (h + ori.dY > CONT_H + 0.1);
+      const posBlocked = (u.type === 'pallet' && h > 1) || (h + ori.dY > CONT_H + FIT_EPS);
       if (posBlocked) {
         // Posición bloqueada — limpiar pin y dejar que el BFD lo ubique automáticamente
         // El pallet NUNCA desaparece — si no hay lugar en el BFD, se muestra en la primera
@@ -208,10 +209,10 @@ function runPacking(products) {
     for (const ori of orientations) {
       for (let pz = 0; pz < CONT_W; pz += GRID_RES) {
         for (let px = 0; px < CONT_L; px += GRID_RES) {
-          if (px + ori.dX > CONT_L + 5) continue;
-          if (pz + ori.dZ > CONT_W + 5) continue;
+          if (px + ori.dX > CONT_L + FIT_EPS) continue;
+          if (pz + ori.dZ > CONT_W + FIT_EPS) continue;
           const h = hmGetMax(hm, px, pz, ori.dX, ori.dZ);
-          if (h + ori.dY > CONT_H + 0.1) continue;
+          if (h + ori.dY > CONT_H + FIT_EPS) continue;
           // PALLETS NEVER STACK — physical constraint, period
           // Excepción: si el pallet tenía un pin que fue liberado (se estaba moviendo),
           // permitir colocarlo en la primera posición libre de piso que encuentre
@@ -293,16 +294,16 @@ function runPacking(products) {
       const s = group[0];
       // "De punta": lado corto (W) a lo largo del semi, lado largo (L) en profundidad
       const ori = { dX: s.dims.W, dZ: s.dims.L, dY: s.dims.H };
-      if (ori.dZ * 2 > CONT_W + 5) continue;
-      if (ori.dX > CONT_L + 5) continue;
+      if (ori.dZ * 2 > CONT_W + FIT_EPS) continue;
+      if (ori.dX > CONT_L + FIT_EPS) continue;
 
       // Generar todas las posiciones posibles y ordenarlas por distancia al centro
       const allSlots = [];
       let px = 0;
-      while (px + ori.dX <= CONT_L + 5) {
+      while (px + ori.dX <= CONT_L + FIT_EPS) {
         for (let row = 0; row < 2; row++) {
           const pz = row * ori.dZ;
-          if (pz + ori.dZ <= CONT_W + 5) allSlots.push({ px, pz, ori });
+          if (pz + ori.dZ <= CONT_W + FIT_EPS) allSlots.push({ px, pz, ori });
         }
         px += ori.dX;
       }
@@ -318,7 +319,7 @@ function runPacking(products) {
         if (idx >= group.length) break;
         const u = group[idx];
         const h = hmGetMax(hm, cp.px, cp.pz, cp.ori.dX, cp.ori.dZ);
-        if (h > 1 || h + cp.ori.dY > CONT_H + 0.1) { idx++; continue; }
+        if (h > 1 || h + cp.ori.dY > CONT_H + FIT_EPS) { idx++; continue; }
         hmSetPallet(hm, cp.px, cp.pz, cp.ori.dX, cp.ori.dZ, h, cp.ori.dY, u.packedItems, u.palletBase);
         packed.push({ x: cp.px, y: h, z: cp.pz, dX: cp.ori.dX, dY: cp.ori.dY, dZ: cp.ori.dZ,
           color: u.color, name: u.name, type: u.type,
@@ -341,9 +342,9 @@ function runPacking(products) {
     const A = { dX: s.dims.L, dZ: s.dims.W, dY: s.dims.H };
     const B = { dX: s.dims.W, dZ: s.dims.L, dY: s.dims.H };
     // Only use interlocking for non-square pallets where both orientations fit
-    if (A.dX === B.dX || A.dX > CONT_L + 5 || A.dZ > CONT_W + 5 || B.dX > CONT_L + 5 || B.dZ > CONT_W + 5) continue;
-    // Check that 2 pallets in depth fit: A.dZ + B.dZ <= CONT_W + 5
-    if (A.dZ + B.dZ > CONT_W + 5) continue;
+    if (A.dX === B.dX || A.dX > CONT_L + FIT_EPS || A.dZ > CONT_W + FIT_EPS || B.dX > CONT_L + FIT_EPS || B.dZ > CONT_W + FIT_EPS) continue;
+    // Check that 2 pallets in depth fit strictly within container width
+    if (A.dZ + B.dZ > CONT_W + FIT_EPS) continue;
 
     // Build placement list: columns alternating (B,A) and (A,B) along X
     // For odd qty: fill complete pairs first, then add 1 single at the end
@@ -353,13 +354,13 @@ function runPacking(products) {
     const hasExtra = group.length % 2 === 1;
 
     // Fill complete pairs
-    while (colIdx < pairsNeeded && px + Math.min(A.dX, B.dX) <= CONT_L + 5) {
+    while (colIdx < pairsNeeded && px + Math.min(A.dX, B.dX) <= CONT_L + FIT_EPS) {
       const pair = colIdx % 2 === 0 ? [B, A] : [A, B];
       const colWidth = pair[0].dX;
-      if (px + colWidth > CONT_L + 5) break;
+      if (px + colWidth > CONT_L + FIT_EPS) break;
       let pz = 0;
       for (const ori of pair) {
-        if (pz + ori.dZ <= CONT_W + 5) {
+        if (pz + ori.dZ <= CONT_W + FIT_EPS) {
           placements.push({ px, pz, ori });
           pz += ori.dZ;
         }
@@ -371,9 +372,9 @@ function runPacking(products) {
     // Add single extra pallet at the end (use B orientation — narrower, fits easier)
     if (hasExtra && placements.length < group.length) {
       const extraOri = B; // narrow orientation for the last single
-      if (px + extraOri.dX <= CONT_L + 5 && extraOri.dZ <= CONT_W + 5) {
+      if (px + extraOri.dX <= CONT_L + FIT_EPS && extraOri.dZ <= CONT_W + FIT_EPS) {
         placements.push({ px, pz: 0, ori: extraOri });
-      } else if (px + A.dX <= CONT_L + 5 && A.dZ <= CONT_W + 5) {
+      } else if (px + A.dX <= CONT_L + FIT_EPS && A.dZ <= CONT_W + FIT_EPS) {
         placements.push({ px, pz: 0, ori: A });
       }
     }
@@ -385,7 +386,7 @@ function runPacking(products) {
       const u = group[idx];
       const h = hmGetMax(hm, cp.px, cp.pz, cp.ori.dX, cp.ori.dZ);
       if (h > 1) { idx++; continue; }
-      if (h + cp.ori.dY > CONT_H + 0.1) { idx++; continue; }
+      if (h + cp.ori.dY > CONT_H + FIT_EPS) { idx++; continue; }
       hmSetPallet(hm, cp.px, cp.pz, cp.ori.dX, cp.ori.dZ, h, cp.ori.dY, u.packedItems, u.palletBase);
       packed.push({ x: cp.px, y: h, z: cp.pz, dX: cp.ori.dX, dY: cp.ori.dY, dZ: cp.ori.dZ,
         color: u.color, name: u.name, type: u.type,

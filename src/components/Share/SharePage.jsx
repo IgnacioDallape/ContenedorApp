@@ -9,6 +9,7 @@ const fmt = (n, dec = 2) => Number(n).toLocaleString('es-AR', { minimumFractionD
 
 const STATUS_CONFIG = {
   preparacion: { label: 'En preparación', color: '#C0614A', bg: '#FDF0ED', icon: '🔴' },
+  en_transito: { label: 'En tránsito',   color: '#7A5C8A', bg: '#F3EEF8', icon: '🚛' },
   embarcado:   { label: 'Embarcado',      color: '#2E7DC0', bg: '#EBF4FD', icon: '🚢' },
   en_puerto:   { label: 'En puerto',      color: '#C08A1A', bg: '#FDF6E3', icon: '⚓' },
   entregado:   { label: 'Entregado',      color: '#3A8C52', bg: '#EDF7F1', icon: '✅' },
