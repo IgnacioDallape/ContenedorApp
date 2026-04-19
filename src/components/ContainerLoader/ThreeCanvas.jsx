@@ -168,6 +168,7 @@ function ThreeCanvas({ onSelectInstance, onSetZone, onClearZone, readOnly = fals
       _selectedInstanceId: null, _selectedMeshes: [], _selectedOutlines: [],
       _hoveredMesh: null, _raycaster: new THREE.Raycaster(), _mouse: new THREE.Vector2(),
       _isDragging: false, _dragFloorStart: null, _dragInstanceStart: null, _dragCachedDims: null,
+      _dragPrevManualPos: null,
       _mouseDownPos: { x: 0, y: 0 }, _mouseDownTime: 0, _lastDblClickTime: 0,
       _requestRender: () => { _needsRender = true; },
     };
@@ -559,6 +560,25 @@ function ThreeCanvas({ onSelectInstance, onSetZone, onClearZone, readOnly = fals
     return hits.length ? hits[0].point : null;
   }
 
+  function getSupportHeightAtCursor(e, selectedInstanceId) {
+    const t = threeRef.current;
+    if (!t) return 0;
+    const rect = t.renderer.domElement.getBoundingClientRect();
+    const mx = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+    const my = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+    const rc = new THREE.Raycaster();
+    rc.setFromCamera(new THREE.Vector2(mx, my), t.camera);
+    const hits = rc.intersectObjects(t.containerGroup.children, true)
+      .filter(hit => hit.object.userData?.instanceId && hit.object.userData.instanceId !== selectedInstanceId);
+
+    let maxTop = 0;
+    for (const hit of hits) {
+      const box = new THREE.Box3().setFromObject(hit.object);
+      if (Number.isFinite(box.max.y)) maxTop = Math.max(maxTop, box.max.y);
+    }
+    return maxTop;
+  }
+
   function selectInstance(instanceId) {
     const t = threeRef.current;
     if (!t) return;
@@ -626,6 +646,9 @@ function ThreeCanvas({ onSelectInstance, onSetZone, onClearZone, readOnly = fals
           if (item) {
             t._dragInstanceStart = { x: item.x, z: item.z };
             t._dragCachedDims = { dX: item.dX, dZ: item.dZ };
+            t._dragPrevManualPos = state.instanceManualPos[t._selectedInstanceId]
+              ? { ...state.instanceManualPos[t._selectedInstanceId] }
+              : null;
           }
           t.controls.enabled = false;
         }
@@ -656,13 +679,24 @@ function ThreeCanvas({ onSelectInstance, onSetZone, onClearZone, readOnly = fals
           nx = Math.max(0, Math.min(state.CONT_L - dX, nx));
           nz = Math.max(0, Math.min(state.CONT_W - dZ, nz));
           window._instanceManualPos[t._selectedInstanceId] = { x: nx, z: nz };
+          const supportY = getSupportHeightAtCursor(e, t._selectedInstanceId);
           const cx = nx + dX / 2, cz = nz + dZ / 2;
           t.containerGroup.children.forEach(m => {
             if (m.userData?.instanceId === t._selectedInstanceId) {
-              m.position.x = cx; m.position.z = cz;
+              const box = new THREE.Box3().setFromObject(m);
+              const height = Math.max(0.1, box.max.y - box.min.y);
+              m.position.x = cx;
+              m.position.z = cz;
+              m.position.y = supportY + height / 2;
             }
           });
-          t._selectedOutlines.forEach(o => { o.position.x = cx; o.position.z = cz; });
+          t._selectedOutlines.forEach(o => {
+            const box = new THREE.Box3().setFromObject(o);
+            const height = Math.max(0.1, box.max.y - box.min.y);
+            o.position.x = cx;
+            o.position.z = cz;
+            o.position.y = supportY + height / 2;
+          });
           t._requestRender?.();
         }
         return;
@@ -725,23 +759,22 @@ function ThreeCanvas({ onSelectInstance, onSetZone, onClearZone, readOnly = fals
 
       // Validate drop position: if the item can't be placed there, clear its manual pos
       const state = useContainerStore.getState();
-      const productId = iid.split('_').slice(0, -1).join('_');
-      const p = state.loadedProducts.find(p => String(p.id) === productId);
-      if (p) {
-        const { placed } = runPacking(state.loadedProducts);
-        if ((placed[String(p.id)] || 0) < p.qty) {
-          delete window._instanceManualPos[iid];
-          invalidatePackingCache();
-          showToast('No hay espacio ahí — el pallet volvió a su lugar', 'error');
-        }
+      const { packed } = runPacking(state.loadedProducts);
+      const stillPlaced = packed.some(item => item.instanceId === iid);
+      if (!stillPlaced) {
+        if (t._dragPrevManualPos) window._instanceManualPos[iid] = { ...t._dragPrevManualPos };
+        else delete window._instanceManualPos[iid];
+        invalidatePackingCache();
+        showToast('No hay espacio ahí — volvió a su posición anterior', 'error');
       }
 
       useContainerStore.getState()._syncWindowGlobals();
       drawContainer();
       setTimeout(() => { selectInstance(iid); }, 60);
+      t._dragPrevManualPos = null;
       return;
     }
-    t._dragFloorStart = null; t._dragInstanceStart = null; t._dragCachedDims = null;
+    t._dragFloorStart = null; t._dragInstanceStart = null; t._dragCachedDims = null; t._dragPrevManualPos = null;
 
     if (Date.now() - t._mouseDownTime > 300) return;
     if (Date.now() - t._lastDblClickTime < 400) return;
