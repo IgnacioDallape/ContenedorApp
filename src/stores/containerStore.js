@@ -9,6 +9,20 @@ function makeDefaultContainer(id, type = '20ft') {
   return { id, type, products: [], priorityZones: [null, null, null], instanceManualPos: {}, instanceLockedOri: {} };
 }
 
+function normalizeContainer(container, fallbackId = 1, fallbackType = '20ft') {
+  const safe = container || {};
+  return {
+    ...makeDefaultContainer(fallbackId, safe.type || fallbackType),
+    ...safe,
+    id: safe.id ?? fallbackId,
+    type: safe.type || fallbackType,
+    products: Array.isArray(safe.products) ? safe.products.map(p => ({ ...p })) : [],
+    priorityZones: Array.isArray(safe.priorityZones) ? [...safe.priorityZones] : [null, null, null],
+    instanceManualPos: { ...(safe.instanceManualPos || {}) },
+    instanceLockedOri: { ...(safe.instanceLockedOri || {}) },
+  };
+}
+
 // Module-level undo/redo stacks (not reactive state to avoid re-renders)
 let _undoHistory = [];
 let _redoStack   = [];
@@ -325,16 +339,26 @@ const useContainerStore = create((set, get) => {
     return updated;
   },
 
-  loadShipmentData(data) {
-    set({ currentShipmentId: data.id, currentShipmentName: data.name, shipmentContainers: data.containers, activeContainerIdx: 0 });
-    const first = data.containers[0];
+  loadShipmentData(data, options = {}) {
+    const normalizedContainers = (Array.isArray(data?.containers) && data.containers.length > 0
+      ? data.containers
+      : [makeDefaultContainer(1)]
+    ).map((container, index) => normalizeContainer(container, index + 1));
+    const safeActiveIdx = Math.max(0, Math.min(options.activeContainerIdx ?? 0, normalizedContainers.length - 1));
+    const active = normalizedContainers[safeActiveIdx];
     set({
-      loadedProducts: [...first.products],
-      priorityZones: [...(first.priorityZones || [null, null, null])],
-      instanceManualPos: { ...(first.instanceManualPos || {}) },
-      instanceLockedOri: { ...(first.instanceLockedOri || {}) },
+      currentShipmentId: data?.id ?? null,
+      currentShipmentName: data?.name ?? null,
+      shipmentContainers: normalizedContainers,
+      activeContainerIdx: safeActiveIdx,
     });
-    get()._setContainerTypeInternal(first.type || '20ft');
+    set({
+      loadedProducts: [...active.products],
+      priorityZones: [...(active.priorityZones || [null, null, null])],
+      instanceManualPos: { ...(active.instanceManualPos || {}) },
+      instanceLockedOri: { ...(active.instanceLockedOri || {}) },
+    });
+    get()._setContainerTypeInternal(active.type || '20ft');
     invalidatePackingCache();
     get()._syncWindowGlobals();
   },

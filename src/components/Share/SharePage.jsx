@@ -143,7 +143,7 @@ export default function SharePage({ shipmentId }) {
             </div>
             <div style={{ height: 380, position: 'relative' }}>
               <Suspense fallback={<div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', fontFamily: "'DM Mono', monospace", fontSize: 11, color: '#8D7966', letterSpacing: 2 }}>Cargando 3D...</div>}>
-                <ThreeCanvas />
+                <ThreeCanvas readOnly />
               </Suspense>
             </div>
           </div>

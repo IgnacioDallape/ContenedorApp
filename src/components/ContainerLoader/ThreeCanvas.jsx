@@ -37,7 +37,7 @@ function makeBoxMaterials(hex) {
   return _matTemplates.get(h).clone();
 }
 
-function ThreeCanvas({ onSelectInstance, onSetZone, onClearZone }, ref) {
+function ThreeCanvas({ onSelectInstance, onSetZone, onClearZone, readOnly = false }, ref) {
   const wrapRef = useRef(null);
   const threeRef = useRef(null); // { scene, camera, renderer, controls, containerGroup, priorityGroup, floorMesh }
 
@@ -606,6 +606,7 @@ function ThreeCanvas({ onSelectInstance, onSetZone, onClearZone }, ref) {
     t._mouseDownPos = { x: e.clientX, y: e.clientY };
     t._dragFloorStart = null;
     t._isDragging = false;
+    if (readOnly) return;
 
     if (e.button === 0 && t._selectedInstanceId != null) {
       const rect = t.renderer.domElement.getBoundingClientRect();
@@ -630,7 +631,7 @@ function ThreeCanvas({ onSelectInstance, onSetZone, onClearZone }, ref) {
         }
       }
     }
-  }, []);
+  }, [readOnly]);
 
   const handleMouseMove = useCallback((e) => {
     const t = threeRef.current;
@@ -704,8 +705,8 @@ function ThreeCanvas({ onSelectInstance, onSetZone, onClearZone }, ref) {
         t._hoveredMesh = null;
       }
     }
-    t.renderer.domElement.style.cursor = hit ? 'pointer' : 'default';
-  }, []);
+    t.renderer.domElement.style.cursor = hit ? (readOnly ? 'grab' : 'pointer') : 'default';
+  }, [readOnly]);
 
   const handleMouseUp = useCallback((e) => {
     const t = threeRef.current;
@@ -782,7 +783,7 @@ function ThreeCanvas({ onSelectInstance, onSetZone, onClearZone }, ref) {
 
   const handleDblClick = useCallback((e) => {
     const t = threeRef.current;
-    if (!t) return;
+    if (!t || readOnly) return;
     t._lastDblClickTime = Date.now();
     const rect = t.renderer.domElement.getBoundingClientRect();
     const mx = ((e.clientX - rect.left) / rect.width)  * 2 - 1;
@@ -809,10 +810,11 @@ function ThreeCanvas({ onSelectInstance, onSetZone, onClearZone }, ref) {
     const slot = useContainerStore.getState().selectedZoneSlot;
     if (onSetZone) onSetZone(slot, { x: px, y: colH, z: pz2 });
     showToast(`${ZONE_LABELS[slot]} marcada — asignala a un producto con "→ zona" en la lista`, 'success');
-  }, [onSetZone, showToast]);
+  }, [onSetZone, readOnly, showToast]);
 
   const handleContextMenu = useCallback((e) => {
     e.preventDefault();
+    if (readOnly) return;
     const slot = useContainerStore.getState().selectedZoneSlot;
     const pz = useContainerStore.getState().priorityZones[slot];
     if (pz && onClearZone) {
@@ -820,7 +822,7 @@ function ThreeCanvas({ onSelectInstance, onSetZone, onClearZone }, ref) {
       showToast(`${ZONE_LABELS[slot]} eliminada`);
     }
     if (onSelectInstance) onSelectInstance(null);
-  }, [onClearZone, onSetZone, showToast]);
+  }, [onClearZone, onSelectInstance, readOnly, showToast]);
 
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%' }}>

@@ -512,8 +512,7 @@ export default function ContainerLoader() {
       const payload = { v: 2, notes: shipmentNotes, items: containers };
       const { data: inserted, error } = await _sb.from('shipments').insert({ user_id: session.user.id, name: saveName.trim(), containers: payload, status: 'preparacion' }).select('id').single();
       if (error) { showToast('Error al guardar: ' + error.message, 'error'); return; }
-      setCurrentShipmentId(inserted.id);
-      setCurrentShipmentName(saveName.trim());
+      loadShipmentData({ id: inserted.id, name: saveName.trim(), containers }, { activeContainerIdx });
       setCurrentShipmentStatus('preparacion');
       setShowSave(false);
       showToast(`Embarque guardado: "${saveName.trim()}"`, 'success');
@@ -531,7 +530,7 @@ export default function ContainerLoader() {
       const payload = { v: 2, notes: shipmentNotes, items: containers };
       const { error } = await _sb.from('shipments').update({ name: overwriteName, containers: payload }).eq('id', overwriteId);
       if (error) { showToast('Error al guardar: ' + error.message, 'error'); return; }
-      setCurrentShipmentId(overwriteId);
+      loadShipmentData({ id: overwriteId, name: overwriteName, containers }, { activeContainerIdx });
       setShowOverwrite(false);
       showToast(`Embarque actualizado: "${overwriteName}"`, 'success');
     } finally { setIsSaving(false); }

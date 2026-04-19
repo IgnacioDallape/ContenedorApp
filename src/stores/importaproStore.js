@@ -39,6 +39,7 @@ const DEFAULT_INPUTS = {
 const useImportaproStore = create((set, get) => ({
   savedProducts: JSON.parse(localStorage.getItem('importapro-products') || '[]'),
   publicationPlans: JSON.parse(localStorage.getItem('importapro-publication-plans') || '[]'),
+  publicationOrderDraft: JSON.parse(localStorage.getItem('importapro-publication-order-draft') || '[]'),
   canales: JSON.parse(JSON.stringify(DEFAULT_CANALES)),
   inputs: { ...DEFAULT_INPUTS },
   apiKey: localStorage.getItem('importapro-apikey') || '',
@@ -85,9 +86,13 @@ const useImportaproStore = create((set, get) => ({
     const updatedPlans = removed
       ? get().publicationPlans.filter(plan => plan.productId !== removed.id)
       : get().publicationPlans;
+    const updatedOrderDraft = removed
+      ? get().publicationOrderDraft.filter(item => item.productId !== removed.id)
+      : get().publicationOrderDraft;
     localStorage.setItem('importapro-products', JSON.stringify(updated));
     localStorage.setItem('importapro-publication-plans', JSON.stringify(updatedPlans));
-    set({ savedProducts: updated, publicationPlans: updatedPlans });
+    localStorage.setItem('importapro-publication-order-draft', JSON.stringify(updatedOrderDraft));
+    set({ savedProducts: updated, publicationPlans: updatedPlans, publicationOrderDraft: updatedOrderDraft });
   },
 
   savePublicationPlan(plan) {
@@ -103,8 +108,43 @@ const useImportaproStore = create((set, get) => ({
 
   removePublicationPlan(productId) {
     const updated = get().publicationPlans.filter(plan => plan.productId !== productId);
+    const updatedOrderDraft = get().publicationOrderDraft.filter(item => item.productId !== productId);
     localStorage.setItem('importapro-publication-plans', JSON.stringify(updated));
-    set({ publicationPlans: updated });
+    localStorage.setItem('importapro-publication-order-draft', JSON.stringify(updatedOrderDraft));
+    set({ publicationPlans: updated, publicationOrderDraft: updatedOrderDraft });
+  },
+
+  setPublicationOrderQty(productId, qty) {
+    const safeQty = Math.max(0, parseInt(qty, 10) || 0);
+    const current = get().publicationOrderDraft;
+    const existing = current.find(item => item.productId === productId);
+    let updated;
+    if (safeQty <= 0) {
+      updated = current.filter(item => item.productId !== productId);
+    } else if (existing) {
+      updated = current.map(item =>
+        item.productId === productId
+          ? { ...item, qty: safeQty, updatedAt: new Date().toISOString() }
+          : item
+      );
+    } else {
+      updated = [...current, { productId, qty: safeQty, updatedAt: new Date().toISOString() }];
+    }
+    localStorage.setItem('importapro-publication-order-draft', JSON.stringify(updated));
+    set({ publicationOrderDraft: updated });
+    return updated;
+  },
+
+  removePublicationOrderItem(productId) {
+    const updated = get().publicationOrderDraft.filter(item => item.productId !== productId);
+    localStorage.setItem('importapro-publication-order-draft', JSON.stringify(updated));
+    set({ publicationOrderDraft: updated });
+    return updated;
+  },
+
+  clearPublicationOrder() {
+    localStorage.setItem('importapro-publication-order-draft', '[]');
+    set({ publicationOrderDraft: [] });
   },
 
   loadProductToCalc(prod) {

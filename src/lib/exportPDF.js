@@ -588,3 +588,88 @@ export function exportCotizacionPDF({ c, canales, inputs }) {
   const filename = `cotizacion-${(inputs.nombre || 'producto').replace(/\s+/g, '-').toLowerCase()}-${new Date().toISOString().slice(0, 10)}.pdf`;
   doc.save(filename);
 }
+
+export function exportPurchaseOrderPDF({ items, orderTitle = 'pedido-definitivo' }) {
+  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+  const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
+  const margin = 16;
+
+  const totalUnits = items.reduce((acc, item) => acc + item.orderQty, 0);
+  const totalUsd = items.reduce((acc, item) => acc + ((item.costoUSD || item.fob || 0) * item.orderQty), 0);
+  const totalArs = items.reduce((acc, item) => acc + ((item.costoARS || 0) * item.orderQty), 0);
+
+  doc.setFillColor(141, 121, 102);
+  doc.rect(0, 0, pageW, 34, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(21);
+  doc.text('ImportaPro', margin, 18);
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'normal');
+  doc.text('Pedido definitivo de compra', margin, 26);
+
+  let y = 48;
+  doc.setTextColor(60, 50, 40);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(18);
+  doc.text(ascii(orderTitle), margin, y);
+  y += 8;
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  doc.setTextColor(120, 100, 80);
+  doc.text(ascii(`Fecha: ${new Date().toLocaleDateString('es-AR')}  |  Productos: ${items.length}  |  Unidades: ${totalUnits}`), margin, y);
+  y += 10;
+
+  autoTable(doc, {
+    startY: y,
+    margin: { left: margin, right: margin },
+    head: [['Producto', 'Cant.', 'Tipo', 'Dims (cm)', 'Peso/u', 'Costo/u USD', 'Subtotal USD', 'Referencia']],
+    body: items.map(item => [
+      ascii(item.nombre || item.productName || 'Producto'),
+      item.orderQty,
+      item.tipoUnidad === 'pallet' ? 'Pallet' : 'Caja',
+      `${item.dims?.L || 0}x${item.dims?.W || 0}x${item.dims?.H || 0}`,
+      item.pesoUnit ? fmt(item.pesoUnit, 1) + ' kg' : '-',
+      item.costoUSD || item.fob ? usd(item.costoUSD || item.fob) : '-',
+      item.costoUSD || item.fob ? usd((item.costoUSD || item.fob) * item.orderQty) : '-',
+      ascii(item.link1688 || item.linkML || '-'),
+    ]),
+    foot: [[
+      'TOTAL', totalUnits, '', '', '', '',
+      usd(totalUsd), totalArs > 0 ? ascii('$ ' + fmt(Math.round(totalArs), 0)) : ''
+    ]],
+    styles: { fontSize: 8, cellPadding: 2.6, textColor: [60, 50, 40] },
+    headStyles: { fillColor: [141, 121, 102], textColor: 255, fontStyle: 'bold', fontSize: 7.5 },
+    footStyles: { fillColor: [230, 220, 210], textColor: [60, 50, 40], fontStyle: 'bold', fontSize: 7.5 },
+    alternateRowStyles: { fillColor: [250, 247, 243] },
+    columnStyles: {
+      0: { cellWidth: 42 },
+      1: { cellWidth: 14, halign: 'center' },
+      2: { cellWidth: 14, halign: 'center' },
+      3: { cellWidth: 22, halign: 'center' },
+      4: { cellWidth: 18, halign: 'right' },
+      5: { cellWidth: 22, halign: 'right' },
+      6: { cellWidth: 24, halign: 'right' },
+      7: { cellWidth: 28 },
+    },
+  });
+
+  y = doc.lastAutoTable.finalY + 10;
+  doc.setFontSize(9);
+  doc.setTextColor(120, 100, 80);
+  doc.text(ascii('Observacion: verificar cantidades y medidas antes de concretar el pedido con el proveedor.'), margin, y);
+
+  const totalPages = doc.getNumberOfPages();
+  for (let p = 1; p <= totalPages; p++) {
+    doc.setPage(p);
+    doc.setFontSize(7.5);
+    doc.setTextColor(180, 165, 150);
+    doc.setFont('helvetica', 'normal');
+    doc.text('Generado por ImportaPro', margin, pageH - 8);
+    doc.text('fleetloader.vercel.app', pageW - margin, pageH - 8, { align: 'right' });
+  }
+
+  const filename = `${orderTitle.replace(/[^\w-]+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '').toLowerCase() || 'pedido-definitivo'}-${new Date().toISOString().slice(0, 10)}.pdf`;
+  doc.save(filename);
+}
