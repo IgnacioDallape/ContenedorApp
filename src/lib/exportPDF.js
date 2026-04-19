@@ -24,6 +24,18 @@ function ascii(str) {
     .replace(/¿/g,'').replace(/¡/g,'');
 }
 
+function cleanShipmentNote(note) {
+  const raw = String(note || '').trim();
+  if (!raw) return '';
+  const withoutUrls = raw.replace(/https?:\/\/\S+/gi, '').replace(/\b(?:www\.)\S+/gi, '');
+  const withoutLabels = withoutUrls
+    .replace(/\b(?:1688|ML|Mercado\s*Libre)\s*:\s*/gi, '')
+    .replace(/\bPedido definitivo\b/gi, '')
+    .replace(/[·|]+/g, ' ');
+  const collapsed = withoutLabels.replace(/\s+/g, ' ').trim().replace(/^[-,:;]+|[-,:;]+$/g, '').trim();
+  return collapsed;
+}
+
 export async function exportShipmentPDF({ containers, currentContainerType, shipmentName, shipmentId, views = [] }) {
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
   const pageW = doc.internal.pageSize.getWidth();
@@ -163,7 +175,7 @@ export async function exportShipmentPDF({ containers, currentContainerType, ship
         fmt((p.weight || 0) * p.qty, 1),
         p.price ? usd(p.price) : '-',
         p.price ? usd(p.price * p.qty) : '-',
-        ascii(p.notes || ''),
+        ascii(cleanShipmentNote(p.notes)),
       ]),
       foot: [[
         'TOTAL', '', '', totalUnits,
