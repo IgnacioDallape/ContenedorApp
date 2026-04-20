@@ -804,6 +804,9 @@ function InteractiveDonut({ slices, centerLabel, centerValue }) {
   const R = 68, CX = 100, CY = 100, SW = 26;
   const circ = 2 * Math.PI * R;
   const GAP_DEG = 2.5;
+  const centerParts = typeof centerValue === 'string' && centerValue.startsWith('U$S ')
+    ? { currency: 'U$S', amount: centerValue.slice(4) }
+    : null;
 
   function scrollToSection(id) {
     if (!id) return;
@@ -883,18 +886,25 @@ function InteractiveDonut({ slices, centerLabel, centerValue }) {
             );
           })}
         </svg>
-        <div style={{ position:'absolute', inset:0, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', pointerEvents:'none', gap:1 }}>
+        <div style={{ position:'absolute', inset:0, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', pointerEvents:'none' }}>
           {hov ? (
-            <>
-              <div style={{ fontSize:9, fontWeight:700, color:'var(--text-3)', textTransform:'uppercase', letterSpacing:'0.07em', textAlign:'center' }}>{hov.label}</div>
-              <div style={{ fontSize:22, fontWeight:800, color: hov.color, fontFamily:"'DM Mono',monospace", lineHeight:1.1 }}>{rd(hov.pct,1)}%</div>
-              <div style={{ fontSize:10, color:'var(--text-3)', fontFamily:"'DM Mono',monospace" }}>U$S {rd(hov.usd,2)}</div>
-            </>
+            <div style={{ width: 104, display:'flex', flexDirection:'column', alignItems:'center', gap:2, textAlign:'center' }}>
+              <div style={{ fontSize:9, fontWeight:700, color:'var(--text-3)', textTransform:'uppercase', letterSpacing:'0.07em', lineHeight:1.15 }}>{hov.label}</div>
+              <div style={{ fontSize:22, fontWeight:800, color: hov.color, fontFamily:"'DM Mono',monospace", lineHeight:1.05 }}>{rd(hov.pct,1)}%</div>
+              <div style={{ fontSize:10, color:'var(--text-3)', fontFamily:"'DM Mono',monospace", lineHeight:1.1 }}>U$S {rd(hov.usd,2)}</div>
+            </div>
           ) : (
-            <>
-              <div style={{ fontSize:9, fontWeight:700, color:'var(--text-3)', textTransform:'uppercase', letterSpacing:'0.07em', textAlign:'center' }}>{centerLabel}</div>
-              <div style={{ fontSize:18, fontWeight:800, color:'var(--text)', fontFamily:"'DM Mono',monospace", lineHeight:1.2 }}>{centerValue}</div>
-            </>
+            <div style={{ width: 112, display:'flex', flexDirection:'column', alignItems:'center', gap:3, textAlign:'center' }}>
+              <div style={{ fontSize:9, fontWeight:700, color:'var(--text-3)', textTransform:'uppercase', letterSpacing:'0.07em', lineHeight:1.15 }}>{centerLabel}</div>
+              {centerParts ? (
+                <>
+                  <div style={{ fontSize:11, fontWeight:700, color:'var(--text-3)', fontFamily:"'DM Mono',monospace", lineHeight:1 }}> {centerParts.currency} </div>
+                  <div style={{ fontSize:16, fontWeight:800, color:'var(--text)', fontFamily:"'DM Mono',monospace", lineHeight:1.05 }}>{centerParts.amount}</div>
+                </>
+              ) : (
+                <div style={{ fontSize:16, fontWeight:800, color:'var(--text)', fontFamily:"'DM Mono',monospace", lineHeight:1.05 }}>{centerValue}</div>
+              )}
+            </div>
           )}
         </div>
       </div>
