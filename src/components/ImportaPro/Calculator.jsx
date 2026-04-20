@@ -135,6 +135,27 @@ export default function Calculator() {
     reader.readAsDataURL(file);
   }
 
+  function setPhotoData(idx, dataUrl) {
+    const photos = [...(inputs.photos || [null, null])];
+    photos[idx] = dataUrl;
+    setInputs({ photos });
+  }
+
+  function handlePhotoPaste(idx, event) {
+    const items = Array.from(event.clipboardData?.items || []);
+    const imageItem = items.find(item => item.type?.startsWith('image/'));
+    if (!imageItem) return;
+    const file = imageItem.getAsFile();
+    if (!file) return;
+    event.preventDefault();
+    const reader = new FileReader();
+    reader.onload = e => {
+      setPhotoData(idx, e.target.result);
+      showToast('Captura pegada en la foto', 'success');
+    };
+    reader.readAsDataURL(file);
+  }
+
   function clearPhoto(idx) {
     const photos = [...(inputs.photos || [null, null])];
     photos[idx] = null;
@@ -355,7 +376,12 @@ export default function Calculator() {
                   const hasVal   = !!(inputs[key]);
                   const hasPhoto = !!(inputs.photos?.[photoIdx]);
                   return (
-                    <div key={key} style={{ display:'flex', alignItems:'stretch', border:'1px solid var(--border)', borderRadius:8, overflow:'hidden', background:'var(--bg)' }}>
+                    <div
+                      key={key}
+                      onPaste={e => handlePhotoPaste(photoIdx, e)}
+                      title="Podés pegar una captura con Ctrl + V"
+                      style={{ display:'flex', alignItems:'stretch', border:'1px solid var(--border)', borderRadius:8, overflow:'hidden', background:'var(--bg)' }}
+                    >
                       {/* Platform badge */}
                       <div style={{ background: color, padding:'0 13px', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', flexShrink:0, minWidth:46 }}>
                         <span style={{ fontSize:9, fontWeight:800, color:'#fff', letterSpacing:'0.05em', lineHeight:1 }}>{label}</span>
@@ -370,7 +396,7 @@ export default function Calculator() {
                       {/* Photo slot integrado */}
                       <div
                         onClick={() => document.getElementById(`photo-input-${photoIdx}`).click()}
-                        title={hasPhoto ? 'Cambiar foto' : 'Subir foto'}
+                        title={hasPhoto ? 'Cambiar foto o pegar captura' : 'Subir foto o pegar captura'}
                         style={{ width:44, borderLeft:'1px solid var(--border-2)', cursor:'pointer', position:'relative', overflow:'hidden', flexShrink:0, display:'flex', alignItems:'center', justifyContent:'center', background: hasPhoto ? 'transparent' : 'var(--bg-3)', transition:'background 0.15s' }}
                       >
                         {hasPhoto ? (
@@ -396,6 +422,9 @@ export default function Calculator() {
                     </div>
                   );
                 })}
+                <div style={{ fontSize: 10, color: 'var(--text-3)', marginTop: 2 }}>
+                  Podés cargar una imagen desde archivos o pegar una captura con <strong>Ctrl + V</strong> sobre cada fila.
+                </div>
               </div>
             </div>
 
@@ -501,9 +530,10 @@ export default function Calculator() {
                 display: 'flex',
                 flexDirection: 'column',
                 gap: 6,
-                maxHeight: canales.length > 3 ? 230 : 'none',
+                maxHeight: canales.length > 3 ? 158 : 'none',
                 overflowY: canales.length > 3 ? 'auto' : 'visible',
-                paddingRight: canales.length > 3 ? 4 : 0,
+                paddingRight: canales.length > 3 ? 6 : 0,
+                scrollbarGutter: canales.length > 3 ? 'stable' : 'auto',
               }}
             >
               {canales.map((canal, i) => {
