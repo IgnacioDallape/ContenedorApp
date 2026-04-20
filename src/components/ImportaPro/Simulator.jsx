@@ -68,8 +68,6 @@ export default function Simulator() {
     setDraftChannels(normalizeDraft(results, existingPlan));
   }, [selectedProduct?.id, results, existingPlan?.updatedAt]);
 
-  const varPct = [-30, -20, -10, 0, 10, 20, 30, 50, 80, 100];
-
   function updateDraftChannel(nombre, patch) {
     setDraftChannels(curr => curr.map(ch => ch.nombre === nombre ? { ...ch, ...patch } : ch));
   }
@@ -242,29 +240,6 @@ export default function Simulator() {
                 })}
               </div>
             </div>
-          </div>
-        </div>
-
-        <div className="card" style={{ marginTop: 20 }}>
-          <div className="card-header"><span className="card-title">Análisis de sensibilidad</span></div>
-          <p style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 12 }}>Variación del precio sobre el costo, con IVA {iva}% incluido — comisión ML {SIMULATOR_CHANNELS[0].comision}%</p>
-          <div id="sensibilidad-table">
-            <div className="sens-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, padding: '6px 8px', background: 'var(--bg-3)', borderRadius: 'var(--radius)', marginBottom: 4, fontSize: 11, fontWeight: 600, color: 'var(--text-3)' }}>
-              <span>Variación del precio</span><span>Precio c/ IVA</span><span>Margen bruto (ML {SIMULATOR_CHANNELS[0].comision}%)</span>
-            </div>
-            {varPct.map(vp => {
-              const pr = Math.round(costo * (1 + vp / 100) * (1 + iva / 100));
-              const gan = pr - costo - pr * SIMULATOR_CHANNELS[0].comision / 100 - pr * iibb / 100 - pr / (1 + iva / 100) * (iva / 100);
-              const mg = costo > 0 ? Math.round(gan / costo * 100) : 0;
-              const b = mg >= 50 ? 'green' : mg >= 20 ? 'amber' : 'red';
-              return (
-                <div key={vp} className="sens-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, padding: '6px 8px', borderBottom: '1px solid var(--border-2)', fontSize: 13 }}>
-                  <span style={{ color: 'var(--text-2)' }}>{vp >= 0 ? '+' : ''}{vp}% sobre costo</span>
-                  <span style={{ fontWeight: 500 }}>{ars(pr)}</span>
-                  <span><span className={`badge badge-${b}`}>{mg}%</span></span>
-                </div>
-              );
-            })}
           </div>
         </div>
       </section>
