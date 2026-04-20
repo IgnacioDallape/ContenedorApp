@@ -6,19 +6,21 @@ const useAuthStore = create((set, get) => ({
   user:     null,
   userPlan: 'none',
   loading:  true,
+  recoveryFlow: false,
 
   setUser: (user) => set({ user }),
   setUserPlan: (userPlan) => set({ userPlan }),
   setLoading: (loading) => set({ loading }),
+  setRecoveryFlow: (recoveryFlow) => set({ recoveryFlow }),
 
   async init() {
     const { mode, message } = parseAuthHash();
     if (mode === 'recovery') {
-      set({ loading: false, user: null });
+      set({ loading: false, user: null, userPlan: 'none', recoveryFlow: true });
       return 'recovery';
     }
     if (mode === 'forgot' && message) {
-      set({ loading: false, user: null });
+      set({ loading: false, user: null, userPlan: 'none', recoveryFlow: false });
       return { mode: 'forgot', message };
     }
     try {
@@ -34,6 +36,7 @@ const useAuthStore = create((set, get) => ({
   },
 
   async enterApp(user) {
+    if (get().recoveryFlow) return;
     set({ user });
     try {
       const { data } = await _sb
@@ -49,12 +52,16 @@ const useAuthStore = create((set, get) => ({
 
   async logout() {
     try { await _sb.auth.signOut(); } catch(e) {}
-    set({ user: null, userPlan: 'none' });
+    set({ user: null, userPlan: 'none', recoveryFlow: false });
   },
 }));
 
 _sb.auth.onAuthStateChange((event, session) => {
   if (event === 'SIGNED_IN' && session) {
+    if (useAuthStore.getState().recoveryFlow) {
+      useAuthStore.setState({ user: null, userPlan: 'none' });
+      return;
+    }
     useAuthStore.getState().enterApp(session.user);
   }
   if (event === 'SIGNED_OUT') {
