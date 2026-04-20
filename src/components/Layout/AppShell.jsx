@@ -23,10 +23,91 @@ const Loader = () => (
   </div>
 );
 
+const ShipMark = ({ size = 58 }) => (
+  <svg width={size} height={size} viewBox="0 0 64 64" fill="none" aria-hidden="true">
+    <path d="M14 39H50L46 50H18L14 39Z" fill="#F24E4E" />
+    <path d="M10 50H54C52 54.8 47.3 58 42 58H22C16.7 58 12 54.8 10 50Z" fill="#4A90E2" />
+    <path d="M18 31H46V39H18V31Z" fill="#FFF4E6" />
+    <path d="M21 24H43V31H21V24Z" fill="#FFF4E6" />
+    <path d="M27 16H39V24H27V16Z" fill="#FFF4E6" />
+    <path d="M36 10L46 16H36V10Z" fill="#8D7966" />
+    <path d="M39 10V31" stroke="#6B5D4F" strokeWidth="2" strokeLinecap="round" />
+    <path d="M27 16L36 10" stroke="#6B5D4F" strokeWidth="2" strokeLinecap="round" />
+    <path d="M21 34H26" stroke="#22C1F1" strokeWidth="2.5" strokeLinecap="round" />
+    <path d="M30 34H35" stroke="#22C1F1" strokeWidth="2.5" strokeLinecap="round" />
+    <path d="M39 34H44" stroke="#22C1F1" strokeWidth="2.5" strokeLinecap="round" />
+    <path d="M24 27H28" stroke="#22C1F1" strokeWidth="2.5" strokeLinecap="round" />
+    <path d="M32 27H36" stroke="#22C1F1" strokeWidth="2.5" strokeLinecap="round" />
+    <path d="M40 27H44" stroke="#22C1F1" strokeWidth="2.5" strokeLinecap="round" />
+    <path d="M17 43H47" stroke="#6B5D4F" strokeWidth="2" strokeLinecap="round" />
+  </svg>
+);
+
+function WelcomePanel({ label, userPlan }) {
+  const planLabel = userPlan === 'promax' ? 'Pro Max' : userPlan === 'pro' ? 'Pro' : userPlan === 'basic' ? 'Basic' : 'sin plan';
+
+  return (
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '48px 40px' }}>
+      <div
+        style={{
+          maxWidth: 720,
+          width: '100%',
+          background: 'rgba(255,255,255,0.78)',
+          border: '1px solid rgba(141,121,102,0.18)',
+          borderRadius: 28,
+          boxShadow: '0 24px 80px rgba(58, 42, 30, 0.08)',
+          padding: '52px 56px',
+          textAlign: 'center',
+        }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 22 }}>
+          <div
+            style={{
+              width: 92,
+              height: 92,
+              borderRadius: 28,
+              background: 'rgba(141,121,102,0.12)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <ShipMark size={64} />
+          </div>
+        </div>
+        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, letterSpacing: 2.4, textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 12 }}>
+          Bienvenido a ImportaPro
+        </div>
+        <h1 style={{ margin: 0, fontFamily: "'Cormorant Garamond', serif", fontSize: 54, lineHeight: 1, color: 'var(--text)' }}>
+          Hola, {label}
+        </h1>
+        <p style={{ margin: '18px auto 0', maxWidth: 520, fontSize: 16, lineHeight: 1.8, color: 'var(--text-2)' }}>
+          Tu cuenta ya esta lista para operar. Usa la barra lateral para entrar a cada modulo y gestionar tu embarque.
+        </p>
+        <div
+          style={{
+            marginTop: 26,
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 10,
+            padding: '10px 18px',
+            borderRadius: 999,
+            background: 'rgba(141,121,102,0.1)',
+            color: 'var(--accent2)',
+            fontSize: 13,
+            fontWeight: 600,
+          }}
+        >
+          Plan actual: {planLabel}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function AppShell() {
   const { user, userPlan } = useAuthStore();
   const { activeSection, setActiveSection, showToast } = useAppStore();
-  const { inputs, setInputs } = useImportaproStore();
   const [upgradeModal, setUpgradeModal] = useState(null);
 
   const [profileOpen, setProfileOpen] = useState(false);
@@ -104,7 +185,17 @@ export default function AppShell() {
     <div className="app-shell" id="appShell" style={{ display: 'flex' }}>
       <aside className="sidebar">
         <div className="brand">
-          <div className="brand-icon" style={{ fontSize: 21 }}>🚢</div>
+          <div
+            className="brand-icon"
+            style={{
+              width: 36,
+              height: 36,
+              background: 'rgba(141,121,102,0.12)',
+              color: 'transparent',
+            }}
+          >
+            <ShipMark size={26} />
+          </div>
           <div>
             <div className="brand-name">ImportaPro</div>
             <div className="brand-sub">Importacion + Contenedor</div>
@@ -204,6 +295,7 @@ export default function AppShell() {
       </aside>
 
       <div className="main">
+        {activeSection === 'home' && <WelcomePanel label={label} userPlan={userPlan} />}
         {activeSection === 'calc' && <Calculator />}
         {activeSection === 'products' && <Products />}
         {activeSection === 'comparator' && <Comparator />}
