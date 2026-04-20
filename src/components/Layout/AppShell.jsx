@@ -4,6 +4,7 @@ import useAppStore from '../../stores/appStore.js';
 import useImportaproStore from '../../stores/importaproStore.js';
 import useContainerStore from '../../stores/containerStore.js';
 import { _sb } from '../../lib/supabase.js';
+import { getAppUrl } from '../../lib/appUrl.js';
 
 import Calculator from '../ImportaPro/Calculator.jsx';
 import Products from '../ImportaPro/Products.jsx';
@@ -197,7 +198,7 @@ function ProfilePanel({ user, label, onClose, showToast }) {
     setResetting(true);
     try {
       const { error } = await _sb.auth.resetPasswordForEmail(user.email, {
-        redirectTo: window.location.origin,
+        redirectTo: getAppUrl(),
       });
       if (error) throw error;
       showToast('Email de cambio de contraseña enviado a ' + user.email, 'success');

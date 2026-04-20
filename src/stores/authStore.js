@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { _sb } from '../lib/supabase.js';
+import { parseAuthHash } from '../lib/appUrl.js';
 
 const useAuthStore = create((set, get) => ({
   user:     null,
@@ -11,10 +12,14 @@ const useAuthStore = create((set, get) => ({
   setLoading: (loading) => set({ loading }),
 
   async init() {
-    const hash = window.location.hash;
-    if (hash.includes('type=recovery') || hash.includes('type=invite')) {
+    const { mode, message } = parseAuthHash();
+    if (mode === 'recovery') {
       set({ loading: false, user: null });
       return 'recovery';
+    }
+    if (mode === 'forgot' && message) {
+      set({ loading: false, user: null });
+      return { mode: 'forgot', message };
     }
     try {
       const { data: { session } } = await _sb.auth.getSession();

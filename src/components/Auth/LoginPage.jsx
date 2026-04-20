@@ -1,10 +1,9 @@
 import { useState } from 'react';
 import { _sb } from '../../lib/supabase.js';
+import { getAppUrl } from '../../lib/appUrl.js';
 
-const APP_URL = 'https://fleetloader.vercel.app/';
-
-export default function LoginPage({ initialMode = 'login' }) {
-  const [panel, setPanel] = useState(initialMode === 'recovery' ? 'reset' : 'login');
+export default function LoginPage({ initialMode = 'login', initialMessage = '' }) {
+  const [panel, setPanel] = useState(initialMode === 'recovery' ? 'reset' : initialMode === 'forgot' ? 'forgot' : 'login');
   const [loading, setLoading] = useState(false);
   const [shake, setShake] = useState(false);
 
@@ -25,7 +24,7 @@ export default function LoginPage({ initialMode = 'login' }) {
 
   // Forgot
   const [forgotEmail,   setForgotEmail]   = useState('');
-  const [forgotError,   setForgotError]   = useState('');
+  const [forgotError,   setForgotError]   = useState(initialMode === 'forgot' ? initialMessage : '');
   const [forgotSuccess, setForgotSuccess] = useState('');
 
   // Reset
@@ -80,7 +79,7 @@ export default function LoginPage({ initialMode = 'login' }) {
         password: regPass,
         options: {
           data: { username: regUsername.trim() },
-          emailRedirectTo: APP_URL,
+          emailRedirectTo: getAppUrl(),
         },
       });
       if (error) {
@@ -103,7 +102,7 @@ export default function LoginPage({ initialMode = 'login' }) {
     setLoading(true); setForgotError(''); setForgotSuccess('');
     try {
       const { error } = await _sb.auth.resetPasswordForEmail(forgotEmail, {
-        redirectTo: APP_URL,
+        redirectTo: getAppUrl(),
       });
       if (error) { setForgotError('Error: ' + error.message); }
       else {
