@@ -17,13 +17,20 @@ export default function App() {
   const { user, loading, init } = useAuthStore();
   const { loadCatalog } = useContainerStore();
   const [authMode, setAuthMode] = useState('login');
+  const [authMessage, setAuthMessage] = useState('');
   const shareId = getShareId();
 
   // Hooks must always be called — early return is AFTER all hooks
   useEffect(() => {
     if (shareId) return;
     init().then(mode => {
-      if (mode === 'recovery') setAuthMode('recovery');
+      if (mode === 'recovery') {
+        setAuthMode('recovery');
+        setAuthMessage('');
+      } else if (typeof mode === 'object' && mode?.mode === 'forgot') {
+        setAuthMode('forgot');
+        setAuthMessage(mode.message || '');
+      }
     });
   }, []);
 
@@ -47,7 +54,7 @@ export default function App() {
 
   return (
     <>
-      {!user ? <LoginPage initialMode={authMode} /> : <AppShell />}
+      {!user ? <LoginPage initialMode={authMode} initialMessage={authMessage} /> : <AppShell />}
       <Toast />
     </>
   );

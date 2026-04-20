@@ -1,14 +1,5 @@
-export function getAppBasePath() {
-  if (typeof window === 'undefined') return '/';
-  const path = window.location.pathname || '/';
-  if (path.startsWith('/ContenedorApp/')) return '/ContenedorApp/';
-  if (path === '/ContenedorApp') return '/ContenedorApp/';
-  return '/';
-}
-
 export function getAppUrl() {
-  if (typeof window === 'undefined') return 'https://ignaciodallape.github.io/ContenedorApp/';
-  return `${window.location.origin}${getAppBasePath()}`;
+  return 'https://fleetloader.vercel.app/';
 }
 
 export function parseAuthHash() {
