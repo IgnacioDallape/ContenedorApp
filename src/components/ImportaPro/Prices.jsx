@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import useAuthStore from '../../stores/authStore.js';
 import useImportaproStore from '../../stores/importaproStore.js';
 import useContainerStore from '../../stores/containerStore.js';
@@ -38,6 +38,7 @@ export default function Prices() {
   const { userPlan } = useAuthStore();
   const { addProduct: addToContainer } = useContainerStore();
   const { setActiveSection, showToast } = useAppStore();
+  const [expandedPlans, setExpandedPlans] = useState({});
 
   const productMap = useMemo(
     () => new Map(savedProducts.map(product => [product.id, product])),
@@ -74,6 +75,10 @@ export default function Prices() {
   const totalOrderUsd = orderItems.reduce((acc, item) => acc + ((item.product?.costoUSD || item.product?.fob || 0) * item.orderQty), 0);
   const totalOrderArs = orderItems.reduce((acc, item) => acc + ((item.product?.costoARS || 0) * item.orderQty), 0);
   const canLoadToContainer = ['pro', 'promax'].includes(userPlan);
+
+  function togglePlanDetails(productId) {
+    setExpandedPlans(curr => ({ ...curr, [productId]: !curr[productId] }));
+  }
 
   function changeOrderQty(productId, nextQty) {
     setPublicationOrderQty(productId, Math.max(0, parseInt(nextQty, 10) || 0));
@@ -294,6 +299,7 @@ export default function Prices() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           {enrichedPlans.map(plan => {
             const product = plan.product;
+            const isExpanded = !!expandedPlans[plan.productId];
             return (
               <div key={plan.productId} className="card" style={{ overflow: 'hidden' }}>
                 <div className="card-header" style={{ alignItems: 'start' }}>
@@ -326,7 +332,8 @@ export default function Prices() {
                   </div>
                 </div>
 
-                <div style={{ overflowX: 'auto' }}>
+                {isExpanded && (
+                <div style={{ overflowX: 'auto', borderTop: '1px solid var(--border)' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                     <thead>
                       <tr style={{ borderBottom: '1px solid var(--border)' }}>
@@ -352,8 +359,9 @@ export default function Prices() {
                     </tbody>
                   </table>
                 </div>
+                )}
 
-                <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto auto auto auto', gap: 10, alignItems: 'center', padding: '14px 16px', borderTop: '1px solid var(--border)', background: 'linear-gradient(180deg, rgba(26,79,138,0.03), rgba(26,79,138,0.01))' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto auto auto auto auto', gap: 10, alignItems: 'center', padding: '14px 16px', borderTop: '1px solid var(--border)', background: 'linear-gradient(180deg, rgba(26,79,138,0.03), rgba(26,79,138,0.01))' }}>
                   <div>
                     <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)' }}>Pedido definitivo</div>
                     <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 3 }}>
@@ -362,7 +370,10 @@ export default function Prices() {
                         : 'Sin canal destacado'}
                     </div>
                   </div>
-                  <button className="btn-outline" onClick={() => changeOrderQty(plan.productId, plan.orderQty - 1)} style={{ width: 36, padding: '8px 0' }}>−</button>
+                  <button className="btn-outline" onClick={() => togglePlanDetails(plan.productId)} style={{ minWidth: 136 }}>
+                    {isExpanded ? 'Ocultar canales' : 'Ver canales'}
+                  </button>
+                  <button className="btn-outline" onClick={() => changeOrderQty(plan.productId, plan.orderQty - 1)} style={{ width: 36, padding: '8px 0' }}>-</button>
                   <input
                     type="number"
                     min="0"
@@ -387,3 +398,4 @@ export default function Prices() {
     </div>
   );
 }
+
