@@ -14,7 +14,7 @@ const PLAN_COPY = {
   pro: {
     eyebrow: 'Plan activo',
     title: 'Estas en Pro.',
-    body: 'Tenes habilitados importacion, contenedor 3D y catalogo compartido.',
+    body: 'Tenes habilitados importacion y cargador 3D de contenedores.',
   },
   promax: {
     eyebrow: 'Plan activo',
@@ -25,7 +25,7 @@ const PLAN_COPY = {
 
 const PLAN_BUTTONS = [
   { key: 'basic', label: 'Basic', price: 'ARS 24.999', detail: 'Importacion + NCM + simulador' },
-  { key: 'pro', label: 'Pro', price: 'ARS 49.999', detail: 'Suma cargador 3D y catalogo' },
+  { key: 'pro', label: 'Pro', price: 'ARS 49.999', detail: 'Suma cargador 3D de contenedores' },
   { key: 'promax', label: 'Pro Max', price: 'ARS 69.999', detail: 'Suma armador de pallets' },
 ];
 

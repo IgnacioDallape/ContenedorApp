@@ -258,12 +258,12 @@ export default function LoginPage({ initialMode = 'login', initialMessage = '' }
       <div className="login-container">
         <div className="login-panel">
           <div className="login-brand">
-            <div className="login-icon">Plan</div>
+            <div className="login-icon">IP</div>
             <h1>ImportaPro</h1>
             <p>Sistema de gestion de carga</p>
           </div>
           <div className="login-tagline">
-            Crea tu cuenta, entra a la app como usuario no pago y activa tu plan cuando quieras.
+            Calcula costos de importacion, optimiza contenedores 3D y activa tu plan cuando quieras.
           </div>
         </div>
 

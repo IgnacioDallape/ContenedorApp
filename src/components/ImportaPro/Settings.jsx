@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import useImportaproStore from '../../stores/importaproStore.js';
 import useAppStore from '../../stores/appStore.js';
+import PlanHub from '../Billing/PlanHub.jsx';
 
-export default function Settings() {
+export default function Settings({ onCheckout }) {
   const { inputs, updateGlobalTC, tcUpdatedAt } = useImportaproStore();
   const { setActiveSection } = useAppStore();
   const [fetching, setFetching] = useState(false);
@@ -72,6 +73,10 @@ export default function Settings() {
               {fetchError && <span style={{ color: 'var(--red)', marginLeft: 10 }}>{fetchError}</span>}
             </div>
           </div>
+        </div>
+
+        <div style={{ marginTop: 28 }}>
+          <PlanHub onCheckout={onCheckout} />
         </div>
       </section>
     </div>

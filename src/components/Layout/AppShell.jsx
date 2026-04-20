@@ -2,11 +2,9 @@ import { useEffect, useRef, useState, lazy, Suspense } from 'react';
 import useAuthStore from '../../stores/authStore.js';
 import useAppStore from '../../stores/appStore.js';
 import useImportaproStore from '../../stores/importaproStore.js';
-import useContainerStore from '../../stores/containerStore.js';
 import { _sb } from '../../lib/supabase.js';
 import { getAppUrl } from '../../lib/appUrl.js';
 
-import PlanHub from '../Billing/PlanHub.jsx';
 import Calculator from '../ImportaPro/Calculator.jsx';
 import Products from '../ImportaPro/Products.jsx';
 import NcmSearch from '../ImportaPro/NcmSearch.jsx';
@@ -17,7 +15,6 @@ import Comparator from '../ImportaPro/Comparator.jsx';
 import UpgradeModal from './UpgradeModal.jsx';
 
 const ContainerLoader = lazy(() => import('../ContainerLoader/ContainerLoader.jsx'));
-const Catalog = lazy(() => import('../Catalog/Catalog.jsx'));
 const PalletBuilder = lazy(() => import('../PalletBuilder/PalletBuilder.jsx'));
 
 const Loader = () => (
@@ -49,14 +46,14 @@ export default function AppShell() {
   }, [profileOpen]);
 
   useEffect(() => {
-    if (userPlan === 'none' && activeSection !== 'upgrade') {
-      setActiveSection('upgrade');
+    if (userPlan === 'none' && activeSection !== 'settings') {
+      setActiveSection('settings');
     }
   }, [userPlan, activeSection, setActiveSection]);
 
   function navigate(id) {
-    if (id === 'upgrade') {
-      setActiveSection('upgrade');
+    if (id === 'settings') {
+      setActiveSection('settings');
       return;
     }
 
@@ -65,14 +62,12 @@ export default function AppShell() {
       return;
     }
 
-    const proSections = ['container', 'catalog'];
-    const promaxSections = ['palletbuilder'];
-
-    if (proSections.includes(id) && !['pro', 'promax'].includes(userPlan)) {
+    if (id === 'container' && !['pro', 'promax'].includes(userPlan)) {
       setUpgradeModal('Pro');
       return;
     }
-    if (promaxSections.includes(id) && userPlan !== 'promax') {
+
+    if (id === 'palletbuilder' && userPlan !== 'promax') {
       setUpgradeModal('Pro Max');
       return;
     }
@@ -82,8 +77,8 @@ export default function AppShell() {
 
   const navItem = (id, icon, itemLabel) => {
     const active = activeSection === id;
-    const locked = (id !== 'upgrade' && userPlan === 'none')
-      || (['container', 'catalog'].includes(id) && !['pro', 'promax'].includes(userPlan))
+    const locked = (id !== 'settings' && userPlan === 'none')
+      || (id === 'container' && !['pro', 'promax'].includes(userPlan))
       || (id === 'palletbuilder' && userPlan !== 'promax');
 
     return (
@@ -111,9 +106,6 @@ export default function AppShell() {
         </div>
 
         <nav className="nav">
-          <div className="nav-section">Cuenta</div>
-          {navItem('upgrade', '★', 'Mi plan')}
-
           <div className="nav-section">Importacion</div>
           {navItem('calc', '+', 'Calculadora')}
           {navItem('products', '[]', 'Mis productos')}
@@ -121,10 +113,10 @@ export default function AppShell() {
           {navItem('ncm', '?', 'Buscar NCM')}
           {navItem('simulator', 'o', 'Simulador de precio')}
           {navItem('prices', '$', 'Precios confirmados')}
+          {navItem('settings', '::', 'Configuracion')}
 
           <div className="nav-section">Contenedor</div>
           {navItem('container', '3D', 'Cargar contenedor')}
-          {navItem('catalog', 'DB', 'Catalogo')}
           {navItem('palletbuilder', 'PL', 'Armador de pallets')}
         </nav>
 
@@ -208,18 +200,16 @@ export default function AppShell() {
       </aside>
 
       <div className="main">
-        {activeSection === 'upgrade' && <PlanHub onCheckout={plan => setUpgradeModal(plan)} />}
         {activeSection === 'calc' && <Calculator />}
         {activeSection === 'products' && <Products />}
         {activeSection === 'comparator' && <Comparator />}
         {activeSection === 'ncm' && <NcmSearch />}
         {activeSection === 'simulator' && <Simulator />}
         {activeSection === 'prices' && <Prices />}
-        {activeSection === 'settings' && <Settings />}
+        {activeSection === 'settings' && <Settings onCheckout={plan => setUpgradeModal(plan)} />}
 
         <Suspense fallback={<Loader />}>
           {activeSection === 'container' && <ContainerLoader />}
-          {activeSection === 'catalog' && <Catalog />}
           {activeSection === 'palletbuilder' && <PalletBuilder />}
         </Suspense>
       </div>
