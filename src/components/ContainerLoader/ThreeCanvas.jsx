@@ -26,6 +26,8 @@ function setCachedPack(CL, CW, CH, products, manualPos, lockedOri, packed) {
 }
 export function invalidateContainerPackCache() { _packCache.clear(); }
 
+const RENDER_BOX_GAP = 0.08;
+
 // ── Material cache: one template per hex color, cloned per mesh ──
 const _matTemplates = new Map();
 function makeBoxMaterials(hex) {
@@ -425,7 +427,7 @@ function ThreeCanvas({ onSelectInstance, onSetZone, onClearZone, readOnly = fals
         const geosByColor = new Map(); // color → [{geo, userData}]
 
         for (const b of packed) {
-          const gap = 0.2;
+          const gap = RENDER_BOX_GAP;
           if (b.type === 'pallet') {
             const iid = b.instanceId;
             const baseH = Math.min(14, b.dY * 0.13);
@@ -467,7 +469,7 @@ function ThreeCanvas({ onSelectInstance, onSetZone, onClearZone, readOnly = fals
       } else {
         // ── Light mode: individual meshes with animation ──
         for (const b of packed) {
-          const gap = 0.2;
+          const gap = RENDER_BOX_GAP;
           const baseDelay = Math.min(animItems.length * 6, 400);
           const stackDelay = b.y > 1 ? 300 : 0;
           const delay = baseDelay + stackDelay;
@@ -502,7 +504,11 @@ function ThreeCanvas({ onSelectInstance, onSetZone, onClearZone, readOnly = fals
               const palL = b.palletBase?.L || b.dX;
               const palW = b.palletBase?.W || b.dZ;
               for (const box of b.packedItems) {
-                const bGeo = new THREE.BoxGeometry(Math.max(0.1, box.dX * b.dX / palL - 0.2), Math.max(0.1, box.dY - 0.2), Math.max(0.1, box.dZ * b.dZ / palW - 0.2));
+                const bGeo = new THREE.BoxGeometry(
+                  Math.max(0.1, box.dX * b.dX / palL - RENDER_BOX_GAP),
+                  Math.max(0.1, box.dY - RENDER_BOX_GAP),
+                  Math.max(0.1, box.dZ * b.dZ / palW - RENDER_BOX_GAP)
+                );
                 const bMesh = new THREE.Mesh(bGeo, makeBoxMaterials(box.color || b.color));
                 const ty = b.y + baseH + box.y + box.dY / 2;
                 bMesh.position.set(b.x + box.x * b.dX / palL + box.dX * b.dX / palL / 2, ty + CH * 1.5, b.z + box.z * b.dZ / palW + box.dZ * b.dZ / palW / 2);

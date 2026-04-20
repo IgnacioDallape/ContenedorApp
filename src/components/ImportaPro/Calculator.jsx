@@ -501,7 +501,7 @@ export default function Calculator() {
                 display: 'flex',
                 flexDirection: 'column',
                 gap: 6,
-                maxHeight: canales.length > 3 ? 450 : 'none',
+                maxHeight: canales.length > 3 ? 230 : 'none',
                 overflowY: canales.length > 3 ? 'auto' : 'visible',
                 paddingRight: canales.length > 3 ? 4 : 0,
               }}
