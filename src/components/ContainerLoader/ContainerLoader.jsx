@@ -631,10 +631,10 @@ export default function ContainerLoader() {
         setShowSave(false); setShowOverwrite(true); return;
       }
       const payload = buildShipmentPayload(containers);
-      const { data: inserted, error } = await _sb.from('shipments').insert({ user_id: session.user.id, name: saveName.trim(), containers: payload, status: 'preparacion' }).select('id').single();
+      const { data: inserted, error } = await _sb.from('shipments').insert({ user_id: session.user.id, name: saveName.trim(), containers: payload, status: currentShipmentStatus }).select('id').single();
       if (error) { showToast('Error al guardar: ' + error.message, 'error'); return; }
       loadShipmentData({ id: inserted.id, name: saveName.trim(), containers }, { activeContainerIdx });
-      setCurrentShipmentStatus('preparacion');
+      setCurrentShipmentStatus(normalizeShipmentStatus(currentShipmentStatus));
       setShowSave(false);
       showToast(`Embarque guardado: "${saveName.trim()}"`, 'success');
     } finally { setIsSaving(false); }
@@ -651,7 +651,7 @@ export default function ContainerLoader() {
       const { data: existingShipment } = await _sb.from('shipments').select('containers').eq('id', overwriteId).single();
       const meta = parseShipmentPayload(existingShipment?.containers);
       const payload = buildShipmentPayload(containers, { isFinalized: meta.isFinalized, finalizedAt: meta.finalizedAt });
-      const { error } = await _sb.from('shipments').update({ name: overwriteName, containers: payload }).eq('id', overwriteId);
+      const { error } = await _sb.from('shipments').update({ name: overwriteName, containers: payload, status: currentShipmentStatus }).eq('id', overwriteId);
       if (error) { showToast('Error al guardar: ' + error.message, 'error'); return; }
       loadShipmentData({ id: overwriteId, name: overwriteName, containers }, { activeContainerIdx });
       setShowOverwrite(false);
@@ -690,6 +690,10 @@ export default function ContainerLoader() {
   }
 
   async function updateShipmentStatus(id, status) {
+    if (!id) {
+      setCurrentShipmentStatus(normalizeShipmentStatus(status));
+      return;
+    }
     await _sb.from('shipments').update({ status }).eq('id', id);
     setShipmentsList(prev => prev.map(s => s.id === id ? { ...s, status } : s));
     if (String(id) === String(currentShipmentId)) setCurrentShipmentStatus(normalizeShipmentStatus(status));
@@ -944,6 +948,7 @@ export default function ContainerLoader() {
   }
 
   const activeZoneCount = priorityZones.filter(z => z !== null).length;
+  const currentStatusCfg = STATUS_CONFIG[currentShipmentStatus] || STATUS_CONFIG.preparacion;
 
   return (
     <div className="cl-section active" id="section-container" style={{ width: '100%', overflow: 'hidden' }}>
@@ -1189,6 +1194,33 @@ export default function ContainerLoader() {
                 style={{ padding: '6px 14px', fontSize: 11, fontFamily: "'DM Mono', monospace", letterSpacing: '0.5px', borderRadius: 6, cursor: 'pointer', border: '1px solid var(--border)', color: 'var(--muted)', background: 'transparent', whiteSpace: 'nowrap' }}>
                 📂 Mis embarques
               </button>
+              {(currentShipmentId || loadedProducts.length > 0) && (
+                <div style={{ position: 'relative', flexShrink: 0 }}>
+                  <button
+                    onClick={() => setShowCurrentStatusPicker(v => !v)}
+                    title={currentStatusCfg.label}
+                    style={{ padding: '6px 12px', fontSize: 10, fontFamily: "'DM Mono', monospace", letterSpacing: '0.4px', borderRadius: 8, cursor: 'pointer', border: `1.5px solid ${currentStatusCfg.color}55`, background: currentStatusCfg.bg, color: currentStatusCfg.color, lineHeight: 1, display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }}>
+                    <span>{currentStatusCfg.icon}</span>
+                    <span>{currentStatusCfg.label}</span>
+                    <span style={{ fontSize: 8, opacity: 0.6 }}>â–¾</span>
+                  </button>
+                  {showCurrentStatusPicker && (
+                    <div style={{ position: 'absolute', top: 'calc(100% + 6px)', right: 0, zIndex: 400, background: '#fff', borderRadius: 10, border: '1px solid #E8E0D8', boxShadow: '0 4px 16px rgba(0,0,0,0.14)', padding: 6, display: 'flex', flexDirection: 'column', gap: 3, minWidth: 190 }}>
+                      {STATUS_ORDER.map((key) => {
+                        const cfg = STATUS_CONFIG[key];
+                        return (
+                          <button key={key}
+                            onClick={() => { updateShipmentStatus(currentShipmentId, key); setShowCurrentStatusPicker(false); }}
+                            style={{ background: currentShipmentStatus === key ? cfg.bg : 'transparent', border: `1.5px solid ${currentShipmentStatus === key ? cfg.color + '55' : 'transparent'}`, borderRadius: 7, padding: '6px 10px', cursor: 'pointer', textAlign: 'left', color: cfg.color, fontFamily: "'DM Mono', monospace", fontSize: 10, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 7 }}>
+                            <span>{cfg.icon}</span>
+                            <span>{cfg.label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
               <button
                 onClick={async () => {
                   const containers = syncActiveContainer();
@@ -1203,7 +1235,7 @@ export default function ContainerLoader() {
             </div>
 
             {/* Shipment notes inline + status button */}
-            {currentShipmentId && (() => {
+            {(currentShipmentId || loadedProducts.length > 0) && (() => {
               const st = STATUS_CONFIG[currentShipmentStatus] || STATUS_CONFIG.preparacion;
               return (
                 <div style={{ display: 'flex', gap: 6, alignItems: 'flex-start', marginBottom: 8 }}>
@@ -1214,7 +1246,7 @@ export default function ContainerLoader() {
                     rows={1}
                     style={{ flex: 1, padding: '7px 12px', border: '1px solid var(--border)', borderRadius: 7, fontFamily: "'Jost', sans-serif", fontSize: 12, background: 'var(--surface)', color: 'var(--text)', boxSizing: 'border-box', resize: 'vertical', lineHeight: 1.5, opacity: 0.85 }}
                   />
-                  <div style={{ position: 'relative', flexShrink: 0 }}>
+                  <div style={{ display: 'none' }}>
                     <button
                       onClick={() => setShowCurrentStatusPicker(v => !v)}
                       title={st.label}
@@ -1237,7 +1269,7 @@ export default function ContainerLoader() {
                       </div>
                     )}
                   </div>
-                  {currentShipmentStatus === 'entregado' && (
+                  {currentShipmentId && currentShipmentStatus === 'entregado' && (
                     <button
                       onClick={() => finalizeShipment(currentShipmentId)}
                       style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid rgba(58,140,82,0.28)', background: 'rgba(58,140,82,0.08)', color: '#3A8C52', fontFamily: "'DM Mono', monospace", fontSize: 10, cursor: 'pointer', whiteSpace: 'nowrap' }}

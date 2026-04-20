@@ -520,9 +520,9 @@ header {
 .stat-item {
   padding: 16px 16px 14px;
   border-radius: 16px;
-  background: rgba(255,255,255,0.7);
-  border: 1px solid rgba(141,121,102,0.12);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.55);
+  background: rgba(255,255,255,0.9);
+  border: 1px solid rgba(141,121,102,0.16);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.75);
   min-width: 0;
 }
 .stat-head {
@@ -532,16 +532,16 @@ header {
   gap: 10px;
   margin-bottom: 12px;
 }
-.stat-label { font-family: 'DM Mono', monospace; font-size: 9px; color: var(--c3); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 0; }
+.stat-label { font-family: 'DM Mono', monospace; font-size: 9px; color: #b79f89; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 0; }
 .stat-chip {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   padding: 4px 8px;
   border-radius: 999px;
-  background: rgba(141,121,102,0.12);
-  border: 1px solid rgba(141,121,102,0.16);
-  color: var(--c1);
+  background: rgba(141,121,102,0.14);
+  border: 1px solid rgba(141,121,102,0.18);
+  color: #8d7966;
   font-family: 'DM Mono', monospace;
   font-size: 9px;
   letter-spacing: 0.7px;
@@ -556,14 +556,15 @@ header {
 .stat-value {
   font-family: 'Cormorant Garamond', serif;
   font-size: 34px;
-  font-weight: 500;
-  color: var(--c5);
+  font-weight: 600;
+  color: #6a5643;
   line-height: 0.95;
   transition: color 0.3s;
+  text-shadow: 0 1px 0 rgba(255,255,255,0.45);
 }
 .stat-value span {
   font-size: 18px;
-  color: var(--c2);
+  color: #8f7c6d;
   margin-left: 4px;
 }
 .stat-progress {
@@ -606,7 +607,7 @@ tr:hover td { background: var(--surface2); }
 .td-mono { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--text2); }
 .td-price { font-family: 'DM Mono', monospace; color: var(--c1); font-weight: 500; }
 .td-pct { font-family: 'Cormorant Garamond', serif; font-size: 20px; font-weight: 500; }
-.stat-sub { font-size: 11px; color: var(--c2); margin-top: 0; line-height: 1.35; }
+.stat-sub { font-size: 11px; color: #8f7c6d; margin-top: 0; line-height: 1.35; }
 
 .layout { display: grid; grid-template-columns: 360px 1fr; min-height: calc(100vh - 64px); }
 

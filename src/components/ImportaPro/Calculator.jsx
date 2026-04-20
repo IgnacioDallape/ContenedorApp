@@ -496,7 +496,16 @@ export default function Calculator() {
               <span className="card-title">Canales de venta</span>
               <button className="btn-outline" onClick={addCanal}>+ Agregar canal</button>
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 6,
+                maxHeight: canales.length > 3 ? 450 : 'none',
+                overflowY: canales.length > 3 ? 'auto' : 'visible',
+                paddingRight: canales.length > 3 ? 4 : 0,
+              }}
+            >
               {canales.map((canal, i) => {
                 const precio   = canal.precio || 0;
                 const comision = precio * (canal.comision || 0) / 100;

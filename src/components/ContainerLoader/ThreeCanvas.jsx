@@ -56,7 +56,14 @@ function makeSelectionOutlineFromMeshes(meshes, targetScene, existingOutline) {
 
   const outline = existingOutline || new THREE.LineSegments(
     nextGeo,
-    new THREE.LineBasicMaterial({ color: 0xFFCC44 })
+    new THREE.LineBasicMaterial({
+      color: 0xFFCC44,
+      transparent: true,
+      opacity: 1,
+      depthTest: false,
+      depthWrite: false,
+      toneMapped: false,
+    })
   );
 
   if (existingOutline) {
@@ -67,6 +74,8 @@ function makeSelectionOutlineFromMeshes(meshes, targetScene, existingOutline) {
   }
 
   outline.position.copy(center);
+  outline.renderOrder = 999;
+  outline.frustumCulled = false;
   outline.updateMatrixWorld(true);
   return outline;
 }
