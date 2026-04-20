@@ -510,9 +510,9 @@ export function exportCotizacionPDF({ c, canales, inputs }) {
     alternateRowStyles: { fillColor: [250, 247, 243] },
     columnStyles: {
       0: { cellWidth: 72 },
-      1: { cellWidth: 34, halign: 'right' },
-      2: { cellWidth: 42, halign: 'right' },
-      3: { cellWidth: 26, halign: 'right' },
+      1: { cellWidth: 34, halign: 'center' },
+      2: { cellWidth: 42, halign: 'center' },
+      3: { cellWidth: 26, halign: 'center' },
     },
   });
   y = doc.lastAutoTable.finalY + 8;
