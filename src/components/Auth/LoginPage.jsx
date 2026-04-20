@@ -5,6 +5,7 @@ import { getAppUrl } from '../../lib/appUrl.js';
 export default function LoginPage({ initialMode = 'login', initialMessage = '' }) {
   const [panel, setPanel] = useState(initialMode === 'recovery' ? 'reset' : initialMode === 'forgot' ? 'forgot' : 'login');
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [shake, setShake] = useState(false);
 
   const [loginEmail, setLoginEmail] = useState('');
@@ -57,9 +58,12 @@ export default function LoginPage({ initialMode = 'login', initialMessage = '' }
   }
 
   async function doGoogleAuth() {
-    setLoading(true);
+    if (googleLoading) return;
+
+    setGoogleLoading(true);
     setLoginError('');
     setRegError('');
+
     try {
       const { error } = await _sb.auth.signInWithOAuth({
         provider: 'google',
@@ -67,15 +71,16 @@ export default function LoginPage({ initialMode = 'login', initialMessage = '' }
           redirectTo: getAppUrl(),
         },
       });
+
       if (error) {
         setLoginError('No se pudo iniciar con Google. Verifica la configuracion en Supabase.');
         doShake();
+        setGoogleLoading(false);
       }
     } catch {
       setLoginError('Sin conexion - verifica tu internet.');
       doShake();
-    } finally {
-      setLoading(false);
+      setGoogleLoading(false);
     }
   }
 
@@ -257,10 +262,31 @@ export default function LoginPage({ initialMode = 'login', initialMessage = '' }
     </button>
   );
 
+  const ShipLogo = () => (
+    <svg width="58" height="58" viewBox="0 0 64 64" fill="none" aria-hidden="true">
+      <path d="M14 39H50L46 50H18L14 39Z" fill="#F24E4E" />
+      <path d="M10 50H54C52 54.8 47.3 58 42 58H22C16.7 58 12 54.8 10 50Z" fill="#4A90E2" />
+      <path d="M18 31H46V39H18V31Z" fill="#FFF4E6" />
+      <path d="M21 24H43V31H21V24Z" fill="#FFF4E6" />
+      <path d="M27 16H39V24H27V16Z" fill="#FFF4E6" />
+      <path d="M36 10L46 16H36V10Z" fill="#8D7966" />
+      <path d="M39 10V31" stroke="#6B5D4F" strokeWidth="2" strokeLinecap="round" />
+      <path d="M27 16L36 10" stroke="#6B5D4F" strokeWidth="2" strokeLinecap="round" />
+      <path d="M21 34H26" stroke="#22C1F1" strokeWidth="2.5" strokeLinecap="round" />
+      <path d="M30 34H35" stroke="#22C1F1" strokeWidth="2.5" strokeLinecap="round" />
+      <path d="M39 34H44" stroke="#22C1F1" strokeWidth="2.5" strokeLinecap="round" />
+      <path d="M24 27H28" stroke="#22C1F1" strokeWidth="2.5" strokeLinecap="round" />
+      <path d="M32 27H36" stroke="#22C1F1" strokeWidth="2.5" strokeLinecap="round" />
+      <path d="M40 27H44" stroke="#22C1F1" strokeWidth="2.5" strokeLinecap="round" />
+      <path d="M17 43H47" stroke="#6B5D4F" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  );
+
   const GoogleButton = ({ label }) => (
     <button
+      type="button"
       className="login-btn"
-      disabled={loading}
+      disabled={loading || googleLoading}
       onClick={doGoogleAuth}
       style={{
         marginTop: 10,
@@ -279,7 +305,7 @@ export default function LoginPage({ initialMode = 'login', initialMessage = '' }
         <path fill="#4A90E2" d="M6.6 13.3c-.2-.6-.3-1.2-.3-1.8s.1-1.2.3-1.8l-3.1-2.4C2.9 8.6 2.5 10 2.5 11.5s.4 2.9 1 4.2l3.1-2.4Z" />
         <path fill="#FBBC05" d="M12 5.7c1.4 0 2.7.5 3.7 1.5l2.7-2.7C16.8 2.9 14.6 2 12 2 8.4 2 5.3 4.2 3.5 7.3l3.1 2.4c.8-2.3 2.9-4 5.4-4Z" />
       </svg>
-      {label}
+      {googleLoading ? 'Abriendo Google...' : label}
     </button>
   );
 
@@ -295,11 +321,12 @@ export default function LoginPage({ initialMode = 'login', initialMessage = '' }
                 height: 64,
                 borderRadius: 18,
                 background: 'transparent',
-                fontSize: 54,
-                lineHeight: 1,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
               }}
             >
-              🚢
+              <ShipLogo />
             </div>
             <h1>ImportaPro</h1>
             <p>Sistema de gestion de carga</p>
@@ -338,7 +365,7 @@ export default function LoginPage({ initialMode = 'login', initialMessage = '' }
                 />
                 <EyeIcon show={showLoginPass} onToggle={() => setShowLoginPass(v => !v)} />
               </div>
-              <button className="login-btn" disabled={loading} onClick={doLogin}>
+              <button className="login-btn" disabled={loading || googleLoading} onClick={doLogin}>
                 {loading ? 'Cargando...' : 'Ingresar ->'}
               </button>
               <GoogleButton label="Continuar con Google" />
@@ -405,7 +432,7 @@ export default function LoginPage({ initialMode = 'login', initialMessage = '' }
                   style={{ paddingRight: 72 }}
                 />
               </div>
-              <button className="login-btn" disabled={loading} onClick={doRegister}>
+              <button className="login-btn" disabled={loading || googleLoading} onClick={doRegister}>
                 {loading ? 'Creando cuenta...' : 'Registrarse ->'}
               </button>
               <GoogleButton label="Continuar con Google" />
@@ -431,7 +458,7 @@ export default function LoginPage({ initialMode = 'login', initialMessage = '' }
                   onKeyDown={e => e.key === 'Enter' && doForgot()}
                 />
               </div>
-              <button className="login-btn" disabled={loading} onClick={doForgot}>
+              <button className="login-btn" disabled={loading || googleLoading} onClick={doForgot}>
                 {loading ? 'Cargando...' : 'Enviar link ->'}
               </button>
               {forgotError && <div className="login-error visible">{forgotError}</div>}
@@ -468,7 +495,7 @@ export default function LoginPage({ initialMode = 'login', initialMessage = '' }
                   onKeyDown={e => e.key === 'Enter' && doReset()}
                 />
               </div>
-              <button className="login-btn" disabled={loading} onClick={doReset}>
+              <button className="login-btn" disabled={loading || googleLoading} onClick={doReset}>
                 {loading ? 'Guardando...' : 'Guardar contrasena ->'}
               </button>
               {resetError && <div className="login-error visible">{resetError}</div>}

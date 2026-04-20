@@ -51,11 +51,6 @@ export default function AppShell() {
       return;
     }
 
-    if (userPlan === 'none') {
-      setUpgradeModal('Basic');
-      return;
-    }
-
     if (id === 'container' && !['pro', 'promax'].includes(userPlan)) {
       setUpgradeModal('Pro');
       return;
@@ -63,6 +58,11 @@ export default function AppShell() {
 
     if (id === 'palletbuilder' && userPlan !== 'promax') {
       setUpgradeModal('Pro Max');
+      return;
+    }
+
+    if (userPlan === 'none') {
+      setUpgradeModal('Basic');
       return;
     }
 
