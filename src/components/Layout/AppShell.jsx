@@ -45,12 +45,6 @@ export default function AppShell() {
     return () => document.removeEventListener('mousedown', handleClick);
   }, [profileOpen]);
 
-  useEffect(() => {
-    if (userPlan === 'none' && activeSection !== 'settings') {
-      setActiveSection('settings');
-    }
-  }, [userPlan, activeSection, setActiveSection]);
-
   function navigate(id) {
     if (id === 'settings') {
       setActiveSection('settings');
@@ -73,6 +67,18 @@ export default function AppShell() {
     }
 
     setActiveSection(id);
+  }
+
+  function openSettingsSection(sectionId = null) {
+    setActiveSection('settings');
+    setProfileOpen(false);
+
+    if (!sectionId) return;
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        document.getElementById(sectionId)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    });
   }
 
   const navItem = (id, icon, itemLabel) => {
@@ -98,7 +104,7 @@ export default function AppShell() {
     <div className="app-shell" id="appShell" style={{ display: 'flex' }}>
       <aside className="sidebar">
         <div className="brand">
-          <div className="brand-icon">IP</div>
+          <div className="brand-icon" style={{ fontSize: 21 }}>🚢</div>
           <div>
             <div className="brand-name">ImportaPro</div>
             <div className="brand-sub">Importacion + Contenedor</div>
@@ -113,7 +119,6 @@ export default function AppShell() {
           {navItem('ncm', '?', 'Buscar NCM')}
           {navItem('simulator', 'o', 'Simulador de precio')}
           {navItem('prices', '$', 'Precios confirmados')}
-          {navItem('settings', '::', 'Configuracion')}
 
           <div className="nav-section">Contenedor</div>
           {navItem('container', '3D', 'Cargar contenedor')}
@@ -121,35 +126,6 @@ export default function AppShell() {
         </nav>
 
         <div className="sidebar-footer">
-          <div className="tc-label">Tipo de cambio</div>
-          <div className="tc-row">
-            <input
-              type="number"
-              id="global-tc"
-              value={inputs.globalTC}
-              min="1"
-              onChange={e => setInputs({ globalTC: parseFloat(e.target.value) || 1359 })}
-            />
-            <span className="tc-badge">USD/ARS</span>
-          </div>
-          <div className="tc-row" style={{ marginTop: 6 }}>
-            <input
-              type="number"
-              id="global-cny"
-              value={inputs.cny}
-              step="0.001"
-              min="0.001"
-              onChange={e => {
-                const v = parseFloat(e.target.value) || 0.1466;
-                setInputs({
-                  cny: v,
-                  fob: inputs.currencyMode === 'cny' ? +((parseFloat(inputs.fobCny) || 0) * v).toFixed(3) : inputs.fob,
-                });
-              }}
-            />
-            <span className="tc-badge">CNY/USD</span>
-          </div>
-
           <div ref={profileRef} style={{ position: 'relative', marginTop: 12 }}>
             {profileOpen && (
               <ProfilePanel
@@ -157,43 +133,71 @@ export default function AppShell() {
                 label={label}
                 onClose={() => setProfileOpen(false)}
                 showToast={showToast}
+                onOpenSettings={openSettingsSection}
               />
             )}
-            <div
-              onClick={() => setProfileOpen(current => !current)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '10px 12px',
-                background: profileOpen ? 'var(--accent-dim, rgba(141,121,102,0.1))' : 'var(--bg-3)',
-                border: `1px solid ${profileOpen ? 'var(--accent)' : 'var(--border)'}`,
-                borderRadius: 'var(--radius)',
-                cursor: 'pointer',
-                transition: 'all 0.15s',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <div
-                  style={{
-                    width: 28,
-                    height: 28,
-                    borderRadius: '50%',
-                    background: 'var(--accent)',
-                    color: '#fff',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: 12,
-                    fontWeight: 700,
-                    flexShrink: 0,
-                  }}
-                >
-                  {label.charAt(0).toUpperCase()}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div
+                onClick={() => setProfileOpen(current => !current)}
+                style={{
+                  flex: 1,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '10px 12px',
+                  background: profileOpen ? 'var(--accent-dim, rgba(141,121,102,0.1))' : 'var(--bg-3)',
+                  border: `1px solid ${profileOpen ? 'var(--accent)' : 'var(--border)'}`,
+                  borderRadius: 'var(--radius)',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div
+                    style={{
+                      width: 28,
+                      height: 28,
+                      borderRadius: '50%',
+                      background: 'var(--accent)',
+                      color: '#fff',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: 12,
+                      fontWeight: 700,
+                      flexShrink: 0,
+                    }}
+                  >
+                    {label.charAt(0).toUpperCase()}
+                  </div>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)' }}>{label}</span>
                 </div>
-                <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)' }}>{label}</span>
+                <span style={{ fontSize: 10, color: 'var(--text-3)', transition: 'transform 0.2s', transform: profileOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}>^</span>
               </div>
-              <span style={{ fontSize: 10, color: 'var(--text-3)', transition: 'transform 0.2s', transform: profileOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}>^</span>
+
+              <button
+                type="button"
+                onClick={() => openSettingsSection()}
+                aria-label="Abrir configuracion"
+                style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 'var(--radius)',
+                  border: '1px solid var(--border)',
+                  background: activeSection === 'settings' ? 'var(--accent-dim)' : 'var(--bg-3)',
+                  color: activeSection === 'settings' ? 'var(--accent)' : 'var(--text-2)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  flexShrink: 0,
+                }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M12 15.2A3.2 3.2 0 1 0 12 8.8a3.2 3.2 0 0 0 0 6.4Z" stroke="currentColor" strokeWidth="1.7" />
+                  <path d="M19.4 15a1 1 0 0 0 .2 1.1l.1.1a1.2 1.2 0 0 1 0 1.7l-1.2 1.2a1.2 1.2 0 0 1-1.7 0l-.1-.1a1 1 0 0 0-1.1-.2 1 1 0 0 0-.6.9v.2A1.2 1.2 0 0 1 13.8 22h-1.6A1.2 1.2 0 0 1 11 20.8v-.2a1 1 0 0 0-.6-.9 1 1 0 0 0-1.1.2l-.1.1a1.2 1.2 0 0 1-1.7 0l-1.2-1.2a1.2 1.2 0 0 1 0-1.7l.1-.1A1 1 0 0 0 6.2 15a1 1 0 0 0-.9-.6h-.2A1.2 1.2 0 0 1 4 13.2v-1.6A1.2 1.2 0 0 1 5.2 10h.2a1 1 0 0 0 .9-.6 1 1 0 0 0-.2-1.1l-.1-.1a1.2 1.2 0 0 1 0-1.7l1.2-1.2a1.2 1.2 0 0 1 1.7 0l.1.1a1 1 0 0 0 1.1.2h.1a1 1 0 0 0 .6-.9v-.2A1.2 1.2 0 0 1 12.2 3h1.6A1.2 1.2 0 0 1 15 4.2v.2a1 1 0 0 0 .6.9 1 1 0 0 0 1.1-.2l.1-.1a1.2 1.2 0 0 1 1.7 0l1.2 1.2a1.2 1.2 0 0 1 0 1.7l-.1.1a1 1 0 0 0-.2 1.1v.1a1 1 0 0 0 .9.6h.2A1.2 1.2 0 0 1 22 11.8v1.6a1.2 1.2 0 0 1-1.2 1.2h-.2a1 1 0 0 0-.9.4Z" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
             </div>
           </div>
         </div>
@@ -221,7 +225,7 @@ export default function AppShell() {
   );
 }
 
-function ProfilePanel({ user, label, onClose, showToast }) {
+function ProfilePanel({ user, label, onClose, showToast, onOpenSettings }) {
   const [displayName, setDisplayName] = useState(user?.user_metadata?.username || label);
   const [phone, setPhone] = useState(user?.user_metadata?.phone || '');
   const [saving, setSaving] = useState(false);
@@ -330,6 +334,21 @@ function ProfilePanel({ user, label, onClose, showToast }) {
       >
         {resetting ? 'Enviando...' : 'Cambiar contrasena ->'}
       </button>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginBottom: 8 }}>
+        <button
+          onClick={() => onOpenSettings('settings-tc')}
+          style={{ padding: '7px 0', background: 'transparent', color: 'var(--text-2)', border: '1px solid var(--border-2)', borderRadius: 'var(--radius)', fontSize: 11, cursor: 'pointer', fontFamily: 'var(--font)' }}
+        >
+          Tipo de cambio
+        </button>
+        <button
+          onClick={() => onOpenSettings('settings-plan')}
+          style={{ padding: '7px 0', background: 'transparent', color: 'var(--text-2)', border: '1px solid var(--border-2)', borderRadius: 'var(--radius)', fontSize: 11, cursor: 'pointer', fontFamily: 'var(--font)' }}
+        >
+          Mi plan
+        </button>
+      </div>
 
       <div style={{ borderTop: '1px solid var(--border)', paddingTop: 8, marginTop: 2 }}>
         <button

@@ -25,6 +25,10 @@ export default function Settings({ onCheckout }) {
     }
   }
 
+  function scrollToSection(id) {
+    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
   return (
     <div className="ip-section active" id="section-settings">
       <section className="tab" style={{ display: 'block' }}>
@@ -43,7 +47,16 @@ export default function Settings({ onCheckout }) {
           <p className="page-sub">Tipo de cambio y preferencias generales</p>
         </div>
 
-        <div className="card" style={{ marginBottom: '1.25rem', maxWidth: 500 }}>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 18 }}>
+          <button className="btn-outline" onClick={() => scrollToSection('settings-tc')}>
+            Tipo de cambio
+          </button>
+          <button className="btn-outline" onClick={() => scrollToSection('settings-plan')}>
+            Mi plan
+          </button>
+        </div>
+
+        <div id="settings-tc" className="card" style={{ marginBottom: '1.25rem', maxWidth: 500 }}>
           <div className="card-header">
             <span className="card-title">Tipo de cambio</span>
           </div>
@@ -75,7 +88,7 @@ export default function Settings({ onCheckout }) {
           </div>
         </div>
 
-        <div style={{ marginTop: 28 }}>
+        <div id="settings-plan" style={{ marginTop: 28 }}>
           <PlanHub onCheckout={onCheckout} />
         </div>
       </section>

@@ -223,6 +223,7 @@ export default function LoginPage({ initialMode = 'login', initialMessage = '' }
     <button
       type="button"
       onClick={onToggle}
+      aria-label={show ? 'Ocultar contrasena' : 'Mostrar contrasena'}
       style={{
         position: 'absolute',
         right: 12,
@@ -232,13 +233,27 @@ export default function LoginPage({ initialMode = 'login', initialMessage = '' }
         border: 'none',
         cursor: 'pointer',
         color: 'var(--muted)',
-        fontSize: 14,
+        width: 26,
+        height: 26,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
         padding: 0,
         lineHeight: 1,
       }}
       tabIndex={-1}
     >
-      {show ? '[ocultar]' : '[ver]'}
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path
+          d="M2 12C4.9 7.4 8.1 5 12 5C15.9 5 19.1 7.4 22 12C19.1 16.6 15.9 19 12 19C8.1 19 4.9 16.6 2 12Z"
+          stroke="currentColor"
+          strokeWidth="1.6"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <circle cx="12" cy="12" r="3.2" stroke="currentColor" strokeWidth="1.6" />
+        {show && <path d="M4 4L20 20" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />}
+      </svg>
     </button>
   );
 
@@ -247,8 +262,23 @@ export default function LoginPage({ initialMode = 'login', initialMessage = '' }
       className="login-btn"
       disabled={loading}
       onClick={doGoogleAuth}
-      style={{ marginTop: 10, background: '#fff', color: 'var(--text)', border: '1px solid var(--border)' }}
+      style={{
+        marginTop: 10,
+        background: '#fff',
+        color: 'var(--text)',
+        border: '1px solid var(--border)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 10,
+      }}
     >
+      <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+        <path fill="#EA4335" d="M12 10.2v3.9h5.4c-.2 1.2-.9 2.2-1.9 3l3 2.3c1.8-1.7 2.8-4.1 2.8-6.9 0-.7-.1-1.5-.2-2.2H12Z" />
+        <path fill="#34A853" d="M12 21c2.6 0 4.8-.8 6.4-2.3l-3-2.3c-.8.6-2 .9-3.3.9-2.5 0-4.6-1.7-5.4-4l-3.1 2.4C5.3 18.8 8.4 21 12 21Z" />
+        <path fill="#4A90E2" d="M6.6 13.3c-.2-.6-.3-1.2-.3-1.8s.1-1.2.3-1.8l-3.1-2.4C2.9 8.6 2.5 10 2.5 11.5s.4 2.9 1 4.2l3.1-2.4Z" />
+        <path fill="#FBBC05" d="M12 5.7c1.4 0 2.7.5 3.7 1.5l2.7-2.7C16.8 2.9 14.6 2 12 2 8.4 2 5.3 4.2 3.5 7.3l3.1 2.4c.8-2.3 2.9-4 5.4-4Z" />
+      </svg>
       {label}
     </button>
   );
@@ -258,12 +288,24 @@ export default function LoginPage({ initialMode = 'login', initialMessage = '' }
       <div className="login-container">
         <div className="login-panel">
           <div className="login-brand">
-            <div className="login-icon">IP</div>
+            <div
+              className="login-icon"
+              style={{
+                width: 64,
+                height: 64,
+                borderRadius: 18,
+                background: 'transparent',
+                fontSize: 54,
+                lineHeight: 1,
+              }}
+            >
+              🚢
+            </div>
             <h1>ImportaPro</h1>
             <p>Sistema de gestion de carga</p>
           </div>
           <div className="login-tagline">
-            Calcula costos de importacion, optimiza contenedores 3D y activa tu plan cuando quieras.
+            Calcula costos de importacion, optimiza contenedores 3D y arma pallets con el motor BFD de precision.
           </div>
         </div>
 
@@ -366,7 +408,7 @@ export default function LoginPage({ initialMode = 'login', initialMessage = '' }
               <button className="login-btn" disabled={loading} onClick={doRegister}>
                 {loading ? 'Creando cuenta...' : 'Registrarse ->'}
               </button>
-              <GoogleButton label="Registrarme con Google" />
+              <GoogleButton label="Continuar con Google" />
               {regError && <div className="login-error visible">{regError}</div>}
               {regSuccess && <div className="login-success visible">{regSuccess}</div>}
               <button className="login-link" onClick={() => goTo('login')}>
