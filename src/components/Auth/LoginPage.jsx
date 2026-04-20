@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { _sb } from '../../lib/supabase.js';
 import { getAppUrl } from '../../lib/appUrl.js';
 
@@ -33,6 +33,18 @@ export default function LoginPage({ initialMode = 'login', initialMessage = '' }
   const [resetError,   setResetError]   = useState('');
   const [resetSuccess, setResetSuccess] = useState('');
   const [showResetPass, setShowResetPass] = useState(false);
+
+  useEffect(() => {
+    if (initialMode === 'recovery') {
+      setPanel('reset');
+      setForgotError('');
+      return;
+    }
+    if (initialMode === 'forgot') {
+      setPanel('forgot');
+      setForgotError(initialMessage || '');
+    }
+  }, [initialMode, initialMessage]);
 
   function doShake() {
     setShake(true);
