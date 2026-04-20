@@ -156,6 +156,7 @@ export default function ContainerLoader() {
   const [isSaving,       setIsSaving]      = useState(false);
   const [openStatusId,   setOpenStatusId]  = useState(null);
   const [currentShipmentStatus, setCurrentShipmentStatus] = useState('preparacion');
+  const [currentShipmentPublic, setCurrentShipmentPublic] = useState(false);
   const [showCurrentStatusPicker, setShowCurrentStatusPicker] = useState(false);
   const [dragTabIdx,    setDragTabIdx]    = useState(null);
   const [dragOverTabIdx, setDragOverTabIdx] = useState(null);
@@ -631,10 +632,11 @@ export default function ContainerLoader() {
         setShowSave(false); setShowOverwrite(true); return;
       }
       const payload = buildShipmentPayload(containers);
-      const { data: inserted, error } = await _sb.from('shipments').insert({ user_id: session.user.id, name: saveName.trim(), containers: payload, status: currentShipmentStatus }).select('id').single();
+      const { data: inserted, error } = await _sb.from('shipments').insert({ user_id: session.user.id, name: saveName.trim(), containers: payload, status: currentShipmentStatus, is_public: false }).select('id').single();
       if (error) { showToast('Error al guardar: ' + error.message, 'error'); return; }
       loadShipmentData({ id: inserted.id, name: saveName.trim(), containers }, { activeContainerIdx });
       setCurrentShipmentStatus(normalizeShipmentStatus(currentShipmentStatus));
+      setCurrentShipmentPublic(false);
       setShowSave(false);
       showToast(`Embarque guardado: "${saveName.trim()}"`, 'success');
     } finally { setIsSaving(false); }
@@ -654,6 +656,7 @@ export default function ContainerLoader() {
       const { error } = await _sb.from('shipments').update({ name: overwriteName, containers: payload, status: currentShipmentStatus }).eq('id', overwriteId);
       if (error) { showToast('Error al guardar: ' + error.message, 'error'); return; }
       loadShipmentData({ id: overwriteId, name: overwriteName, containers }, { activeContainerIdx });
+      setCurrentShipmentPublic(Boolean(currentShipmentPublic));
       setShowOverwrite(false);
       showToast(`Embarque actualizado: "${overwriteName}"`, 'success');
     } finally { setIsSaving(false); }
@@ -685,6 +688,7 @@ export default function ContainerLoader() {
       loadShipmentData(data);
     }
     setCurrentShipmentStatus(normalizeShipmentStatus(data.status));
+    setCurrentShipmentPublic(Boolean(data.is_public));
     setShowShipments(false);
     showToast(`✓ Embarque "${data.name}" cargado`, 'success');
   }
@@ -745,6 +749,7 @@ export default function ContainerLoader() {
     const is_public = !currentPublic;
     await _sb.from('shipments').update({ is_public }).eq('id', id);
     setShipmentsList(prev => prev.map(s => s.id === id ? { ...s, is_public } : s));
+    if (String(id) === String(currentShipmentId)) setCurrentShipmentPublic(is_public);
     if (is_public) {
       const url = `https://fleetloader.vercel.app/share/${id}`;
       navigator.clipboard.writeText(url).catch(() => {});
@@ -1194,8 +1199,8 @@ export default function ContainerLoader() {
                 style={{ padding: '6px 14px', fontSize: 11, fontFamily: "'DM Mono', monospace", letterSpacing: '0.5px', borderRadius: 6, cursor: 'pointer', border: '1px solid var(--border)', color: 'var(--muted)', background: 'transparent', whiteSpace: 'nowrap' }}>
                 📂 Mis embarques
               </button>
-              {(currentShipmentId || loadedProducts.length > 0) && (
-                <div style={{ position: 'relative', flexShrink: 0 }}>
+                {(currentShipmentId || loadedProducts.length > 0) && (
+                  <div style={{ position: 'relative', flexShrink: 0 }}>
                   <button
                     onClick={() => setShowCurrentStatusPicker(v => !v)}
                     title={currentStatusCfg.label}
@@ -1218,20 +1223,45 @@ export default function ContainerLoader() {
                         );
                       })}
                     </div>
-                  )}
-                </div>
-              )}
-              <button
-                onClick={async () => {
-                  const containers = syncActiveContainer();
+                    )}
+                  </div>
+                )}
+                {currentShipmentId && (
+                  <button
+                    onClick={() => toggleShipmentPublic(currentShipmentId, currentShipmentPublic)}
+                    title={currentShipmentPublic ? 'Desactivar link compartido' : 'Activar link compartido'}
+                    style={{
+                      padding: '6px 12px',
+                      fontSize: 10,
+                      fontFamily: "'DM Mono', monospace",
+                      letterSpacing: '0.4px',
+                      borderRadius: 8,
+                      cursor: 'pointer',
+                      border: `1px solid ${currentShipmentPublic ? '#3A8C52' : 'var(--border)'}`,
+                      color: currentShipmentPublic ? '#3A8C52' : 'var(--muted)',
+                      background: currentShipmentPublic ? '#EDF7F1' : 'transparent',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    <span style={{ fontSize: 11 }}>{currentShipmentPublic ? '🔗' : '⛓'}</span>
+                    <span>{currentShipmentPublic ? 'Link activo' : 'Activar link'}</span>
+                  </button>
+                )}
+                <button
+                  onClick={async () => {
+                    const containers = syncActiveContainer();
                   const views = canvasRef.current ? await canvasRef.current.captureViews() : [];
                   await exportShipmentPDF({ containers, currentContainerType, views, shipmentName: currentShipmentName, shipmentId: currentShipmentId });
-                }}
-                disabled={loadedProducts.length === 0}
-                title="Exportar PDF"
-                style={{ padding: '5px 10px', fontSize: 13, borderRadius: 6, cursor: loadedProducts.length === 0 ? 'not-allowed' : 'pointer', border: '1px solid var(--border)', color: loadedProducts.length === 0 ? 'var(--muted)' : 'var(--text)', background: 'transparent', opacity: loadedProducts.length === 0 ? 0.45 : 1, lineHeight: 1 }}>
-                📄
-              </button>
+                  }}
+                  disabled={loadedProducts.length === 0}
+                  title="Exportar PDF"
+                  style={{ padding: '6px 11px', fontSize: 10, fontFamily: "'DM Mono', monospace", letterSpacing: '0.4px', borderRadius: 8, cursor: loadedProducts.length === 0 ? 'not-allowed' : 'pointer', border: '1px solid var(--border)', color: loadedProducts.length === 0 ? 'var(--muted)' : 'var(--text)', background: 'transparent', opacity: loadedProducts.length === 0 ? 0.45 : 1, lineHeight: 1, display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }}>
+                  <span style={{ fontSize: 11 }}>🧾</span>
+                  <span>PDF</span>
+                </button>
             </div>
 
             {/* Shipment notes inline + status button */}

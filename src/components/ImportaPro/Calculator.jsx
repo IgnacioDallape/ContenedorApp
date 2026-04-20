@@ -527,10 +527,12 @@ export default function Calculator() {
             </div>
             <div
               style={{
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 6,
-                maxHeight: canales.length > 3 ? 158 : 'none',
+                display: 'grid',
+                gridTemplateColumns: '1fr',
+                gridAutoRows: 'max-content',
+                alignContent: 'start',
+                gap: 10,
+                maxHeight: canales.length > 3 ? 336 : 'none',
                 overflowY: canales.length > 3 ? 'auto' : 'visible',
                 paddingRight: canales.length > 3 ? 6 : 0,
                 scrollbarGutter: canales.length > 3 ? 'stable' : 'auto',
