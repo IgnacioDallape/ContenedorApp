@@ -9,7 +9,8 @@ import { exportCotizacionPDF } from '../../lib/exportPDF.js';
 export function calcCostos(inp) {
   const fob             = parseFloat(inp.fob)           || 0;
   const qty             = parseInt(inp.qty)              || 1;
-  const flete           = parseFloat(inp.flete)          || 0;
+  const fleteMode       = inp.fleteMode || 'manual';
+  const manualFlete     = parseFloat(inp.flete)          || 0;
   const seguroPct       = parseFloat(inp.seguroPct)      || 0;
   const despachante     = parseFloat(inp.despachante)    || parseFloat(inp.aduana) || 0; // backward compat
   const fleteInterno    = parseFloat(inp.fleteInterno)   || 0;
@@ -18,7 +19,8 @@ export function calcCostos(inp) {
   const ivaImp          = parseFloat(inp.ivaImp)         || 21;
   const te              = parseFloat(inp.te)             || 0;
   const tc              = parseFloat(inp.globalTC)       || 1359;
-  const fleteUnit       = flete / qty;
+  const fleteUnit       = fleteMode === 'fob36' ? fob * 0.36 : manualFlete / qty;
+  const flete           = fleteUnit * qty;
   const seguroUnit      = fob * seguroPct / 100;
   const traderUnit      = fob * traderPct / 100;
   const cif             = fob + fleteUnit + seguroUnit;
@@ -30,7 +32,7 @@ export function calcCostos(inp) {
   const aduanaUnit      = despachanteUnit + fleteInternoUnit;
   const costoUSD        = cif + diUnit + ivaUnit + teUnit + aduanaUnit + traderUnit;
   const costoARS        = costoUSD * tc;
-  return { fob, qty, flete, seguroPct, despachante, fleteInterno, traderPct, di, ivaImp, te, tc,
+  return { fob, qty, flete, fleteMode, seguroPct, despachante, fleteInterno, traderPct, di, ivaImp, te, tc,
            fleteUnit, seguroUnit, traderUnit, cif, diUnit, ivaUnit, teUnit,
            despachanteUnit, fleteInternoUnit, aduanaUnit, costoUSD, costoARS };
 }
@@ -85,6 +87,7 @@ export default function Calculator() {
       te:        c.te,
       traderPct: c.traderPct,
       flete:     parseFloat(inputs.flete)        || 0,
+      fleteMode: inputs.fleteMode || 'manual',
       seguroPct: parseFloat(inputs.seguroPct)    || 0,
       despachante:   parseFloat(inputs.despachante)   || 0,
       fleteInterno:  parseFloat(inputs.fleteInterno)  || 0,
@@ -176,7 +179,7 @@ export default function Calculator() {
   const tot = c.costoUSD || 1;
   const breakdown = [
     ['Valor FOB (1688)',             `U$S ${rd(c.fob, 3)}`],
-    ['Flete prorrateado',             `U$S ${rd(c.fleteUnit, 2)}`],
+    [c.fleteMode === 'fob36' ? 'Flete (36% FOB)' : 'Flete prorrateado', `U$S ${rd(c.fleteUnit, 2)}`],
     [`Seguro (${c.seguroPct}%)`,     `U$S ${rd(c.seguroUnit, 3)}`],
     ['Valor CIF',                    `U$S ${rd(c.cif, 2)}`],
     [`Comisión trader (${c.traderPct}%)`, `U$S ${rd(c.traderUnit, 3)}`],
@@ -267,14 +270,14 @@ export default function Calculator() {
                     </div>
                   )}
                   <div className="field">
-                    <label>Equivalente <span className="unit">USD / {inputs.tipoUnidad === 'pallet' ? 'pallet' : 'caja'}</span></label>
+                    <label>Equivalente <span className="unit">USD / unidad</span></label>
                     <input type="number" id="p-fob" value={inputs.fob} step="0.01" min="0"
                       readOnly={inputs.currencyMode !== 'usd'}
                       style={{ color: inputs.currencyMode === 'usd' ? 'var(--text)' : 'var(--text-3)' }}
                       onChange={inputs.currencyMode === 'usd' ? e => setInputs({ fob: parseFloat(e.target.value)||0 }) : undefined} />
                   </div>
                   <div className="field">
-                    <label>Cantidad <span className="unit">{inputs.tipoUnidad === 'pallet' ? 'pallets' : 'cajas'}</span></label>
+                    <label>Cantidad <span className="unit">unidades</span></label>
                     <input type="number" id="p-qty" value={inputs.qty} min="1"
                       onChange={e => setInputs({ qty: parseInt(e.target.value)||1 })} />
                   </div>
@@ -446,13 +449,46 @@ export default function Calculator() {
               <button className="btn-text" onClick={() => setActiveSection('ncm')}>Buscar NCM →</button>
             </div>
             <CalcSection id="calc-flete" color="#4a8ac4" label="Flete internacional">
+              <div style={{ display:'flex', gap:8, marginBottom:12, flexWrap:'wrap' }}>
+                {[
+                  ['manual', 'Carga manual'],
+                  ['fob36', 'Contenedor completo (36% FOB)'],
+                ].map(([mode, label]) => (
+                  <button
+                    key={mode}
+                    type="button"
+                    onClick={() => setInputs({ fleteMode: mode })}
+                    style={{
+                      padding:'8px 12px',
+                      borderRadius:'var(--radius)',
+                      border:`1.5px solid ${inputs.fleteMode===mode ? 'var(--accent)' : 'var(--border-2)'}`,
+                      background: inputs.fleteMode===mode ? 'var(--accent)' : 'transparent',
+                      color: inputs.fleteMode===mode ? '#fff' : 'var(--text-2)',
+                      fontFamily:'var(--font)',
+                      fontSize:13,
+                      fontWeight: inputs.fleteMode===mode ? 600 : 500,
+                      cursor:'pointer',
+                      transition:'all 0.15s',
+                    }}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
               <div className="form-grid-2">
-                <div className="field"><label>Flete total <span className="unit">USD</span></label>
-                  <input type="number" id="p-flete" value={inputs.flete} min="0"
+                <div className="field"><label>{inputs.fleteMode === 'fob36' ? 'Flete total estimado' : 'Flete total'} <span className="unit">USD</span></label>
+                  <input type="number" id="p-flete" value={inputs.fleteMode === 'fob36' ? rd(c.flete, 2) : inputs.flete} min="0"
+                    readOnly={inputs.fleteMode === 'fob36'}
+                    style={{ color: inputs.fleteMode === 'fob36' ? 'var(--text-3)' : 'var(--text)' }}
                     onChange={e => setInputs({ flete: parseFloat(e.target.value)||0 })} /></div>
                 <div className="field"><label>Seguro <span className="unit">%</span></label>
                   <input type="number" id="p-seguro-pct" value={inputs.seguroPct} step="0.1" min="0"
                     onChange={e => setInputs({ seguroPct: parseFloat(e.target.value)||0 })} /></div>
+              </div>
+              <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 8, padding: '7px 10px', background: 'var(--bg-3)', borderRadius: 6, borderLeft: '3px solid #4a8ac4' }}>
+                {inputs.fleteMode === 'fob36'
+                  ? `Modo contenedor completo activo: el flete por unidad se calcula automaticamente como 36% del FOB. Flete unitario actual: U$S ${rd(c.fleteUnit, 2)}.`
+                  : 'Ingresá el flete total del embarque y la calculadora lo prorratea por unidad.'}
               </div>
             </CalcSection>
             <CalcSection id="calc-despacho" color="#6b9b8b" label="Despacho y flete interno" style={{ marginTop: 10 }}>
@@ -631,7 +667,7 @@ export default function Calculator() {
                   ['Valor FOB (1688)', `U$S ${rd(c.fob,3)}`],
                 ]} />
                 <ResultGroup color="#6b9b8b" label="Logística" rows={[
-                  ['Flete prorrateado', `U$S ${rd(c.fleteUnit,2)}`],
+                  [c.fleteMode === 'fob36' ? 'Flete (36% FOB)' : 'Flete prorrateado', `U$S ${rd(c.fleteUnit,2)}`],
                   [`Seguro (${c.seguroPct}%)`, `U$S ${rd(c.seguroUnit,3)}`],
                   ['Despachante / aduana', `U$S ${rd(c.despachanteUnit,2)}`],
                   ['Flete interno / puerto', `U$S ${rd(c.fleteInternoUnit,2)}`],
