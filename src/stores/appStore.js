@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 
 const useAppStore = create((set, get) => ({
-  activeSection: 'upgrade',
+  activeSection: 'home',
   toasts: [],
 
   setActiveSection: (id) => set({ activeSection: id }),

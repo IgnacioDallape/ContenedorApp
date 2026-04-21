@@ -75,14 +75,11 @@ function WelcomePanel({ label, userPlan }) {
             <ShipMark size={64} />
           </div>
         </div>
-        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, letterSpacing: 2.4, textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 12 }}>
-          Bienvenido a ImportaPro
-        </div>
-        <h1 style={{ margin: 0, fontFamily: "'Cormorant Garamond', serif", fontSize: 54, lineHeight: 1, color: 'var(--text)' }}>
-          Hola, {label}
+        <h1 style={{ margin: 0, fontFamily: "'Cormorant Garamond', serif", fontSize: 50, lineHeight: 1.05, color: 'var(--text)' }}>
+          Bienvenido {label}
         </h1>
-        <p style={{ margin: '18px auto 0', maxWidth: 520, fontSize: 16, lineHeight: 1.8, color: 'var(--text-2)' }}>
-          Tu cuenta ya esta lista para operar. Usa la barra lateral para entrar a cada modulo y gestionar tu embarque.
+        <p style={{ margin: '16px auto 0', maxWidth: 560, fontSize: 18, lineHeight: 1.7, color: 'var(--text-2)' }}>
+          Listo para empezar a importar?
         </p>
         <div
           style={{

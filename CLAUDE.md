@@ -6,7 +6,7 @@ App web en React + Vite + Zustand con tres bloques principales:
 - Container Loader: carga 3D de contenedores y semis con Three.js + motor de packing por heightmap.
 - Pallet Builder: armado de pallets y exportacion al Container Loader.
 
-Este archivo refleja el estado real del repo al 2026-04-19. No asumir que sigue la version vieja ni el CLAUDE anterior.
+Este archivo refleja el estado real del repo al 2026-04-20. No asumir que sigue la version vieja ni el CLAUDE anterior.
 
 ---
 
@@ -45,6 +45,10 @@ src/
     importaproStore.js
     palletStore.js
   components/
+    Auth/
+      LoginPage.jsx
+    Billing/
+      PlanHub.jsx
     Layout/
       AppShell.jsx
       UpgradeModal.jsx
@@ -76,6 +80,17 @@ src/
   - La moneda por defecto ahora es USD.
   - Guarda productos con dimensiones, peso, links y fotos.
   - Alimenta catalogo del Container Loader si el producto tiene dims validas.
+  - El formulario diferencia entre datos por unidad individual y por unidad logistica.
+  - `Equivalente USD` y `Cantidad` siguen siendo por unidad individual.
+  - Peso y dimensiones cambian segun `Caja` o `Pallet`.
+  - Tiene modo de flete internacional:
+    - `Carga manual`
+    - `Contenedor completo (36% FOB)`
+  - En modo `Contenedor completo (36% FOB)`:
+    - `fleteUnit = fob * 0.36`
+    - `flete total = fleteUnit * qty`
+    - el input de flete total queda read-only y pasa a ser estimado.
+  - El resumen y el donut central ya contemplan este cambio de naming cuando corresponde.
 - `Products.jsx`
   - CRUD sobre productos guardados.
 - `NcmSearch.jsx`
@@ -94,8 +109,44 @@ src/
   - Exporta PDF del pedido.
   - Para Pro y Pro Max puede mandar el pedido al Container Loader como cajas o pallets usando dims/peso del producto.
 - `Settings.jsx`
-  - Solo deja tipo de cambio y preferencias generales.
+  - Ahora es una pagina centrada y mas limpia.
+  - Agrupa `Tipo de cambio` y `Mi plan`.
+  - Mantiene el acceso para volver a la calculadora.
   - Se elimino el bloque visible de API Key Anthropic.
+
+### Auth + onboarding + planes
+- `src/components/Auth/LoginPage.jsx`
+  - Login y registro por email/password.
+  - Login con Google via Supabase OAuth.
+  - El boton de Google ya no requiere doble click.
+  - Se usa iconografia propia del producto (barco) y no texto roto/emoji mal codificado.
+- `src/components/Layout/AppShell.jsx`
+  - El usuario autenticado entra a una pantalla `home` de bienvenida.
+  - La home muestra saludo, nombre del usuario, barco y plan actual.
+  - `Configuracion` ya no vive como item principal en la sidebar.
+  - Se accede desde el bloque del usuario con icono de settings.
+  - Desde el panel del usuario hay accesos rapidos a:
+    - `Tipo de cambio`
+    - `Mi plan`
+- `src/components/Billing/PlanHub.jsx`
+  - Vive embebido dentro de `Settings.jsx`.
+  - Muestra plan actual y opciones de upgrade.
+- `src/components/Layout/UpgradeModal.jsx`
+  - El checkout de Lemon Squeezy sale identificado con:
+    - `checkout[custom][user_id]`
+    - `checkout[custom][target_plan]`
+    - email / nombre prefill cuando existen
+- Regla de gating actual:
+  - usuario `none`:
+    - modulos de importacion -> requieren `Basic`
+    - `Cargar contenedor` -> requiere `Pro`
+    - `Armador de pallets` -> requiere `Pro Max`
+  - usuario `basic`:
+    - puede usar ImportaPro
+  - usuario `pro`:
+    - destraba contenedor 3D
+  - usuario `promax`:
+    - destraba todo, incluido pallets
 
 ### Container Loader
 - Multi-contenedor activo.
@@ -246,7 +297,20 @@ Responsabilidades:
 
 Detalle actual:
 - `currencyMode` default es `usd`
+- `fleteMode` existe en `inputs` y default es `manual`
 - todavia puede haber rastros de `apiKey`/`setApiKey` en store por compatibilidad vieja, pero la UI actual no los usa
+
+### `authStore.js`
+Responsabilidades:
+- usuario autenticado de Supabase
+- sesion
+- plan del usuario (`none`, `basic`, `pro`, `promax`)
+- cierre de sesion y estado de carga inicial
+
+### `appStore.js`
+Detalle importante:
+- `activeSection` default ahora es `home`
+- la home inicial no debe quedar en blanco para usuarios con plan
 
 ---
 
@@ -254,10 +318,19 @@ Detalle actual:
 
 Sigue habiendo auth real y tabla de `shipments`.
 
-Tambien se verifico en testing:
-- login correcto para `nacho.dallape@gmail.com` con `101010`
-- `1010` no funciona
-- plan del usuario: `promax`
+Ademas:
+- Auth con email/password sigue activa.
+- Auth con Google funciona via provider de Supabase.
+- La callback OAuth correcta depende del project ref real de Supabase; no escribirla a mano si se vuelve a tocar la configuracion.
+- El login con Google requiere Google Cloud + test users mientras la app OAuth este en modo prueba.
+
+## Lemon Squeezy / billing
+
+- La landing de marketing puede llevar directo al checkout.
+- Dentro de la app, el upgrade debe salir identificado con el usuario logueado.
+- Pagar en Lemon Squeezy NO crea usuarios en Supabase Auth por si solo.
+- La activacion del plan depende del webhook y de que ese webhook escriba correctamente en la tabla de suscripciones/plan.
+- El payout de Lemon no es instantaneo; no esperar acreditacion bancaria inmediata al ver una orden `Paid`.
 
 No exponer estas credenciales en UI ni dejarlas en codigo.
 
@@ -286,7 +359,12 @@ No exponer estas credenciales en UI ni dejarlas en codigo.
   - carrito
   - PDF pedido
   - carga al contenedor
-- Si se toca `Settings.jsx`, mantenerlo simple.
+- Si se toca `Settings.jsx`, mantenerlo simple, centrado y sin headers colgados.
+- Si se toca `Calculator.jsx`, revisar que no se rompan:
+  - el naming por unidad vs caja/pallet
+  - el modo de flete manual
+  - el modo `Contenedor completo (36% FOB)`
+  - el resumen visual y el donut central
 
 ---
 
@@ -296,6 +374,7 @@ Pendientes reales:
 - El highlight/seleccion del 3D mejoro mucho, pero hubo reportes de casos intermitentes. Si reaparece, capturar caso exacto.
 - Falta testeo profundo de mobile en algunas pantallas del Container Loader y Pallet Builder.
 - El repo tiene algunos textos con encoding viejo en partes historicas; si se reescriben componentes conviene normalizar a ASCII limpio o UTF-8 consistente.
+- El webhook de Lemon/Supabase sigue siendo una zona sensible y debe verificarse end-to-end cuando se toquen pagos.
 
 Zonas donde conviene ir con cuidado:
 - `ThreeCanvas.jsx`
@@ -324,6 +403,12 @@ Zonas donde conviene ir con cuidado:
 - Configuracion sin bloque de API key Anthropic.
 - Exportacion PDF de cotizacion desde Calculator (boton "Exportar PDF").
 - Comparator mobile fix: slots colapsan a 1 columna, tabla resumen con scroll horizontal.
+- Login/registro renovado con Google OAuth.
+- Pantalla de bienvenida `home` para usuarios logueados.
+- Configuracion movida al bloque del usuario en vez de sidebar principal.
+- `Mi plan` integrado dentro de `Settings`.
+- Ajustes de copy en calculadora para distinguir unidad individual vs caja/pallet.
+- Nuevo modo de flete `Contenedor completo (36% FOB)`.
 
 ---
 
