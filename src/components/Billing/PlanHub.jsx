@@ -35,7 +35,7 @@ export default function PlanHub({ onCheckout }) {
   const displayName = user?.user_metadata?.username || user?.email?.split('@')[0] || 'usuario';
 
   return (
-    <div style={{ padding: 32, maxWidth: 1100, margin: '0 auto' }}>
+    <div style={{ padding: 32, maxWidth: 1100, margin: '0 auto', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
       <div
         style={{
           border: '1px solid var(--border)',
@@ -43,16 +43,15 @@ export default function PlanHub({ onCheckout }) {
           borderRadius: 18,
           padding: 28,
           marginBottom: 24,
+          width: '100%',
           boxShadow: '0 12px 36px rgba(26, 18, 8, 0.06)',
+          textAlign: 'center',
         }}
       >
-        <div style={{ fontSize: 11, letterSpacing: 2, textTransform: 'uppercase', color: 'var(--accent, #8D7966)', marginBottom: 10 }}>
-          {copy.eyebrow}
-        </div>
         <h1 style={{ margin: 0, fontSize: 34, lineHeight: 1.1, color: 'var(--text)', fontFamily: 'var(--font-head, inherit)' }}>
           {copy.title}
         </h1>
-        <p style={{ margin: '12px 0 0', maxWidth: 760, color: 'var(--text-2, #6f5e4e)', fontSize: 15, lineHeight: 1.7 }}>
+        <p style={{ margin: '12px auto 0', maxWidth: 760, color: 'var(--text-2, #6f5e4e)', fontSize: 15, lineHeight: 1.7 }}>
           {displayName}, {copy.body}
         </p>
       </div>
@@ -62,6 +61,7 @@ export default function PlanHub({ onCheckout }) {
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
           gap: 18,
+          width: '100%',
         }}
       >
         {PLAN_BUTTONS.map(plan => {
