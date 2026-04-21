@@ -254,27 +254,27 @@ export default function Calculator() {
                   </div>
                   {inputs.currencyMode === 'cny' && (
                     <div className="field">
-                      <label>Precio 1688 <span className="unit">CNY / unidad</span></label>
+                      <label>Precio 1688 <span className="unit">CNY / {inputs.tipoUnidad === 'pallet' ? 'pallet' : 'caja'}</span></label>
                       <input type="number" id="p-fob-cny" value={inputs.fobCny} step="0.1" min="0"
                         onChange={e => syncFob({ fobCny: parseFloat(e.target.value)||0 })} />
                     </div>
                   )}
                   {inputs.currencyMode === 'ars' && (
                     <div className="field">
-                      <label>Precio de compra <span className="unit">ARS / unidad</span></label>
+                      <label>Precio de compra <span className="unit">ARS / {inputs.tipoUnidad === 'pallet' ? 'pallet' : 'caja'}</span></label>
                       <input type="number" id="p-fob-ars" value={inputs.fobArs} step="100" min="0"
                         onChange={e => syncFob({ fobArs: parseFloat(e.target.value)||0 })} />
                     </div>
                   )}
                   <div className="field">
-                    <label>Equivalente <span className="unit">USD / unidad</span></label>
+                    <label>Equivalente <span className="unit">USD / {inputs.tipoUnidad === 'pallet' ? 'pallet' : 'caja'}</span></label>
                     <input type="number" id="p-fob" value={inputs.fob} step="0.01" min="0"
                       readOnly={inputs.currencyMode !== 'usd'}
                       style={{ color: inputs.currencyMode === 'usd' ? 'var(--text)' : 'var(--text-3)' }}
                       onChange={inputs.currencyMode === 'usd' ? e => setInputs({ fob: parseFloat(e.target.value)||0 }) : undefined} />
                   </div>
                   <div className="field">
-                    <label>Cantidad <span className="unit">unidades</span></label>
+                    <label>Cantidad <span className="unit">{inputs.tipoUnidad === 'pallet' ? 'pallets' : 'cajas'}</span></label>
                     <input type="number" id="p-qty" value={inputs.qty} min="1"
                       onChange={e => setInputs({ qty: parseInt(e.target.value)||1 })} />
                   </div>
@@ -312,10 +312,15 @@ export default function Calculator() {
                       </button>
                     ))}
                   </div>
+                  <div style={{ marginTop: 6, fontSize: 11, color: 'var(--text-3)', lineHeight: 1.5 }}>
+                    {inputs.tipoUnidad === 'pallet'
+                      ? 'Cargá precio, cantidad, peso y medidas por pallet completo.'
+                      : 'Cargá precio, cantidad, peso y medidas por caja. Si tu producto viaja suelto, tomá cada pieza como una caja/unidad logística.'}
+                  </div>
                   <input type="hidden" id="p-tipo-unidad" value={inputs.tipoUnidad} />
                 </div>
                 <div className="field">
-                  <label>Peso por unidad <span className="unit">kg</span></label>
+                  <label>Peso por {inputs.tipoUnidad === 'pallet' ? 'pallet' : 'caja'} <span className="unit">kg</span></label>
                   <input type="number" id="p-peso-unit" value={inputs.pesoUnit || ''} placeholder="0.0" min="0" step="0.1"
                     onChange={e => setInputs({ pesoUnit: parseFloat(e.target.value)||0 })} />
                 </div>
@@ -350,14 +355,14 @@ export default function Calculator() {
 
               <div id="dims-section">
                 <div className={inputs.tipoUnidad === 'pallet' ? 'form-grid-2' : 'form-grid-3'}>
-                  <div className="field"><label>Largo <span className="unit">cm</span></label>
+                  <div className="field"><label>Largo por {inputs.tipoUnidad === 'pallet' ? 'pallet' : 'caja'} <span className="unit">cm</span></label>
                     <input type="number" id="p-dim-l" value={inputs.dimL||''} placeholder="60" min="1" step="0.5"
                       onChange={e => setInputs({ dimL: e.target.value })} /></div>
-                  <div className="field"><label>Ancho <span className="unit">cm</span></label>
+                  <div className="field"><label>Ancho por {inputs.tipoUnidad === 'pallet' ? 'pallet' : 'caja'} <span className="unit">cm</span></label>
                     <input type="number" id="p-dim-w" value={inputs.dimW||''} placeholder="40" min="1" step="0.5"
                       onChange={e => setInputs({ dimW: e.target.value })} /></div>
                   {inputs.tipoUnidad !== 'pallet' && (
-                    <div className="field"><label>Alto <span className="unit">cm</span></label>
+                    <div className="field"><label>Alto por caja <span className="unit">cm</span></label>
                       <input type="number" id="p-dim-h" value={inputs.dimH||''} placeholder="30" min="1" step="0.5"
                         onChange={e => setInputs({ dimH: e.target.value })} /></div>
                   )}
