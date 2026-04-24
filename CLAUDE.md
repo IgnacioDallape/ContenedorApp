@@ -256,6 +256,11 @@ Cambios recientes importantes:
 - Se estabilizo para seguir la geometria visible real del objeto seleccionado.
 - Durante drag, se recalcula el outline desde los meshes seleccionados.
 - Se intento evitar que el borde amarillo quede flotando/corrido despues de mover, reordenar o animar.
+- El `heavy mode` ya NO fusiona cajas por color en una sola geometria.
+- Aunque haya muchas unidades, cada caja debe seguir viendose y seleccionandose individualmente.
+- Los pallets quedan anclados una vez colocados.
+- Si cualquier unidad se mueve manualmente y el drop es invalido, debe volver a su posicion anterior.
+- Ninguna unidad movida manualmente debe reubicarse sola para "acomodarse".
 
 Importante:
 - Si vuelve a aparecer un caso intermitente de highlight mal ubicado, no asumir que el packing esta mal.
@@ -331,6 +336,17 @@ Ademas:
 - Pagar en Lemon Squeezy NO crea usuarios en Supabase Auth por si solo.
 - La activacion del plan depende del webhook y de que ese webhook escriba correctamente en la tabla de suscripciones/plan.
 - El payout de Lemon no es instantaneo; no esperar acreditacion bancaria inmediata al ver una orden `Paid`.
+- El webhook real vive en `supabase/functions/lemon-webhook/index.ts`.
+- El deploy real se hace con:
+  - `npx supabase@latest functions deploy lemon-webhook --no-verify-jwt`
+- `supabase/config.toml` ya contempla este flujo.
+- Secret obligatorio:
+  - `LEMON_WEBHOOK_SECRET`
+- La funcion primero intenta vincular por `meta.custom_data.user_id`.
+- Si no viene `custom_data.user_id`, hace fallback por `user_email`.
+- El fallback por email funciona, pero lo ideal sigue siendo abrir el checkout desde la app logueada.
+- El webhook ya fue validado end-to-end con una suscripcion real y hace `upsert` en `public.subscriptions`.
+- `authStore.js` ya trata `active`, `on_trial` y `trialing` como planes activos.
 
 No exponer estas credenciales en UI ni dejarlas en codigo.
 
@@ -375,6 +391,13 @@ Pendientes reales:
 - Falta testeo profundo de mobile en algunas pantallas del Container Loader y Pallet Builder.
 - El repo tiene algunos textos con encoding viejo en partes historicas; si se reescriben componentes conviene normalizar a ASCII limpio o UTF-8 consistente.
 - El webhook de Lemon/Supabase sigue siendo una zona sensible y debe verificarse end-to-end cuando se toquen pagos.
+- Hay un bug pendiente de identidad duplicada:
+  - un mismo usuario puede terminar con dos auth users si mezcla email/password y Google.
+  - en ese caso, la suscripcion puede quedar asociada a un `user_id` y la sesion usar otro.
+  - si reaparece, revisar primero `auth.users`, despues `public.subscriptions` y despues el metodo de login usado.
+- Hay un pendiente de cantidades al mandar productos desde `Prices/Simulator` al Container Loader:
+  - si un producto aparece con menos unidades de las esperadas, revisar si `orderQty` representa unidades comerciales o unidades logisticas reales.
+  - el bug visual de "bloque unico" ya no deberia ser de render; ahora la sospecha principal seria semantica de cantidad.
 
 Zonas donde conviene ir con cuidado:
 - `ThreeCanvas.jsx`
@@ -409,6 +432,10 @@ Zonas donde conviene ir con cuidado:
 - `Mi plan` integrado dentro de `Settings`.
 - Ajustes de copy en calculadora para distinguir unidad individual vs caja/pallet.
 - Nuevo modo de flete `Contenedor completo (36% FOB)`.
+- Webhook de Lemon funcionando con upsert real en `public.subscriptions`.
+- `authStore` reconoce `on_trial` / `trialing` como plan activo.
+- Fix de `heavy mode` del Container Loader para no fusionar cajas en un solo bloque visual.
+- Pallets anclados y estabilizacion de drops/manual placement en el 3D.
 
 ---
 

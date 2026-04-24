@@ -318,7 +318,23 @@ function ProfilePanel({ user, label, onClose, showToast, onOpenSettings }) {
   const [displayName, setDisplayName] = useState(user?.user_metadata?.username || label);
   const [phone, setPhone] = useState(user?.user_metadata?.phone || '');
   const [saving, setSaving] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [newPassword2, setNewPassword2] = useState('');
+  const [showPasswords, setShowPasswords] = useState(false);
+  const [changingPassword, setChangingPassword] = useState(false);
   const [resetting, setResetting] = useState(false);
+
+  const fieldInputStyle = {
+    width: '100%',
+    padding: '7px 10px',
+    fontSize: 12,
+    background: 'var(--bg-3)',
+    border: '1px solid var(--border-2)',
+    borderRadius: 'var(--radius)',
+    color: 'var(--text)',
+    fontFamily: 'var(--font)',
+    boxSizing: 'border-box',
+  };
 
   async function handleSave() {
     setSaving(true);
@@ -353,6 +369,31 @@ function ProfilePanel({ user, label, onClose, showToast, onOpenSettings }) {
       showToast(`Error: ${e.message || e}`, 'error');
     } finally {
       setResetting(false);
+    }
+  }
+
+  async function handleChangePassword() {
+    if (newPassword.length < 6) {
+      showToast('La contrasena nueva debe tener al menos 6 caracteres', 'error');
+      return;
+    }
+    if (newPassword !== newPassword2) {
+      showToast('Las contrasenas no coinciden', 'error');
+      return;
+    }
+
+    setChangingPassword(true);
+    try {
+      const { error } = await _sb.auth.updateUser({ password: newPassword });
+      if (error) throw error;
+      setNewPassword('');
+      setNewPassword2('');
+      setShowPasswords(false);
+      showToast('Contrasena actualizada', 'success');
+    } catch (e) {
+      showToast(`Error al cambiar contrasena: ${e.message || e}`, 'error');
+    } finally {
+      setChangingPassword(false);
     }
   }
 
@@ -393,7 +434,7 @@ function ProfilePanel({ user, label, onClose, showToast, onOpenSettings }) {
           type="text"
           value={displayName}
           onChange={e => setDisplayName(e.target.value)}
-          style={{ width: '100%', padding: '7px 10px', fontSize: 12, background: 'var(--bg-3)', border: '1px solid var(--border-2)', borderRadius: 'var(--radius)', color: 'var(--text)', fontFamily: 'var(--font)', boxSizing: 'border-box' }}
+          style={fieldInputStyle}
         />
       </div>
 
@@ -404,7 +445,7 @@ function ProfilePanel({ user, label, onClose, showToast, onOpenSettings }) {
           value={phone}
           placeholder="+54 11 1234-5678"
           onChange={e => setPhone(e.target.value)}
-          style={{ width: '100%', padding: '7px 10px', fontSize: 12, background: 'var(--bg-3)', border: '1px solid var(--border-2)', borderRadius: 'var(--radius)', color: 'var(--text)', fontFamily: 'var(--font)', boxSizing: 'border-box' }}
+          style={fieldInputStyle}
         />
       </div>
 
@@ -416,12 +457,52 @@ function ProfilePanel({ user, label, onClose, showToast, onOpenSettings }) {
         {saving ? 'Guardando...' : 'Guardar cambios'}
       </button>
 
+      <div style={{ marginBottom: 10, padding: '10px 10px 8px', background: 'var(--bg-3)', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 8 }}>
+          <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-3)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+            Cambiar contrasena
+          </span>
+          <button
+            type="button"
+            onClick={() => setShowPasswords(current => !current)}
+            style={{ background: 'none', border: 'none', color: 'var(--text-3)', fontSize: 11, cursor: 'pointer', fontFamily: 'var(--font)' }}
+          >
+            {showPasswords ? 'Ocultar' : 'Mostrar'}
+          </button>
+        </div>
+
+        <div style={{ display: 'grid', gap: 8 }}>
+          <input
+            type={showPasswords ? 'text' : 'password'}
+            value={newPassword}
+            placeholder="Nueva contrasena"
+            onChange={e => setNewPassword(e.target.value)}
+            style={fieldInputStyle}
+          />
+          <input
+            type={showPasswords ? 'text' : 'password'}
+            value={newPassword2}
+            placeholder="Confirmar contrasena"
+            onChange={e => setNewPassword2(e.target.value)}
+            style={fieldInputStyle}
+          />
+          <button
+            type="button"
+            onClick={handleChangePassword}
+            disabled={changingPassword}
+            style={{ width: '100%', padding: '7px 0', background: 'transparent', color: 'var(--text-2)', border: '1px solid var(--border-2)', borderRadius: 'var(--radius)', fontSize: 11, cursor: changingPassword ? 'default' : 'pointer', opacity: changingPassword ? 0.6 : 1, fontFamily: 'var(--font)' }}
+          >
+            {changingPassword ? 'Guardando...' : 'Actualizar contrasena'}
+          </button>
+        </div>
+      </div>
+
       <button
         onClick={handleResetPassword}
         disabled={resetting}
         style={{ width: '100%', padding: '7px 0', marginBottom: 6, background: 'transparent', color: 'var(--text-2)', border: '1px solid var(--border-2)', borderRadius: 'var(--radius)', fontSize: 11, cursor: resetting ? 'default' : 'pointer', opacity: resetting ? 0.6 : 1, fontFamily: 'var(--font)' }}
       >
-        {resetting ? 'Enviando...' : 'Cambiar contrasena ->'}
+        {resetting ? 'Enviando...' : 'Mandar email de recuperacion'}
       </button>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginBottom: 8 }}>
