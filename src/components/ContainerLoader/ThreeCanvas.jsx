@@ -537,6 +537,31 @@ function ThreeCanvas({ onSelectInstance, onSetZone, onClearZone, readOnly = fals
       t._animStartTime = Date.now();
       t._shadowDirty = true;
 
+      const nextManualPos = { ...(state.instanceManualPos || {}) };
+      const nextLockedOri = { ...(state.instanceLockedOri || {}) };
+      let shouldPersistPalletPins = false;
+
+      for (const item of packed) {
+        if (item.type !== 'pallet') continue;
+        if (!nextManualPos[item.instanceId]) {
+          nextManualPos[item.instanceId] = { x: item.x, z: item.z };
+          shouldPersistPalletPins = true;
+        }
+        if (!nextLockedOri[item.instanceId]) {
+          nextLockedOri[item.instanceId] = { dX: item.dX, dZ: item.dZ, dY: item.dY };
+          shouldPersistPalletPins = true;
+        }
+      }
+
+      if (shouldPersistPalletPins) {
+        queueMicrotask(() => {
+          const latest = useContainerStore.getState();
+          const mergedManual = { ...(latest.instanceManualPos || {}), ...nextManualPos };
+          const mergedLocked = { ...(latest.instanceLockedOri || {}), ...nextLockedOri };
+          latest.setLayoutSnapshot(mergedManual, mergedLocked);
+        });
+      }
+
     // Dimension labels
     function makeLabel(text, pos) {
       const canvas2 = document.createElement('canvas'); canvas2.width = 256; canvas2.height = 64;

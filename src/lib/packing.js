@@ -183,12 +183,10 @@ function runPacking(products) {
       const h = hmGetMax(hm, px, pz, ori.dX, ori.dZ);
       const posBlocked = (u.type === 'pallet' && h > 1) || (h + ori.dY > CONT_H + FIT_EPS);
       if (posBlocked) {
-        // Posición bloqueada — limpiar pin y dejar que el BFD lo ubique automáticamente
-        // El pallet NUNCA desaparece — si no hay lugar en el BFD, se muestra en la primera
-        // posición libre aunque sea, con un toast de aviso al usuario
-        delete instanceManualPos[u.instanceId];
-        if (window._instanceManualPos) delete window._instanceManualPos[u.instanceId];
-        // Fall through to auto-placement below
+        // Ninguna unidad arrastrada manualmente se reubica sola.
+        // Si la posición elegida colisiona o excede altura, se rechaza y el caller
+        // puede restaurar la posición anterior.
+        return false;
       } else {
         hmSetPallet(hm, px, pz, ori.dX, ori.dZ, h, ori.dY, u.packedItems, u.palletBase);
         packed.push({ x: px, y: h, z: pz, dX: ori.dX, dY: ori.dY, dZ: ori.dZ,
