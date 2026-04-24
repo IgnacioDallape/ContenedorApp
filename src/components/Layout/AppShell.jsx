@@ -108,20 +108,40 @@ export default function AppShell() {
   const [upgradeModal, setUpgradeModal] = useState(null);
 
   const [profileOpen, setProfileOpen] = useState(false);
-  const profileRef = useRef(null);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const profileDesktopRef = useRef(null);
+  const profileMobileRef = useRef(null);
 
   const label = user?.user_metadata?.username || user?.email?.split('@')[0] || '-';
+  const sectionNames = {
+    home: 'Inicio',
+    calc: 'Calculadora',
+    products: 'Mis productos',
+    comparator: 'Comparar productos',
+    ncm: 'Buscar NCM',
+    simulator: 'Simulador',
+    prices: 'Precios confirmados',
+    settings: 'Configuracion',
+    container: 'Cargar contenedor',
+    palletbuilder: 'Armador de pallets',
+  };
 
   useEffect(() => {
     if (!profileOpen) return;
     function handleClick(e) {
-      if (profileRef.current && !profileRef.current.contains(e.target)) {
+      const insideDesktop = profileDesktopRef.current?.contains(e.target);
+      const insideMobile = profileMobileRef.current?.contains(e.target);
+      if (!insideDesktop && !insideMobile) {
         setProfileOpen(false);
       }
     }
     document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
   }, [profileOpen]);
+
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [activeSection]);
 
   function navigate(id) {
     if (id === 'settings') {
@@ -178,8 +198,91 @@ export default function AppShell() {
     );
   };
 
+  const mobileNavButton = (id, icon, itemLabel) => {
+    const active = activeSection === id;
+    const locked = (id !== 'settings' && userPlan === 'none')
+      || (id === 'container' && !['pro', 'promax'].includes(userPlan))
+      || (id === 'palletbuilder' && userPlan !== 'promax');
+
+    return (
+      <button
+        key={id}
+        type="button"
+        className={`mnav-btn${active ? ' active' : ''}`}
+        style={locked ? { opacity: 0.45 } : undefined}
+        onClick={() => navigate(id)}
+      >
+        <span className="mnav-icon">{icon}</span>
+        <span>{itemLabel}</span>
+      </button>
+    );
+  };
+
   return (
     <div className="app-shell" id="appShell" style={{ display: 'flex' }}>
+      <div className="mobile-topbar">
+        <button type="button" className="mobile-topbar-btn" onClick={() => setMobileMenuOpen(true)} aria-label="Abrir menu">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M4 7H20" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+            <path d="M4 12H20" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+            <path d="M4 17H20" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+          </svg>
+        </button>
+        <div className="mobile-topbar-brand">
+          <div className="mobile-topbar-mark"><ShipMark size={22} /></div>
+          <div>
+            <div className="mobile-topbar-title">ImportaPro</div>
+            <div className="mobile-topbar-sub">{sectionNames[activeSection] || 'Inicio'}</div>
+          </div>
+        </div>
+        <div ref={profileMobileRef} style={{ position: 'relative' }}>
+          {profileOpen && (
+            <div className="mobile-profile-popover">
+              <ProfilePanel
+                user={user}
+                label={label}
+                onClose={() => setProfileOpen(false)}
+                showToast={showToast}
+                onOpenSettings={openSettingsSection}
+              />
+            </div>
+          )}
+          <button type="button" className="mobile-topbar-btn" onClick={() => setProfileOpen(current => !current)} aria-label="Abrir perfil">
+            {label.charAt(0).toUpperCase()}
+          </button>
+        </div>
+      </div>
+
+      <div className={`mobile-drawer-backdrop${mobileMenuOpen ? ' open' : ''}`} onClick={() => setMobileMenuOpen(false)} />
+      <aside className={`mobile-drawer${mobileMenuOpen ? ' open' : ''}`}>
+        <div className="mobile-drawer-header">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div className="mobile-topbar-mark"><ShipMark size={22} /></div>
+            <div>
+              <div className="mobile-topbar-title">ImportaPro</div>
+              <div className="mobile-topbar-sub">Menu principal</div>
+            </div>
+          </div>
+          <button type="button" className="mobile-topbar-btn" onClick={() => setMobileMenuOpen(false)} aria-label="Cerrar menu">×</button>
+        </div>
+        <div className="mobile-drawer-section">Importacion</div>
+        <div className="mobile-drawer-items">
+          {navItem('home', '•', 'Inicio')}
+          {navItem('calc', '+', 'Calculadora')}
+          {navItem('products', '[]', 'Mis productos')}
+          {navItem('comparator', '<>', 'Comparar productos')}
+          {navItem('ncm', '?', 'Buscar NCM')}
+          {navItem('simulator', 'o', 'Simulador de precio')}
+          {navItem('prices', '$', 'Precios confirmados')}
+        </div>
+        <div className="mobile-drawer-section">Contenedor</div>
+        <div className="mobile-drawer-items">
+          {navItem('container', '3D', 'Cargar contenedor')}
+          {navItem('palletbuilder', 'PL', 'Armador de pallets')}
+          {navItem('settings', '⚙', 'Configuracion')}
+        </div>
+      </aside>
+
       <aside className="sidebar">
         <div className="brand">
           <div
@@ -214,7 +317,7 @@ export default function AppShell() {
         </nav>
 
         <div className="sidebar-footer">
-          <div ref={profileRef} style={{ position: 'relative', marginTop: 12 }}>
+          <div ref={profileDesktopRef} style={{ position: 'relative', marginTop: 12 }}>
             {profileOpen && (
               <ProfilePanel
                 user={user}
@@ -305,6 +408,16 @@ export default function AppShell() {
           {activeSection === 'container' && <ContainerLoader />}
           {activeSection === 'palletbuilder' && <PalletBuilder />}
         </Suspense>
+      </div>
+
+      <div className="mobile-nav">
+        <div className="mobile-nav-inner">
+          {mobileNavButton('home', '•', 'Inicio')}
+          {mobileNavButton('calc', '+', 'Calc')}
+          {mobileNavButton('prices', '$', 'Precios')}
+          {mobileNavButton('container', '3D', 'Cont')}
+          {mobileNavButton('palletbuilder', 'PL', 'Pallet')}
+        </div>
       </div>
 
       {upgradeModal && (
