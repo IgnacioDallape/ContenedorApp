@@ -44,7 +44,7 @@ const useAuthStore = create((set, get) => ({
         .select('plan, status')
         .eq('user_id', user.id)
         .single();
-      set({ userPlan: (data && data.status === 'active') ? data.plan : 'none' });
+      set({ userPlan: (data && ['active', 'on_trial', 'trialing'].includes(data.status)) ? data.plan : 'none' });
     } catch(e) {
       set({ userPlan: 'none' });
     }

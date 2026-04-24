@@ -1,7 +1,6 @@
 import { useEffect, useRef, useCallback, useImperativeHandle, forwardRef } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import useContainerStore from '../../stores/containerStore.js';
 import useAppStore from '../../stores/appStore.js';
 import { ZONE_COLORS, ZONE_COLORS_HEX, ZONE_LABELS } from '../../lib/constants.js';
@@ -419,13 +418,11 @@ function ThreeCanvas({ onSelectInstance, onSetZone, onClearZone, readOnly = fals
         return r.packed;
       })();
       const totalItems = packed.length;
-      const heavy = totalItems > 40;  // heavy mode: merge geos, skip anim, simplify pallets
+      const heavy = totalItems > 40;  // heavy mode: skip anim and simplify pallets, but keep units individual
       const animItems = [];
 
-      // ── Heavy mode: merge all box geometries by color (1 draw call per color) ──
+      // ── Heavy mode: keep every unit as its own mesh so quantities stay readable/selectable ──
       if (heavy) {
-        const geosByColor = new Map(); // color → [{geo, userData}]
-
         for (const b of packed) {
           const gap = RENDER_BOX_GAP;
           if (b.type === 'pallet') {
@@ -437,32 +434,27 @@ function ThreeCanvas({ onSelectInstance, onSetZone, onClearZone, readOnly = fals
             baseGeo.translate(b.x + b.dX/2, b.y + baseH/2, b.z + b.dZ/2);
             const baseMesh = new THREE.Mesh(baseGeo, new THREE.MeshPhongMaterial({ color: 0xC9985C, shininess: 8 }));
             baseMesh.userData = { instanceId: iid, productId: b.productId, label: b.name, type: b.type, dims: b.dims, pct: b.pct };
+            baseMesh.castShadow = true;
+            baseMesh.receiveShadow = true;
             containerGroup.add(baseMesh);
 
             if (cargoH > 2) {
-              const color = b.color || '#8D7966';
-              if (!geosByColor.has(color)) geosByColor.set(color, { geos: [], ud: { label: b.name, type: b.type, dims: b.dims, pct: b.pct, productId: b.productId, instanceId: iid } });
-              const cg = new THREE.BoxGeometry(b.dX - gap, cargoH - gap, b.dZ - gap);
-              cg.translate(b.x + b.dX/2, b.y + baseH + cargoH/2, b.z + b.dZ/2);
-              geosByColor.get(color).geos.push(cg);
+              const cargoGeo = new THREE.BoxGeometry(b.dX - gap, cargoH - gap, b.dZ - gap);
+              cargoGeo.translate(b.x + b.dX/2, b.y + baseH + cargoH/2, b.z + b.dZ/2);
+              const cargoMesh = new THREE.Mesh(cargoGeo, makeBoxMaterials(b.color));
+              cargoMesh.castShadow = true;
+              cargoMesh.receiveShadow = true;
+              cargoMesh.userData = { instanceId: iid, productId: b.productId, label: b.name, type: b.type, dims: b.dims, pct: b.pct };
+              containerGroup.add(cargoMesh);
             }
             continue;
           }
-          // Regular box
-          const color = b.color || '#8D7966';
-          if (!geosByColor.has(color)) geosByColor.set(color, { geos: [], ud: { label: b.name, type: b.type, dims: b.dims, pct: b.pct, productId: b.productId, instanceId: b.instanceId } });
-          const g = new THREE.BoxGeometry(b.dX - gap, b.dY - gap, b.dZ - gap);
-          g.translate(b.x + b.dX/2, b.y + b.dY/2, b.z + b.dZ/2);
-          geosByColor.get(color).geos.push(g);
-        }
 
-        for (const [color, { geos, ud }] of geosByColor) {
-          if (!geos.length) continue;
-          const merged = mergeGeometries(geos);
-          geos.forEach(g => g.dispose());
-          const mesh = new THREE.Mesh(merged, makeBoxMaterials(color));
+          const geo = new THREE.BoxGeometry(b.dX - gap, b.dY - gap, b.dZ - gap);
+          geo.translate(b.x + b.dX/2, b.y + b.dY/2, b.z + b.dZ/2);
+          const mesh = new THREE.Mesh(geo, makeBoxMaterials(b.color));
           mesh.castShadow = true; mesh.receiveShadow = true;
-          mesh.userData = ud;
+          mesh.userData = { label: b.name, type: b.type, dims: b.dims, pct: b.pct, productId: b.productId, instanceId: b.instanceId };
           containerGroup.add(mesh);
         }
 
