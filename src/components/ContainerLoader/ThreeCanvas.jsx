@@ -219,7 +219,7 @@ function ThreeCanvas({ onSelectInstance, onSetZone, onClearZone, readOnly = fals
       _animItems: [], _animStartTime: 0,
       _selectedInstanceId: null, _selectedMeshes: [], _selectedOutlines: [],
       _hoveredMesh: null, _raycaster: new THREE.Raycaster(), _mouse: new THREE.Vector2(),
-      _isDragging: false, _dragFloorStart: null, _dragInstanceStart: null, _dragCachedDims: null,
+      _isDragging: false, _dragFloorStart: null, _dragInstanceStart: null, _dragCachedDims: null, _dragGrabOffset: null, _dragPlaneY: null, _dragMeshOffsets: null, _dragPackedLayout: null,
       _dragPrevManualPos: null, _dragLayoutManualPos: null, _dragLayoutLockedOri: null,
       _mouseDownPos: { x: 0, y: 0 }, _mouseDownTime: 0, _lastDblClickTime: 0,
       _requestRender: () => { _needsRender = true; },
@@ -418,35 +418,89 @@ function ThreeCanvas({ onSelectInstance, onSetZone, onClearZone, readOnly = fals
         return r.packed;
       })();
       const totalItems = packed.length;
-      const heavy = totalItems > 40;  // heavy mode: skip anim and simplify pallets, but keep units individual
+      const heavy = totalItems > 40;  // heavy mode: skip anim and simplify regular boxes, but keep pallet detail
       const animItems = [];
+
+      function addPalletMeshes(b, gap, animated = false, delay = 0) {
+        const iid = b.instanceId;
+        const baseH = Math.min(14, b.dY * 0.13);
+        const cargoH = b.dY - baseH;
+
+        [0, 1, 2].forEach(pi => {
+          const shade = [0xC9985C, 0xDAB870, 0xB07840][pi];
+          const plankW = (b.dX - gap - 2) / 3;
+          const plank = new THREE.Mesh(
+            new THREE.BoxGeometry(plankW, baseH * 0.75, b.dZ - gap),
+            new THREE.MeshPhongMaterial({ color: shade, shininess: 10, specular: 0x0c0a04 })
+          );
+          const ty = b.y + baseH * 0.375;
+          plank.position.set(b.x + plankW / 2 + pi * (plankW + 1) + 0.5, animated ? ty + CH * 1.5 : ty, b.z + b.dZ / 2);
+          plank.castShadow = true;
+          plank.receiveShadow = true;
+          plank.userData = { instanceId: iid, productId: b.productId, label: b.name, type: b.type, dims: b.dims, pct: b.pct };
+          if (animated) animItems.push({ mesh: plank, targetY: ty, delay });
+          containerGroup.add(plank);
+        });
+
+        [0.1, 0.5, 0.9].forEach(t2 => {
+          const sl = new THREE.Mesh(
+            new THREE.BoxGeometry(b.dX - gap, baseH, Math.max(6, b.dZ * 0.12)),
+            new THREE.MeshPhongMaterial({ color: 0x8B6030, shininess: 5, specular: 0x060400 })
+          );
+          const ty = b.y + baseH / 2;
+          sl.position.set(b.x + b.dX / 2, animated ? ty + CH * 1.5 : ty, b.z + t2 * b.dZ);
+          sl.castShadow = true;
+          sl.receiveShadow = true;
+          sl.userData = { instanceId: iid, productId: b.productId, label: b.name, type: b.type, dims: b.dims, pct: b.pct };
+          if (animated) animItems.push({ mesh: sl, targetY: ty, delay });
+          containerGroup.add(sl);
+        });
+
+        if (b.packedItems?.length) {
+          const palL = b.palletBase?.L || b.dX;
+          const palW = b.palletBase?.W || b.dZ;
+          for (const box of b.packedItems) {
+            const bMesh = new THREE.Mesh(
+              new THREE.BoxGeometry(
+                Math.max(0.1, box.dX * b.dX / palL - RENDER_BOX_GAP),
+                Math.max(0.1, box.dY - RENDER_BOX_GAP),
+                Math.max(0.1, box.dZ * b.dZ / palW - RENDER_BOX_GAP)
+              ),
+              makeBoxMaterials(box.color || b.color)
+            );
+            const ty = b.y + baseH + box.y + box.dY / 2;
+            bMesh.position.set(
+              b.x + box.x * b.dX / palL + box.dX * b.dX / palL / 2,
+              animated ? ty + CH * 1.5 : ty,
+              b.z + box.z * b.dZ / palW + box.dZ * b.dZ / palW / 2
+            );
+            bMesh.castShadow = true;
+            bMesh.receiveShadow = true;
+            bMesh.userData = { label: b.name, type: b.type, dims: b.dims, pct: b.pct, productId: b.productId, instanceId: iid };
+            if (animated) animItems.push({ mesh: bMesh, targetY: ty, delay: delay + Math.min(box.y * 2, 200) });
+            containerGroup.add(bMesh);
+          }
+        } else if (cargoH > 2) {
+          const cmesh = new THREE.Mesh(
+            new THREE.BoxGeometry(b.dX - gap, cargoH - gap, b.dZ - gap),
+            makeBoxMaterials(b.color)
+          );
+          const ty = b.y + baseH + cargoH / 2;
+          cmesh.position.set(b.x + b.dX / 2, animated ? ty + CH * 1.5 : ty, b.z + b.dZ / 2);
+          cmesh.castShadow = true;
+          cmesh.receiveShadow = true;
+          cmesh.userData = { label: b.name, type: b.type, dims: b.dims, pct: b.pct, productId: b.productId, instanceId: iid };
+          if (animated) animItems.push({ mesh: cmesh, targetY: ty, delay });
+          containerGroup.add(cmesh);
+        }
+      }
 
       // ── Heavy mode: keep every unit as its own mesh so quantities stay readable/selectable ──
       if (heavy) {
         for (const b of packed) {
           const gap = RENDER_BOX_GAP;
           if (b.type === 'pallet') {
-            const iid = b.instanceId;
-            const baseH = Math.min(14, b.dY * 0.13);
-            const cargoH = b.dY - baseH;
-            // Simplified pallet base (single box, no planks/slats)
-            const baseGeo = new THREE.BoxGeometry(b.dX - gap, baseH, b.dZ - gap);
-            baseGeo.translate(b.x + b.dX/2, b.y + baseH/2, b.z + b.dZ/2);
-            const baseMesh = new THREE.Mesh(baseGeo, new THREE.MeshPhongMaterial({ color: 0xC9985C, shininess: 8 }));
-            baseMesh.userData = { instanceId: iid, productId: b.productId, label: b.name, type: b.type, dims: b.dims, pct: b.pct };
-            baseMesh.castShadow = true;
-            baseMesh.receiveShadow = true;
-            containerGroup.add(baseMesh);
-
-            if (cargoH > 2) {
-              const cargoGeo = new THREE.BoxGeometry(b.dX - gap, cargoH - gap, b.dZ - gap);
-              cargoGeo.translate(b.x + b.dX/2, b.y + baseH + cargoH/2, b.z + b.dZ/2);
-              const cargoMesh = new THREE.Mesh(cargoGeo, makeBoxMaterials(b.color));
-              cargoMesh.castShadow = true;
-              cargoMesh.receiveShadow = true;
-              cargoMesh.userData = { instanceId: iid, productId: b.productId, label: b.name, type: b.type, dims: b.dims, pct: b.pct };
-              containerGroup.add(cargoMesh);
-            }
+            addPalletMeshes(b, gap, false, 0);
             continue;
           }
 
@@ -467,57 +521,7 @@ function ThreeCanvas({ onSelectInstance, onSetZone, onClearZone, readOnly = fals
           const delay = baseDelay + stackDelay;
 
           if (b.type === 'pallet') {
-            const iid = b.instanceId;
-            const baseH = Math.min(14, b.dY * 0.13);
-            const cargoH = b.dY - baseH;
-
-            [0, 1, 2].forEach(pi => {
-              const shade = [0xC9985C, 0xDAB870, 0xB07840][pi];
-              const plankW = (b.dX - gap - 2) / 3;
-              const plank = new THREE.Mesh(new THREE.BoxGeometry(plankW, baseH * 0.75, b.dZ - gap), new THREE.MeshPhongMaterial({ color: shade, shininess: 10, specular: 0x0c0a04 }));
-              const ty = b.y + baseH * 0.375;
-              plank.position.set(b.x + plankW/2 + pi*(plankW+1) + 0.5, ty + CH * 1.5, b.z + b.dZ/2);
-              plank.castShadow = true; plank.receiveShadow = true;
-              plank.userData = { instanceId: iid, productId: b.productId, label: b.name, type: b.type, dims: b.dims, pct: b.pct };
-              animItems.push({ mesh: plank, targetY: ty, delay });
-              containerGroup.add(plank);
-            });
-
-            [0.1, 0.5, 0.9].forEach(t2 => {
-              const sl = new THREE.Mesh(new THREE.BoxGeometry(b.dX - gap, baseH, Math.max(6, b.dZ * 0.12)), new THREE.MeshPhongMaterial({ color: 0x8B6030, shininess: 5, specular: 0x060400 }));
-              const ty = b.y + baseH/2;
-              sl.position.set(b.x + b.dX/2, ty + CH * 1.5, b.z + t2 * b.dZ);
-              sl.castShadow = true; sl.userData = { instanceId: iid, productId: b.productId };
-              animItems.push({ mesh: sl, targetY: ty, delay });
-              containerGroup.add(sl);
-            });
-
-            if (b.packedItems?.length) {
-              const palL = b.palletBase?.L || b.dX;
-              const palW = b.palletBase?.W || b.dZ;
-              for (const box of b.packedItems) {
-                const bGeo = new THREE.BoxGeometry(
-                  Math.max(0.1, box.dX * b.dX / palL - RENDER_BOX_GAP),
-                  Math.max(0.1, box.dY - RENDER_BOX_GAP),
-                  Math.max(0.1, box.dZ * b.dZ / palW - RENDER_BOX_GAP)
-                );
-                const bMesh = new THREE.Mesh(bGeo, makeBoxMaterials(box.color || b.color));
-                const ty = b.y + baseH + box.y + box.dY / 2;
-                bMesh.position.set(b.x + box.x * b.dX / palL + box.dX * b.dX / palL / 2, ty + CH * 1.5, b.z + box.z * b.dZ / palW + box.dZ * b.dZ / palW / 2);
-                bMesh.castShadow = true; bMesh.receiveShadow = true;
-                bMesh.userData = { label: b.name, type: b.type, dims: b.dims, pct: b.pct, productId: b.productId, instanceId: iid };
-                animItems.push({ mesh: bMesh, targetY: ty, delay: delay + Math.min(box.y * 2, 200) });
-                containerGroup.add(bMesh);
-              }
-            } else if (cargoH > 2) {
-              const cmesh = new THREE.Mesh(new THREE.BoxGeometry(b.dX - gap, cargoH - gap, b.dZ - gap), makeBoxMaterials(b.color));
-              const ty = b.y + baseH + cargoH/2;
-              cmesh.position.set(b.x + b.dX/2, ty + CH * 1.5, b.z + b.dZ/2);
-              cmesh.castShadow = true; cmesh.receiveShadow = true;
-              cmesh.userData = { label: b.name, type: b.type, dims: b.dims, pct: b.pct, productId: b.productId, instanceId: iid };
-              animItems.push({ mesh: cmesh, targetY: ty, delay });
-              containerGroup.add(cmesh);
-            }
+            addPalletMeshes(b, gap, true, delay);
             continue;
           }
 
@@ -634,22 +638,56 @@ function ThreeCanvas({ onSelectInstance, onSetZone, onClearZone, readOnly = fals
     return hits.length ? hits[0].point : null;
   }
 
-  function getSupportHeightAtCursor(e, selectedInstanceId) {
+  function getHorizontalPlaneIntersect(e, planeY) {
     const t = threeRef.current;
-    if (!t) return 0;
+    if (!t) return null;
     const rect = t.renderer.domElement.getBoundingClientRect();
     const mx = ((e.clientX - rect.left) / rect.width) * 2 - 1;
     const my = -((e.clientY - rect.top) / rect.height) * 2 + 1;
     const rc = new THREE.Raycaster();
     rc.setFromCamera(new THREE.Vector2(mx, my), t.camera);
-    const hits = rc.intersectObjects(t.containerGroup.children, true)
-      .filter(hit => hit.object.userData?.instanceId && hit.object.userData.instanceId !== selectedInstanceId);
+    const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -planeY);
+    const point = new THREE.Vector3();
+    return rc.ray.intersectPlane(plane, point) ? point : null;
+  }
 
+  function getSupportHeightForFootprint(px, pz, dX, dZ, selectedInstanceId) {
+    const t = threeRef.current;
+    const packedLayout = t?._dragPackedLayout || [];
     let maxTop = 0;
-    for (const hit of hits) {
-      const box = new THREE.Box3().setFromObject(hit.object);
-      if (Number.isFinite(box.max.y)) maxTop = Math.max(maxTop, box.max.y);
+
+    const overlaps = (ax, az, aw, ad, bx, bz, bw, bd) =>
+      ax < bx + bw && ax + aw > bx && az < bz + bd && az + ad > bz;
+
+    for (const item of packedLayout) {
+      if (!item || item.instanceId === selectedInstanceId) continue;
+
+      if (item.type === 'pallet' && item.packedItems?.length) {
+        const baseH = Math.min(14, item.dY * 0.13);
+        if (overlaps(px, pz, dX, dZ, item.x, item.z, item.dX, item.dZ)) {
+          maxTop = Math.max(maxTop, item.y + baseH);
+        }
+
+        const palL = item.palletBase?.L || item.dX;
+        const palW = item.palletBase?.W || item.dZ;
+        for (const box of item.packedItems) {
+          const boxX = item.x + (box.x * item.dX / palL);
+          const boxZ = item.z + (box.z * item.dZ / palW);
+          const boxDX = box.dX * item.dX / palL;
+          const boxDZ = box.dZ * item.dZ / palW;
+          const boxTop = item.y + baseH + box.y + box.dY;
+          if (overlaps(px, pz, dX, dZ, boxX, boxZ, boxDX, boxDZ)) {
+            maxTop = Math.max(maxTop, boxTop);
+          }
+        }
+        continue;
+      }
+
+      if (overlaps(px, pz, dX, dZ, item.x, item.z, item.dX, item.dZ)) {
+        maxTop = Math.max(maxTop, item.y + item.dY);
+      }
     }
+
     return maxTop;
   }
 
@@ -724,6 +762,20 @@ function ThreeCanvas({ onSelectInstance, onSetZone, onClearZone, readOnly = fals
           if (item) {
             t._dragInstanceStart = { x: item.x, z: item.z };
             t._dragCachedDims = { dX: item.dX, dZ: item.dZ };
+            const hitPoint = hits[0]?.point || pt;
+            t._dragPlaneY = hitPoint.y;
+            const dragPlanePoint = getHorizontalPlaneIntersect(e, t._dragPlaneY) || hitPoint;
+            t._dragGrabOffset = {
+              x: dragPlanePoint.x - item.x,
+              z: dragPlanePoint.z - item.z,
+            };
+            t._dragMeshOffsets = t._selectedMeshes.map(mesh => ({
+              mesh,
+              x: mesh.position.x - item.x,
+              y: mesh.position.y - item.y,
+              z: mesh.position.z - item.z,
+            }));
+            t._dragPackedLayout = packed;
             t._dragPrevManualPos = { x: item.x, z: item.z };
             const snapshot = buildLayoutSnapshot(state.loadedProducts);
             t._dragLayoutManualPos = snapshot.manualPos;
@@ -748,29 +800,24 @@ function ThreeCanvas({ onSelectInstance, onSetZone, onClearZone, readOnly = fals
         t.renderer.domElement.style.cursor = 'grabbing';
       }
       if (t._isDragging) {
-        const pt = getFloorIntersect(e);
+        const pt = getHorizontalPlaneIntersect(e, t._dragPlaneY ?? 0) || getFloorIntersect(e);
         if (pt && t._dragInstanceStart && t._dragCachedDims) {
           const state = useContainerStore.getState();
           const { dX, dZ } = t._dragCachedDims;
-          const ddx = pt.x - t._dragFloorStart.x;
-          const ddz = pt.z - t._dragFloorStart.z;
           const snap = 5;
-          let nx = Math.round((t._dragInstanceStart.x + ddx) / snap) * snap;
-          let nz = Math.round((t._dragInstanceStart.z + ddz) / snap) * snap;
+          const offsetX = t._dragGrabOffset?.x ?? (dX / 2);
+          const offsetZ = t._dragGrabOffset?.z ?? (dZ / 2);
+          let nx = Math.round((pt.x - offsetX) / snap) * snap;
+          let nz = Math.round((pt.z - offsetZ) / snap) * snap;
           nx = Math.max(0, Math.min(state.CONT_L - dX, nx));
           nz = Math.max(0, Math.min(state.CONT_W - dZ, nz));
           if (!window._instanceManualPos) window._instanceManualPos = {};
           window._instanceManualPos[t._selectedInstanceId] = { x: nx, z: nz };
-          const supportY = getSupportHeightAtCursor(e, t._selectedInstanceId);
-          const cx = nx + dX / 2, cz = nz + dZ / 2;
-          t.containerGroup.children.forEach(m => {
-            if (m.userData?.instanceId === t._selectedInstanceId) {
-              const box = new THREE.Box3().setFromObject(m);
-              const height = Math.max(0.1, box.max.y - box.min.y);
-              m.position.x = cx;
-              m.position.z = cz;
-              m.position.y = supportY + height / 2;
-            }
+          const supportY = getSupportHeightForFootprint(nx, nz, dX, dZ, t._selectedInstanceId);
+          (t._dragMeshOffsets || []).forEach(({ mesh, x, y, z }) => {
+            mesh.position.x = nx + x;
+            mesh.position.y = supportY + y;
+            mesh.position.z = nz + z;
           });
           const outline = makeSelectionOutlineFromMeshes(t._selectedMeshes, t.scene, t._selectedOutlines[0]);
           t._selectedOutlines = outline ? [outline] : [];
@@ -831,6 +878,10 @@ function ThreeCanvas({ onSelectInstance, onSetZone, onClearZone, readOnly = fals
       t._dragFloorStart = null;
       t._dragInstanceStart = null;
       t._dragCachedDims = null;
+      t._dragGrabOffset = null;
+      t._dragPlaneY = null;
+      t._dragMeshOffsets = null;
+      t._dragPackedLayout = null;
       const iid = t._selectedInstanceId;
       invalidatePackingCache();
 
@@ -856,7 +907,7 @@ function ThreeCanvas({ onSelectInstance, onSetZone, onClearZone, readOnly = fals
       t._dragLayoutLockedOri = null;
       return;
     }
-    t._dragFloorStart = null; t._dragInstanceStart = null; t._dragCachedDims = null;
+    t._dragFloorStart = null; t._dragInstanceStart = null; t._dragCachedDims = null; t._dragGrabOffset = null; t._dragPlaneY = null; t._dragMeshOffsets = null; t._dragPackedLayout = null;
     t._dragPrevManualPos = null; t._dragLayoutManualPos = null; t._dragLayoutLockedOri = null;
 
     if (Date.now() - t._mouseDownTime > 300) return;
@@ -895,6 +946,13 @@ function ThreeCanvas({ onSelectInstance, onSetZone, onClearZone, readOnly = fals
     const tooltip = document.getElementById('tooltip3d');
     if (tooltip) tooltip.style.display = 'none';
     if (t._isDragging) { t._isDragging = false; t.controls.enabled = true; }
+    t._dragFloorStart = null;
+    t._dragInstanceStart = null;
+    t._dragCachedDims = null;
+    t._dragGrabOffset = null;
+    t._dragPlaneY = null;
+    t._dragMeshOffsets = null;
+    t._dragPackedLayout = null;
   }, []);
 
   const handleDblClick = useCallback((e) => {

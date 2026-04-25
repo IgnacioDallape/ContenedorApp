@@ -135,6 +135,13 @@ export default function Comparator() {
 
   const sharedCanales = prodA?.canales || prodB?.canales || canales;
   const hasBoth = cA && cB;
+  const summaryRows = hasBoth ? [
+    { label: 'Costo unitario (ARS)', valA: cA.costoARS,  valB: cB.costoARS,  fmt: ars, higherIsBetter: false },
+    { label: 'Costo unitario (USD)', valA: cA.costoUSD,  valB: cB.costoUSD,  fmt: v => `U$S ${rd(v,2)}`, higherIsBetter: false },
+    { label: 'FOB unitario',          valA: cA.fob,       valB: cB.fob,       fmt: v => `U$S ${rd(v,3)}`, higherIsBetter: false },
+    { label: 'Impuestos (D.I.+IVA+T.E.)', valA: cA.diUnit+cA.ivaUnit+cA.teUnit, valB: cB.diUnit+cB.ivaUnit+cB.teUnit, fmt: v => `U$S ${rd(v,2)}`, higherIsBetter: false },
+    { label: 'Costo total del lote',  valA: cA.costoARS*cA.qty, valB: cB.costoARS*cB.qty, fmt: ars, higherIsBetter: false },
+  ] : [];
 
   // Overall winner: lower cost
   const overallWinner = hasBoth
@@ -203,7 +210,7 @@ export default function Comparator() {
                   <span className="card-title">Ganancia por canal de venta</span>
                   <span style={{ fontSize: 12, color: 'var(--text-3)' }}>por unidad vendida</span>
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div className="comparator-channel-list" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                   {sharedCanales.map((ch, i) => {
                     const ganA = chanGanNeta(ch, cA.costoARS);
                     const ganB = chanGanNeta(ch, cB.costoARS);
@@ -240,7 +247,7 @@ export default function Comparator() {
                         </div>
 
                         {/* Bars */}
-                        <div style={{ padding: '14px 16px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                        <div className="comparator-channel-grid" style={{ padding: '14px 16px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
                           {[
                             { prod: prodA, gan: ganA, color: SLOT_COLORS[0], wins: aWins, loses: bWins },
                             { prod: prodB, gan: ganB, color: SLOT_COLORS[1], wins: bWins, loses: aWins },
@@ -294,6 +301,34 @@ export default function Comparator() {
                   <span className="card-title">Resumen comparativo</span>
                 </div>
 
+                <div className="comparator-summary-mobile">
+                  {summaryRows.map(({ label, valA, valB, fmt, higherIsBetter }, rowIdx) => {
+                    const aWins = higherIsBetter ? valA > valB : valA < valB;
+                    const bWins = higherIsBetter ? valB > valA : valB < valA;
+                    const tie = valA === valB;
+                    return (
+                      <div key={rowIdx} className="comparator-mobile-card">
+                        <div className="comparator-mobile-label">{label}</div>
+                        <div className="comparator-mobile-columns">
+                          {[
+                            { prod: prodA, val: valA, wins: aWins, loses: bWins, color: SLOT_COLORS[0] },
+                            { prod: prodB, val: valB, wins: bWins, loses: aWins, color: SLOT_COLORS[1] },
+                          ].map(({ prod, val, wins, loses, color }, si) => (
+                            <div key={si} className={`comparator-mobile-cell${wins && !tie ? ' is-winner' : ''}`} style={{ '--cmp-accent': color }}>
+                              <div className="comparator-mobile-head">
+                                <span className="comparator-mobile-dot" style={{ background: color }} />
+                                <span className="comparator-mobile-name">{prod?.nombre || `Producto ${si + 1}`}</span>
+                              </div>
+                              <div className="comparator-mobile-value">{fmt(val)}</div>
+                              {!tie && (wins ? <CompBadge better={true} /> : <CompBadge better={false} />)}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
                 {/* Column headers */}
                 <div className="comparator-summary-wrapper">
                 <div className="comparator-summary-grid" style={{ display: 'grid', gridTemplateColumns: '180px 1fr 1fr', borderBottom: '2px solid var(--border)', paddingBottom: 8, marginBottom: 4 }}>
@@ -309,13 +344,7 @@ export default function Comparator() {
                   ))}
                 </div>
 
-                {[
-                  { label: 'Costo unitario (ARS)', valA: cA.costoARS,  valB: cB.costoARS,  fmt: ars, higherIsBetter: false },
-                  { label: 'Costo unitario (USD)', valA: cA.costoUSD,  valB: cB.costoUSD,  fmt: v => `U$S ${rd(v,2)}`, higherIsBetter: false },
-                  { label: 'FOB unitario',          valA: cA.fob,       valB: cB.fob,       fmt: v => `U$S ${rd(v,3)}`, higherIsBetter: false },
-                  { label: 'Impuestos (D.I.+IVA+T.E.)', valA: cA.diUnit+cA.ivaUnit+cA.teUnit, valB: cB.diUnit+cB.ivaUnit+cB.teUnit, fmt: v => `U$S ${rd(v,2)}`, higherIsBetter: false },
-                  { label: 'Costo total del lote',  valA: cA.costoARS*cA.qty, valB: cB.costoARS*cB.qty, fmt: ars, higherIsBetter: false },
-                ].map(({ label, valA, valB, fmt, higherIsBetter }, rowIdx) => {
+                {summaryRows.map(({ label, valA, valB, fmt, higherIsBetter }, rowIdx) => {
                   const aWins = higherIsBetter ? valA > valB : valA < valB;
                   const bWins = higherIsBetter ? valB > valA : valB < valA;
                   const tie   = valA === valB;

@@ -108,7 +108,9 @@ export default function AppShell() {
   const [upgradeModal, setUpgradeModal] = useState(null);
 
   const [profileOpen, setProfileOpen] = useState(false);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(() => (
+    typeof window !== 'undefined' ? window.innerWidth <= 860 : false
+  ));
   const profileDesktopRef = useRef(null);
   const profileMobileRef = useRef(null);
 
@@ -221,12 +223,13 @@ export default function AppShell() {
   return (
     <div className="app-shell" id="appShell" style={{ display: 'flex' }}>
       <div className="mobile-topbar">
-        <button type="button" className="mobile-topbar-btn" onClick={() => setMobileMenuOpen(true)} aria-label="Abrir menu">
+        <button type="button" className="mobile-topbar-menu" onClick={() => setMobileMenuOpen(true)} aria-label="Abrir menu">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <path d="M4 7H20" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
             <path d="M4 12H20" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
             <path d="M4 17H20" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
           </svg>
+          <span>Menu</span>
         </button>
         <div className="mobile-topbar-brand">
           <div className="mobile-topbar-mark"><ShipMark size={22} /></div>

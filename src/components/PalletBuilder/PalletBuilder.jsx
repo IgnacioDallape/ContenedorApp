@@ -1,12 +1,12 @@
 import { useState, useCallback } from 'react';
-import usePalletStore from '../../stores/palletStore.js';
+import usePalletStore, { pb_validatePlacement } from '../../stores/palletStore.js';
 import useContainerStore from '../../stores/containerStore.js';
 import useAppStore from '../../stores/appStore.js';
 import { PB_PALLET_TYPES, PB_COLORS } from '../../lib/constants.js';
 import PalletThreeCanvas from './PalletThreeCanvas.jsx';
 
 const PRODUCT_DEFAULTS = {
-  name: '', L: '', W: '', H: '', qty: '', weight: '', mustBeBase: false, imgUrl: null,
+  name: '', L: '', W: '', H: '', qty: '', weight: '', mustBeBase: false, noRotate: false, imgUrl: null,
 };
 
 export default function PalletBuilder() {
@@ -14,6 +14,7 @@ export default function PalletBuilder() {
     palletType, maxHeight, products, results, activeResult,
     setPalletType, setMaxHeight, addOrUpdateProduct, removeProduct,
     setEditingId, editingId, build, setActiveResult, clearResults,
+    selectedBoxUid, setSelectedBoxUid, updateActiveResultBoxes, removeBoxFromActiveResult,
   } = usePalletStore();
   const { setPendingProduct, catalog, setActiveSection: containerNav } = useContainerStore();
   const { setActiveSection, showToast } = useAppStore();
@@ -42,6 +43,7 @@ export default function PalletBuilder() {
       qty: String(p.qty),
       weight: String(p.weight || ''),
       mustBeBase: p.mustBeBase || false,
+      noRotate: p.noRotate || false,
       imgUrl: p.imgUrl || null,
     });
     setShowProductForm(true);
@@ -68,7 +70,15 @@ export default function PalletBuilder() {
     const minDim = Math.min(L, W, H);
     if (minDim > Math.max(pt.L, pt.W)) return showToast('La caja es más grande que el pallet', 'error');
 
-    addOrUpdateProduct({ name, dims: { L, W, H }, qty, weight, mustBeBase: form.mustBeBase, imgUrl: form.imgUrl || null });
+    addOrUpdateProduct({
+      name,
+      dims: { L, W, H },
+      qty,
+      weight,
+      mustBeBase: form.mustBeBase,
+      noRotate: form.noRotate,
+      imgUrl: form.imgUrl || null,
+    });
     clearResults();
     setShowProductForm(false);
     setForm({ ...PRODUCT_DEFAULTS });
@@ -152,6 +162,7 @@ export default function PalletBuilder() {
         qty: Math.max(1, parseInt(qty) || 1),
         weight: p.weight || 0,
         mustBeBase: false,
+        noRotate: false,
       });
       added++;
     }
@@ -162,6 +173,65 @@ export default function PalletBuilder() {
 
   // ── Active result ──
   const activeRes = results[activeResult] || null;
+  const selectedBox = activeRes?.boxes?.find(box => box.uid === selectedBoxUid) || null;
+
+  function rotateSelectedBox() {
+    if (!activeRes || !selectedBox) return;
+    if (selectedBox.noRotate) return showToast('Esta caja está marcada como no rotatable', 'error');
+
+    const nextDims = { dX: selectedBox.dZ, dY: selectedBox.dY, dZ: selectedBox.dX };
+    const placement = pb_validatePlacement(
+      activeRes.boxes,
+      selectedBox,
+      activeRes.palL,
+      activeRes.palW,
+      activeRes.maxHeight,
+      selectedBox.x,
+      selectedBox.z,
+      nextDims
+    );
+
+    if (!placement.valid) {
+      return showToast('No entra rotada en esa posición', 'error');
+    }
+
+    updateActiveResultBoxes(activeRes.boxes.map(box =>
+      box.uid === selectedBox.uid
+        ? { ...box, ...placement }
+        : box
+    ));
+    showToast('Orientación actualizada', 'success');
+  }
+
+  function restoreSelectedBoxOrientation() {
+    if (!activeRes || !selectedBox?.sourceDims) return;
+    const nextDims = {
+      dX: selectedBox.sourceDims.L,
+      dY: selectedBox.sourceDims.H,
+      dZ: selectedBox.sourceDims.W,
+    };
+    const placement = pb_validatePlacement(
+      activeRes.boxes,
+      selectedBox,
+      activeRes.palL,
+      activeRes.palW,
+      activeRes.maxHeight,
+      selectedBox.x,
+      selectedBox.z,
+      nextDims
+    );
+
+    if (!placement.valid) {
+      return showToast('No se puede restaurar esa orientación en esta posición', 'error');
+    }
+
+    updateActiveResultBoxes(activeRes.boxes.map(box =>
+      box.uid === selectedBox.uid
+        ? { ...box, ...placement }
+        : box
+    ));
+    showToast('Orientación restaurada', 'success');
+  }
 
   return (
     <div style={{ display: 'flex', height: '100%', overflow: 'hidden' }}>
@@ -240,6 +310,11 @@ export default function PalletBuilder() {
                     {p.mustBeBase && (
                       <span style={{ fontSize: 9, padding: '1px 6px', borderRadius: 10, background: 'var(--accent)', color: '#fff', fontFamily: "'DM Mono', monospace", marginLeft: 4 }}>
                         ⬇ BASE
+                      </span>
+                    )}
+                    {p.noRotate && (
+                      <span style={{ fontSize: 9, padding: '1px 6px', borderRadius: 10, background: 'var(--bg-3)', color: 'var(--text)', fontFamily: "'DM Mono', monospace", marginLeft: 4, border: '1px solid var(--border)' }}>
+                        SIN GIRO
                       </span>
                     )}
                   </div>
@@ -335,8 +410,66 @@ export default function PalletBuilder() {
               {/* 3D + summary split */}
               <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
                 {/* 3D view */}
-                <div style={{ flex: 1, padding: 12, minWidth: 0 }}>
-                  <PalletThreeCanvas result={activeRes} />
+                <div style={{ flex: 1, padding: 12, minWidth: 0, position: 'relative' }}>
+                  <PalletThreeCanvas
+                    result={activeRes}
+                    selectedBoxUid={selectedBoxUid}
+                    onSelectBox={setSelectedBoxUid}
+                    onUpdateBoxes={updateActiveResultBoxes}
+                  />
+                  {selectedBox && (
+                    <div style={{ position: 'absolute', right: 22, top: 22, zIndex: 30, width: 'min(272px, calc(100% - 44px))', maxHeight: 'calc(100% - 44px)', background: 'linear-gradient(180deg, rgba(251,247,241,0.98), rgba(243,236,227,0.98))', border: '1px solid rgba(141,121,102,0.22)', borderRadius: 18, boxShadow: '0 20px 44px rgba(97,78,60,0.18)', fontFamily: "'DM Mono', monospace", backdropFilter: 'blur(14px)', overflowX: 'hidden', overflowY: 'auto' }}>
+                      <div style={{ padding: '14px 14px 12px', background: 'linear-gradient(135deg, var(--c1), #a48f7d)', color: 'var(--c5)', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+                          <div style={{ width: 34, height: 34, borderRadius: 10, background: 'rgba(248,241,233,0.16)', display: 'grid', placeItems: 'center', fontSize: 16, flexShrink: 0 }}>📦</div>
+                          <div style={{ minWidth: 0 }}>
+                            <div style={{ fontSize: 12, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{selectedBox.name}</div>
+                            <div style={{ fontSize: 9, color: 'rgba(248,241,233,0.78)', letterSpacing: 0.8 }}>UNIDAD {selectedBox.uid.split('::').pop()}</div>
+                          </div>
+                        </div>
+                        <button onClick={() => setSelectedBoxUid(null)} style={{ width: 28, height: 28, borderRadius: 9, border: '1px solid rgba(248,241,233,0.18)', background: 'rgba(248,241,233,0.12)', color: 'var(--c5)', cursor: 'pointer', display: 'grid', placeItems: 'center', flexShrink: 0 }}>×</button>
+                      </div>
+
+                      <div style={{ padding: '12px 14px 10px', borderBottom: '1px solid rgba(141,121,102,0.12)' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                          <div style={{ padding: '9px 10px', borderRadius: 12, background: 'rgba(255,255,255,0.52)', border: '1px solid rgba(141,121,102,0.1)' }}>
+                            <div style={{ fontSize: 9, color: 'var(--muted)', letterSpacing: 1 }}>MEDIDAS</div>
+                            <div style={{ fontSize: 11, color: 'var(--text)', marginTop: 4 }}>{selectedBox.dX}×{selectedBox.dZ}×{selectedBox.dY} cm</div>
+                          </div>
+                          <div style={{ padding: '9px 10px', borderRadius: 12, background: 'rgba(255,255,255,0.52)', border: '1px solid rgba(141,121,102,0.1)' }}>
+                            <div style={{ fontSize: 9, color: 'var(--muted)', letterSpacing: 1 }}>POSICIÓN</div>
+                            <div style={{ fontSize: 11, color: 'var(--text)', marginTop: 4 }}>X {selectedBox.x} · Z {selectedBox.z} · Y {selectedBox.y}</div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div style={{ padding: '12px 14px', borderBottom: '1px solid rgba(141,121,102,0.12)' }}>
+                        <div style={{ fontSize: 9, color: 'var(--muted)', letterSpacing: 1.4, marginBottom: 9 }}>ORIENTACIÓN Y POSICIÓN</div>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
+                          <button
+                            onClick={rotateSelectedBox}
+                            disabled={selectedBox.noRotate}
+                            style={{ padding: '10px 8px', borderRadius: 12, border: '1px solid rgba(141,121,102,0.14)', background: 'rgba(255,255,255,0.56)', color: 'var(--text)', cursor: selectedBox.noRotate ? 'not-allowed' : 'pointer', opacity: selectedBox.noRotate ? 0.38 : 1 }}
+                          >
+                            Giro horizontal
+                          </button>
+                          <button
+                            onClick={restoreSelectedBoxOrientation}
+                            style={{ padding: '10px 8px', borderRadius: 12, border: '1px solid rgba(141,121,102,0.14)', background: 'transparent', color: 'var(--text2)', cursor: 'pointer' }}
+                          >
+                            Restaurar
+                          </button>
+                        </div>
+                        <div style={{ marginTop: 10, padding: '8px 10px', borderRadius: 10, background: 'rgba(141,121,102,0.08)', color: 'var(--muted)', fontSize: 10, lineHeight: 1.45 }}>
+                          Podés arrastrar la caja dentro del pallet. Queda limitada por largo, ancho, altura máxima y apoyo real.
+                        </div>
+                      </div>
+
+                      <div style={{ padding: '12px 14px 14px', display: 'grid', gridTemplateColumns: '1fr', gap: 8 }}>
+                        <button onClick={() => removeBoxFromActiveResult(selectedBox.uid)} style={{ padding: '10px 8px', borderRadius: 12, border: '1px solid rgba(184,92,92,0.26)', background: 'rgba(184,92,92,0.06)', color: 'var(--danger)', cursor: 'pointer' }}>Eliminar unidad</button>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Summary panel */}
@@ -431,6 +564,17 @@ export default function PalletBuilder() {
             </div>
 
             <div className="form-grid-2">
+              <div className="field full" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <input
+                  type="checkbox" id="pbNoRotate"
+                  checked={form.noRotate}
+                  onChange={e => setForm(f => ({ ...f, noRotate: e.target.checked }))}
+                  style={{ width: 16, height: 16 }}
+                />
+                <label htmlFor="pbNoRotate" style={{ cursor: 'pointer', fontSize: 13, margin: 0 }}>
+                  No se puede rotar la caja
+                </label>
+              </div>
               <div className="field full">
                 <label>Nombre</label>
                 <input
@@ -603,6 +747,7 @@ export default function PalletBuilder() {
                                 qty,
                                 weight: p.weight || 0,
                                 mustBeBase: false,
+                                noRotate: false,
                               });
                             }
                             clearResults();

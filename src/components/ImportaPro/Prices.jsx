@@ -182,7 +182,7 @@ export default function Prices() {
           <p className="page-sub">Confirmá cantidades, armá el pedido definitivo y, si tenés Pro o Pro Max, mandalo al contenedor directo desde acá</p>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14, marginBottom: 20 }}>
+        <div className="prices-stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14, marginBottom: 20 }}>
           <div className="card" style={{ padding: '1rem 1.1rem', background: 'linear-gradient(180deg, rgba(26,79,138,0.05), #fff)' }}>
             <div className="card-title">Productos listos</div>
             <div style={{ fontFamily: 'var(--font-head)', fontSize: 34, color: 'var(--accent)', lineHeight: 1, marginTop: 8 }}>{publicationPlans.length}</div>
@@ -198,7 +198,7 @@ export default function Prices() {
           </div>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.7fr) minmax(300px, 0.9fr)', gap: 18, alignItems: 'start', marginBottom: 22 }}>
+        <div className="prices-top-grid" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.7fr) minmax(300px, 0.9fr)', gap: 18, alignItems: 'start', marginBottom: 22 }}>
           <div className="card" style={{ padding: '1rem 1.1rem' }}>
             <div className="card-header" style={{ marginBottom: 0 }}>
               <span className="card-title">Carrito de pedido</span>
@@ -211,8 +211,8 @@ export default function Prices() {
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {orderItems.map(item => (
-                  <div key={item.productId} style={{ border: '1px solid var(--border)', borderRadius: 12, padding: '12px 14px', background: 'linear-gradient(180deg, rgba(26,79,138,0.04), #fff)' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'start' }}>
+                  <div key={item.productId} className="prices-order-card" style={{ border: '1px solid var(--border)', borderRadius: 12, padding: '12px 14px', background: 'linear-gradient(180deg, rgba(26,79,138,0.04), #fff)' }}>
+                    <div className="prices-order-card-head" style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'start' }}>
                       <div>
                         <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>{item.productName}</div>
                         <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 4 }}>
@@ -223,7 +223,7 @@ export default function Prices() {
                         Quitar
                       </button>
                     </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'auto auto auto 1fr auto', gap: 8, alignItems: 'center', marginTop: 12 }}>
+                    <div className="prices-order-controls" style={{ display: 'grid', gridTemplateColumns: 'auto auto auto 1fr auto', gap: 8, alignItems: 'center', marginTop: 12 }}>
                       <button className="btn-outline" onClick={() => changeOrderQty(item.productId, item.orderQty - 1)} style={{ width: 34, padding: '8px 0' }}>−</button>
                       <input
                         type="number"
@@ -276,7 +276,7 @@ export default function Prices() {
               </div>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 16 }}>
+            <div className="prices-summary-actions" style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 16 }}>
               <button className="btn-primary" onClick={prepareOrderPdf}>
                 Preparar orden PDF
               </button>
@@ -361,8 +361,8 @@ export default function Prices() {
                 </div>
                 )}
 
-                <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto auto auto auto auto', gap: 10, alignItems: 'center', padding: '14px 16px', borderTop: '1px solid var(--border)', background: 'linear-gradient(180deg, rgba(26,79,138,0.03), rgba(26,79,138,0.01))' }}>
-                  <div>
+                <div className="prices-plan-footer" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto auto auto auto auto', gap: 10, alignItems: 'center', padding: '14px 16px', borderTop: '1px solid var(--border)', background: 'linear-gradient(180deg, rgba(26,79,138,0.03), rgba(26,79,138,0.01))' }}>
+                  <div className="prices-plan-footer-copy">
                     <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)' }}>Pedido definitivo</div>
                     <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 3 }}>
                       {plan.suggestedTopChannel
