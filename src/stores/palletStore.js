@@ -472,14 +472,26 @@ function pb_chooseBestCandidate(remainingUnits, packed, hm, palL, palW, maxH) {
 
   if (!layerCandidates.length) return null;
 
+  const candidateLimit = remainingUnits.length > 80 ? 5 : remainingUnits.length > 45 ? 8 : 14;
+  const shouldSimulatePatterns = remainingUnits.length <= 80;
   const rankedCandidates = layerCandidates
     .sort((a, b) => a.score - b.score)
-    .slice(0, 14)
-    .map(candidate => ({
-      ...candidate,
-      ...pb_estimateLayerFill(candidate, remainingUnits, packed, palL, palW, maxH),
-      ...pb_simulateLayerPattern(candidate, remainingUnits, packed, palL, palW, maxH),
-    }));
+    .slice(0, candidateLimit)
+    .map(candidate => {
+      const estimate = pb_estimateLayerFill(candidate, remainingUnits, packed, palL, palW, maxH);
+      const simulation = shouldSimulatePatterns
+        ? pb_simulateLayerPattern(candidate, remainingUnits, packed, palL, palW, maxH)
+        : {
+            simulatedCount: estimate.closePlacements,
+            simulatedArea: estimate.sameLayerArea,
+            patternScore: candidate.score,
+          };
+      return {
+        ...candidate,
+        ...estimate,
+        ...simulation,
+      };
+    });
 
   rankedCandidates.sort((a, b) => {
     if (Math.abs(a.patternScore - b.patternScore) > 0.01) return a.patternScore - b.patternScore;
@@ -495,8 +507,9 @@ function pb_chooseBestCandidate(remainingUnits, packed, hm, palL, palW, maxH) {
 
 function pb_optimizePackedLayout(packed, unitsByUid, palL, palW, maxH) {
   let optimized = [...packed];
+  const maxPasses = packed.length > 80 ? 1 : packed.length > 40 ? 2 : 3;
 
-  for (let pass = 0; pass < 3; pass++) {
+  for (let pass = 0; pass < maxPasses; pass++) {
     let movedInPass = false;
     const order = [...optimized].sort((a, b) => (b.y + b.dY) - (a.y + a.dY) || b.y - a.y);
 
@@ -689,7 +702,9 @@ function pb_polishPallets(pallets, products, palL, palW, maxH) {
 
 function pb_finalizePallets(pallets, products, palL, palW, maxH) {
   let working = pallets;
-  for (let pass = 0; pass < 2; pass++) {
+  const totalUnits = products.reduce((sum, product) => sum + (product.qty || 0), 0);
+  const maxPasses = totalUnits > 80 ? 1 : 2;
+  for (let pass = 0; pass < maxPasses; pass++) {
     working = pb_rebalancePallets(working, products, palL, palW, maxH);
     working = pb_polishPallets(working, products, palL, palW, maxH);
   }
@@ -805,7 +820,12 @@ function pb_runPackingCore(products, palL, palW, maxH, strategy = 'balanced') {
 }
 
 export function pb_runPacking(products, palL, palW, maxH) {
-  const strategies = ['balanced', 'footprint', 'low-height', 'long-side'];
+  const totalUnits = products.reduce((sum, product) => sum + (product.qty || 0), 0);
+  const strategies = totalUnits > 80
+    ? ['balanced']
+    : totalUnits > 40
+      ? ['balanced', 'footprint']
+      : ['balanced', 'footprint', 'low-height', 'long-side'];
   let bestPacked = [];
   let bestScore = Infinity;
 

@@ -4,28 +4,39 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import useContainerStore from '../../stores/containerStore.js';
 import useAppStore from '../../stores/appStore.js';
 import { ZONE_COLORS, ZONE_COLORS_HEX, ZONE_LABELS } from '../../lib/constants.js';
-import { runPacking, runPackingCached, invalidatePackingCache, hmGetMax } from '../../lib/packing.js';
+import { runPacking, runPackingCached, invalidatePackingCache, hmGetMax, getPackingPhysicalConstraints } from '../../lib/packing.js';
 
 // ── Multi-container packing cache (up to 8 slots, keyed by dims+products) ──
 const _packCache = new Map();
 function _packKey(CL, CW, CH, products, manualPos, lockedOri) {
   const posStr = manualPos ? Object.entries(manualPos).sort().map(([k,v])=>`${k}:${v.x},${v.z}`).join(';') : '';
   const oriStr = lockedOri ? Object.entries(lockedOri).sort().map(([k,v])=>`${k}:${v.dX},${v.dZ},${v.dY}`).join(';') : '';
+  const physicsStr = JSON.stringify(getPackingPhysicalConstraints());
   return `${Math.round(CL)},${Math.round(CW)},${Math.round(CH)}|` +
     products.map(p => `${p.id}:${p.qty}:${JSON.stringify(p.dims)}`).join('|') +
-    '|' + posStr + '|' + oriStr;
+    '|' + posStr + '|' + oriStr + '|' + physicsStr;
 }
 function getCachedPack(CL, CW, CH, products, manualPos, lockedOri) {
   return _packCache.get(_packKey(CL, CW, CH, products, manualPos, lockedOri)) ?? null;
 }
-function setCachedPack(CL, CW, CH, products, manualPos, lockedOri, packed) {
+function setCachedPack(CL, CW, CH, products, manualPos, lockedOri, packResult) {
   const k = _packKey(CL, CW, CH, products, manualPos, lockedOri);
   if (_packCache.size >= 8) _packCache.delete(_packCache.keys().next().value);
-  _packCache.set(k, packed);
+  _packCache.set(k, packResult);
 }
 export function invalidateContainerPackCache() { _packCache.clear(); }
 
 const RENDER_BOX_GAP = 0.08;
+
+function getSupportVisual(status) {
+  if (status === 'auxiliary' || status === 'partial') {
+    return { color: '#D7A441', label: 'Apoyo parcial aceptable' };
+  }
+  if (status === 'invalid') {
+    return { color: '#C0614A', label: 'Posición inválida' };
+  }
+  return { color: '#2F8F5B', label: 'Carga estable' };
+}
 
 // ── Material cache: one template per hex color, cloned per mesh ──
 const _matTemplates = new Map();
@@ -411,12 +422,13 @@ function ThreeCanvas({ onSelectInstance, onSetZone, onClearZone, readOnly = fals
     requestAnimationFrame(() => requestAnimationFrame(() => {
       if (!threeRef.current) return;
       const cached = getCachedPack(CL, CW, CH, products, manualPos, lockedOri);
-      const packed = cached ?? (() => {
+      const packResult = cached ?? (() => {
         invalidatePackingCache(); // lockedOri or manualPos changed — must re-run
         const r = runPackingCached(products);
-        setCachedPack(CL, CW, CH, products, manualPos, lockedOri, r.packed);
-        return r.packed;
+        setCachedPack(CL, CW, CH, products, manualPos, lockedOri, r);
+        return r;
       })();
+      const packed = packResult.packed || [];
       const totalItems = packed.length;
       const heavy = totalItems > 40;  // heavy mode: skip anim and simplify regular boxes, but keep pallet detail
       const animItems = [];
@@ -437,7 +449,7 @@ function ThreeCanvas({ onSelectInstance, onSetZone, onClearZone, readOnly = fals
           plank.position.set(b.x + plankW / 2 + pi * (plankW + 1) + 0.5, animated ? ty + CH * 1.5 : ty, b.z + b.dZ / 2);
           plank.castShadow = true;
           plank.receiveShadow = true;
-          plank.userData = { instanceId: iid, productId: b.productId, label: b.name, type: b.type, dims: b.dims, pct: b.pct };
+          plank.userData = { instanceId: iid, productId: b.productId, label: b.name, type: b.type, dims: b.dims, pct: b.pct, supportStatus: b.supportStatus, supportPercent: b.supportPercent, requiresAuxiliarySupport: b.requiresAuxiliarySupport, supportReason: b.supportReason };
           if (animated) animItems.push({ mesh: plank, targetY: ty, delay });
           containerGroup.add(plank);
         });
@@ -451,7 +463,7 @@ function ThreeCanvas({ onSelectInstance, onSetZone, onClearZone, readOnly = fals
           sl.position.set(b.x + b.dX / 2, animated ? ty + CH * 1.5 : ty, b.z + t2 * b.dZ);
           sl.castShadow = true;
           sl.receiveShadow = true;
-          sl.userData = { instanceId: iid, productId: b.productId, label: b.name, type: b.type, dims: b.dims, pct: b.pct };
+          sl.userData = { instanceId: iid, productId: b.productId, label: b.name, type: b.type, dims: b.dims, pct: b.pct, supportStatus: b.supportStatus, supportPercent: b.supportPercent, requiresAuxiliarySupport: b.requiresAuxiliarySupport, supportReason: b.supportReason };
           if (animated) animItems.push({ mesh: sl, targetY: ty, delay });
           containerGroup.add(sl);
         });
@@ -476,7 +488,12 @@ function ThreeCanvas({ onSelectInstance, onSetZone, onClearZone, readOnly = fals
             );
             bMesh.castShadow = true;
             bMesh.receiveShadow = true;
-            bMesh.userData = { label: b.name, type: b.type, dims: b.dims, pct: b.pct, productId: b.productId, instanceId: iid };
+            bMesh.userData = { label: b.name, type: b.type, dims: b.dims, pct: b.pct, productId: b.productId, instanceId: iid, supportStatus: b.supportStatus, supportPercent: b.supportPercent, requiresAuxiliarySupport: b.requiresAuxiliarySupport, supportReason: b.supportReason };
+            const supportVisual = getSupportVisual(b.supportStatus);
+            if (b.supportStatus !== 'stable' && bMesh.material?.emissive) {
+              bMesh.material.emissive.set(supportVisual.color);
+              bMesh.material.emissiveIntensity = 0.2;
+            }
             if (animated) animItems.push({ mesh: bMesh, targetY: ty, delay: delay + Math.min(box.y * 2, 200) });
             containerGroup.add(bMesh);
           }
@@ -489,7 +506,12 @@ function ThreeCanvas({ onSelectInstance, onSetZone, onClearZone, readOnly = fals
           cmesh.position.set(b.x + b.dX / 2, animated ? ty + CH * 1.5 : ty, b.z + b.dZ / 2);
           cmesh.castShadow = true;
           cmesh.receiveShadow = true;
-          cmesh.userData = { label: b.name, type: b.type, dims: b.dims, pct: b.pct, productId: b.productId, instanceId: iid };
+          cmesh.userData = { label: b.name, type: b.type, dims: b.dims, pct: b.pct, productId: b.productId, instanceId: iid, supportStatus: b.supportStatus, supportPercent: b.supportPercent, requiresAuxiliarySupport: b.requiresAuxiliarySupport, supportReason: b.supportReason };
+          const supportVisual = getSupportVisual(b.supportStatus);
+          if (b.supportStatus !== 'stable' && cmesh.material?.emissive) {
+            cmesh.material.emissive.set(supportVisual.color);
+            cmesh.material.emissiveIntensity = 0.2;
+          }
           if (animated) animItems.push({ mesh: cmesh, targetY: ty, delay });
           containerGroup.add(cmesh);
         }
@@ -508,7 +530,12 @@ function ThreeCanvas({ onSelectInstance, onSetZone, onClearZone, readOnly = fals
           geo.translate(b.x + b.dX/2, b.y + b.dY/2, b.z + b.dZ/2);
           const mesh = new THREE.Mesh(geo, makeBoxMaterials(b.color));
           mesh.castShadow = true; mesh.receiveShadow = true;
-          mesh.userData = { label: b.name, type: b.type, dims: b.dims, pct: b.pct, productId: b.productId, instanceId: b.instanceId };
+          mesh.userData = { label: b.name, type: b.type, dims: b.dims, pct: b.pct, productId: b.productId, instanceId: b.instanceId, supportStatus: b.supportStatus, supportPercent: b.supportPercent, requiresAuxiliarySupport: b.requiresAuxiliarySupport, supportReason: b.supportReason };
+          const supportVisual = getSupportVisual(b.supportStatus);
+          if (b.supportStatus !== 'stable' && mesh.material?.emissive) {
+            mesh.material.emissive.set(supportVisual.color);
+            mesh.material.emissiveIntensity = 0.2;
+          }
           containerGroup.add(mesh);
         }
 
@@ -840,10 +867,14 @@ function ThreeCanvas({ onSelectInstance, onSetZone, onClearZone, readOnly = fals
       tooltip.style.display = 'block';
       tooltip.style.left = (e.clientX - rect.left + 14) + 'px';
       tooltip.style.top  = (e.clientY - rect.top  - 10) + 'px';
+      const supportVisual = getSupportVisual(ud.supportStatus);
+      const supportPct = typeof ud.supportPercent === 'number' ? Math.round(ud.supportPercent * 100) : null;
       tooltip.innerHTML = `
         <div style="font-weight:600;font-size:13px;margin-bottom:4px">${ud.label}</div>
         <div style="opacity:0.75;font-size:11px">${ud.type === 'pallet' ? '🟫 Pallet' : '📦 Caja'}</div>
         <div style="opacity:0.75;font-size:11px">${ud.dims}</div>
+        <div style="margin-top:6px;font-size:11px;color:${supportVisual.color}">● ${supportVisual.label}${supportPct != null ? ` · ${supportPct}% apoyo` : ''}</div>
+        ${ud.supportReason ? `<div style="margin-top:3px;opacity:0.78;font-size:10px">${ud.supportReason}</div>` : ''}
         ${ud.pct ? `<div style="margin-top:4px;color:#c8b89a;font-size:11px">${ud.pct}% del contenedor</div>` : ''}
       `;
       if (t._hoveredMesh !== hit.object && hit.object.userData?.instanceId !== t._selectedInstanceId) {
@@ -931,7 +962,7 @@ function ThreeCanvas({ onSelectInstance, onSetZone, onClearZone, readOnly = fals
         const state = useContainerStore.getState();
         const p = state.loadedProducts.find(p => p.id == ud.productId);
         const unitIdx = parseInt(ud.instanceId.split('_').pop()) + 1;
-        onSelectInstance({ instanceId: ud.instanceId, label: ud.label, unitIdx, type: ud.type, dims: ud.dims, weight: p?.weight || 0 });
+        onSelectInstance({ instanceId: ud.instanceId, label: ud.label, unitIdx, type: ud.type, dims: ud.dims, weight: p?.weight || 0, supportStatus: ud.supportStatus, supportPercent: ud.supportPercent, requiresAuxiliarySupport: ud.requiresAuxiliarySupport, supportReason: ud.supportReason });
       }
     } else {
       deselectAll();

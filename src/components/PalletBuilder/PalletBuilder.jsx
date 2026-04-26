@@ -234,10 +234,10 @@ export default function PalletBuilder() {
   }
 
   return (
-    <div style={{ display: 'flex', height: '100%', overflow: 'hidden' }}>
+    <div className="pallet-builder-root" style={{ display: 'flex', height: '100%', overflow: 'hidden' }}>
 
       {/* ── LEFT SIDEBAR ── */}
-      <aside style={{ width: 280, flexShrink: 0, borderRight: '1px solid var(--border)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      <aside className="pallet-builder-sidebar" style={{ width: 280, flexShrink: 0, borderRight: '1px solid var(--border)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         <div style={{ padding: '16px 16px 12px', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
           <h2 style={{ margin: 0, fontSize: 15, fontWeight: 700 }}>Armador de pallets</h2>
           <p style={{ margin: '4px 0 0', fontSize: 12, color: 'var(--text-3)' }}>Motor BFD de precisión 2 cm</p>
@@ -358,13 +358,13 @@ export default function PalletBuilder() {
       </aside>
 
       {/* ── MAIN AREA ── */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      <div className="pallet-builder-main" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
         {/* Results panel */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        <div className="pallet-builder-results" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
           {!results.length ? (
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--text-3)', padding: 40 }}>
+            <div className="pallet-builder-empty" style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--text-3)', padding: 40 }}>
               <div style={{ fontSize: 64, marginBottom: 16 }}>🟫</div>
               <p style={{ fontSize: 15, fontWeight: 500, marginBottom: 8 }}>Configurá los productos y presioná "Armar pallets"</p>
               <p style={{ fontSize: 13 }}>El motor BFD calculará la distribución óptima de cajas.</p>
@@ -372,7 +372,7 @@ export default function PalletBuilder() {
           ) : (
             <>
               {/* Pallet tabs + export buttons */}
-              <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', flexShrink: 0 }}>
+              <div className="pallet-builder-tabs" style={{ padding: '12px 16px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', flexShrink: 0 }}>
                 {results.map((r, i) => (
                   <button
                     key={i}
@@ -408,9 +408,9 @@ export default function PalletBuilder() {
               </div>
 
               {/* 3D + summary split */}
-              <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+              <div className="pallet-builder-view" style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
                 {/* 3D view */}
-                <div style={{ flex: 1, padding: 12, minWidth: 0, position: 'relative' }}>
+                <div className="pallet-builder-canvas-panel" style={{ flex: 1, padding: 12, minWidth: 0, position: 'relative' }}>
                   <PalletThreeCanvas
                     result={activeRes}
                     selectedBoxUid={selectedBoxUid}
@@ -418,7 +418,7 @@ export default function PalletBuilder() {
                     onUpdateBoxes={updateActiveResultBoxes}
                   />
                   {selectedBox && (
-                    <div style={{ position: 'absolute', right: 22, top: 22, zIndex: 30, width: 'min(272px, calc(100% - 44px))', maxHeight: 'calc(100% - 44px)', background: 'linear-gradient(180deg, rgba(251,247,241,0.98), rgba(243,236,227,0.98))', border: '1px solid rgba(141,121,102,0.22)', borderRadius: 18, boxShadow: '0 20px 44px rgba(97,78,60,0.18)', fontFamily: "'DM Mono', monospace", backdropFilter: 'blur(14px)', overflowX: 'hidden', overflowY: 'auto' }}>
+                    <div className="pallet-builder-inspector" style={{ position: 'absolute', right: 22, top: 22, zIndex: 30, width: 'min(272px, calc(100% - 44px))', maxHeight: 'calc(100% - 44px)', background: 'linear-gradient(180deg, rgba(251,247,241,0.98), rgba(243,236,227,0.98))', border: '1px solid rgba(141,121,102,0.22)', borderRadius: 18, boxShadow: '0 20px 44px rgba(97,78,60,0.18)', fontFamily: "'DM Mono', monospace", backdropFilter: 'blur(14px)', overflowX: 'hidden', overflowY: 'auto' }}>
                       <div style={{ padding: '14px 14px 12px', background: 'linear-gradient(135deg, var(--c1), #a48f7d)', color: 'var(--c5)', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
                           <div style={{ width: 34, height: 34, borderRadius: 10, background: 'rgba(248,241,233,0.16)', display: 'grid', placeItems: 'center', fontSize: 16, flexShrink: 0 }}>📦</div>
@@ -474,7 +474,7 @@ export default function PalletBuilder() {
 
                 {/* Summary panel */}
                 {activeRes && (
-                  <div style={{ width: 260, flexShrink: 0, borderLeft: '1px solid var(--border)', overflowY: 'auto', padding: 14 }}>
+                  <div className="pallet-builder-summary" style={{ width: 260, flexShrink: 0, borderLeft: '1px solid var(--border)', overflowY: 'auto', padding: 14 }}>
                     {/* Stats */}
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 14 }}>
                       {[

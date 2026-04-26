@@ -1923,3 +1923,336 @@ header { display: none !important; }
     align-self: flex-start;
   }
 }
+
+/* Mobile hardening for operational modules */
+@media (max-width: 860px) {
+  #section-prices {
+    overflow-x: hidden;
+  }
+
+  #section-prices .tab {
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+  }
+
+  #section-prices .prices-stats-grid,
+  #section-prices .prices-top-grid {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 12px !important;
+  }
+
+  #section-prices .prices-top-grid > .card {
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  #section-prices .prices-order-card {
+    padding: 12px !important;
+    overflow: hidden;
+  }
+
+  #section-prices .prices-order-card-head {
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+
+  #section-prices .prices-order-controls {
+    grid-template-columns: 36px minmax(64px, 1fr) 36px !important;
+    gap: 8px !important;
+  }
+
+  #section-prices .prices-order-controls > div:nth-child(4),
+  #section-prices .prices-order-controls > div:nth-child(5) {
+    grid-column: 1 / -1;
+    min-width: 0;
+  }
+
+  #section-prices .prices-order-controls > div:nth-child(5) {
+    text-align: right;
+  }
+
+  #section-prices .prices-summary-actions button,
+  #section-prices .prices-plan-footer button,
+  #section-prices .prices-plan-footer input {
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  #section-prices .prices-plan-footer {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) 40px minmax(72px, 1fr) 40px !important;
+    gap: 8px !important;
+    padding: 12px !important;
+  }
+
+  #section-prices .prices-plan-footer-copy {
+    grid-column: 1 / -1;
+    min-width: 0;
+  }
+
+  #section-prices .prices-plan-footer > button:first-of-type,
+  #section-prices .prices-plan-footer > button:last-child {
+    grid-column: 1 / -1;
+  }
+
+  #section-prices .card-header {
+    flex-direction: column;
+    align-items: stretch !important;
+    gap: 12px;
+  }
+
+  #section-prices .card-header > div:last-child {
+    align-items: stretch !important;
+  }
+
+  #section-prices .card-header > div:last-child > div {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  #section-container.cl-section.active {
+    display: block !important;
+    overflow: visible !important;
+  }
+
+  #section-container .layout {
+    display: flex !important;
+    flex-direction: column !important;
+    grid-template-columns: none !important;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+  }
+
+  #section-container .layout > aside.sidebar {
+    display: block !important;
+    width: 100% !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    border-right: 0 !important;
+    border-bottom: 1px solid var(--border) !important;
+    padding: 14px !important;
+  }
+
+  #section-container .layout > main.main {
+    display: block !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    padding: 0 12px 96px !important;
+  }
+
+  #section-container .layout > main.main .section {
+    overflow: visible !important;
+  }
+
+  #section-container .canvas-wrap {
+    height: 360px !important;
+    min-height: 360px !important;
+    overflow: hidden !important;
+  }
+
+  #section-container .container-selector {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+  }
+
+  #section-container .cont-type-btn,
+  #section-container .reorder-btn,
+  #section-container .btn-primary,
+  #section-container .btn-secondary {
+    width: 100%;
+  }
+
+  #section-container .row2,
+  #section-container .row3 {
+    grid-template-columns: 1fr !important;
+  }
+
+  #section-container .legend,
+  #section-container .breakdown-table,
+  #section-container table {
+    min-width: 0;
+  }
+
+  .pallet-builder-root {
+    display: flex !important;
+    flex-direction: column !important;
+    height: auto !important;
+    min-height: calc(100dvh - 58px) !important;
+    overflow: visible !important;
+  }
+
+  .pallet-builder-sidebar {
+    width: 100% !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    border-right: 0 !important;
+    border-bottom: 1px solid var(--border) !important;
+  }
+
+  .pallet-builder-main,
+  .pallet-builder-results {
+    display: block !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+  }
+
+  .pallet-builder-empty {
+    min-height: 240px !important;
+    padding: 32px 20px !important;
+    text-align: center;
+  }
+
+  .pallet-builder-empty p {
+    max-width: 260px;
+    line-height: 1.45;
+  }
+
+  .pallet-builder-tabs {
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+
+  .pallet-builder-tabs > div {
+    margin-left: 0 !important;
+    width: 100%;
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+  }
+
+  .pallet-builder-view {
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: visible !important;
+  }
+
+  .pallet-builder-canvas-panel {
+    min-height: 360px !important;
+    padding: 10px !important;
+  }
+
+  .pallet-builder-summary {
+    width: 100% !important;
+    border-left: 0 !important;
+    border-top: 1px solid var(--border) !important;
+    overflow: visible !important;
+  }
+
+  .pallet-builder-inspector {
+    position: static !important;
+    width: 100% !important;
+    max-height: none !important;
+    margin-top: 12px;
+  }
+}
+
+@media (max-width: 430px) {
+  #section-prices .prices-stats-grid .card {
+    padding: 0.9rem !important;
+  }
+
+  #section-prices .prices-plan-footer {
+    grid-template-columns: 34px minmax(58px, 1fr) 34px !important;
+  }
+
+  #section-prices .prices-plan-footer > button:first-of-type,
+  #section-prices .prices-plan-footer > button:last-child,
+  #section-prices .prices-plan-footer-copy {
+    grid-column: 1 / -1;
+  }
+
+  #section-container .canvas-wrap,
+  .pallet-builder-canvas-panel {
+    min-height: 320px !important;
+    height: 320px !important;
+  }
+}
+
+@media (max-width: 860px) {
+  #section-container .cl-inspector-panel {
+    position: fixed !important;
+    left: 12px !important;
+    right: 12px !important;
+    bottom: 70px !important;
+    top: auto !important;
+    width: auto !important;
+    max-height: min(46vh, 330px) !important;
+    z-index: 1200 !important;
+    border-radius: 16px !important;
+    box-shadow: 0 18px 42px rgba(66, 48, 35, 0.22) !important;
+  }
+
+  #section-container .cl-inspector-panel > div:first-child {
+    padding: 10px 12px !important;
+  }
+
+  #section-container .cl-inspector-panel > div:not(:first-child) {
+    padding: 10px 12px !important;
+  }
+
+  #section-container .cl-zone-controls {
+    top: 8px !important;
+    left: 8px !important;
+    right: 8px !important;
+    padding: 6px !important;
+    border-radius: 12px !important;
+    background: rgba(251, 247, 241, 0.9) !important;
+    border: 1px solid rgba(141, 121, 102, 0.16) !important;
+    box-shadow: 0 10px 24px rgba(97, 78, 60, 0.12) !important;
+  }
+
+  #section-container .cl-zone-indicator,
+  #section-container .cl-hint-bar {
+    display: none !important;
+  }
+
+  #section-container #productList {
+    display: grid !important;
+    gap: 8px !important;
+  }
+
+  #section-container #productList .queue-item {
+    align-items: flex-start !important;
+    gap: 8px !important;
+    padding: 10px !important;
+  }
+
+  #section-container #productList .queue-info {
+    min-width: 0 !important;
+  }
+
+  #section-container #productList .queue-name {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 4px !important;
+    line-height: 1.35 !important;
+    white-space: normal !important;
+  }
+
+  #section-container #productList .queue-meta {
+    white-space: normal !important;
+    line-height: 1.45 !important;
+  }
+
+  #section-container #productList .queue-price {
+    float: none !important;
+    display: inline-block !important;
+    margin: 3px 0 0 !important;
+  }
+
+  #section-container .breakdown-table {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  #section-container .breakdown-table table {
+    min-width: 720px !important;
+  }
+}

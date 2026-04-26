@@ -3,7 +3,7 @@ import useContainerStore from '../../stores/containerStore.js';
 import useAppStore from '../../stores/appStore.js';
 import { CONTAINER_TYPES, PALLET_SIZES, ZONE_COLORS_HEX, ZONE_LABELS, WEIGHT_LIMITS, COLORS } from '../../lib/constants.js';
 import { fmt } from '../../lib/formatters.js';
-import { runPacking, runPackingCached, invalidatePackingCache, setContainerDimensions } from '../../lib/packing.js';
+import { runPacking, runPackingCached, invalidatePackingCache, setContainerDimensions, setPackingPhysicalConstraints } from '../../lib/packing.js';
 import ThreeCanvas from './ThreeCanvas.jsx';
 import ThreeErrorBoundary from './ThreeErrorBoundary.jsx';
 import { _sb } from '../../lib/supabase.js';
@@ -161,6 +161,7 @@ export default function ContainerLoader() {
   const [dragTabIdx,    setDragTabIdx]    = useState(null);
   const [dragOverTabIdx, setDragOverTabIdx] = useState(null);
   const [showWeightMap, setShowWeightMap] = useState(false);
+  const [allowAuxiliarySupport, setAllowAuxiliarySupport] = useState(false);
   const weightCanvasRef = useRef(null);
 
   // ── Capacity modal ──
@@ -173,6 +174,9 @@ export default function ContainerLoader() {
   const totalWeight = loadedProducts.reduce((s, p) => s + (p.weight || 0) * p.qty, 0);
   const pctVol      = totalVol / CONTAINER_VOL * 100;
   const over        = pctVol > 100;
+  const packingResult = runPackingCached(loadedProducts);
+  const physicalWarnings = packingResult?.warnings || [];
+  const supportSummary = packingResult?.supportSummary || { stable: 0, partial: 0, auxiliary: 0 };
   const ct          = CONTAINER_TYPES[currentContainerType];
   const weightLimit = currentContainerType.startsWith('semi') ? semiWeightLimit : (WEIGHT_LIMITS[currentContainerType] || 28000);
   const weightOver  = totalWeight > weightLimit;
@@ -181,6 +185,17 @@ export default function ContainerLoader() {
   const filteredShipments = shipmentsList.filter(s => !shipmentsFilter || s.name.toLowerCase().includes(shipmentsFilter.toLowerCase()));
   const activeShipments = filteredShipments.filter(s => !parseShipmentPayload(s.containers).isFinalized);
   const finalizedShipments = filteredShipments.filter(s => parseShipmentPayload(s.containers).isFinalized);
+
+  useEffect(() => {
+    setPackingPhysicalConstraints({ ALLOW_AUXILIARY_SUPPORT: allowAuxiliarySupport });
+  }, [allowAuxiliarySupport]);
+
+  function getSupportVisual(status) {
+    if (status === 'auxiliary') return { label: 'Requiere soporte físico adicional', color: '#B7791F', bg: '#FFF6E5' };
+    if (status === 'partial') return { label: 'Apoyo parcial aceptable', color: '#8C6B3C', bg: '#FBF3E6' };
+    if (status === 'invalid') return { label: 'Posición inválida', color: '#C0614A', bg: '#FDF0ED' };
+    return { label: 'Carga estable', color: '#2F8F5B', bg: '#EAF7F0' };
+  }
 
   function ensureEditable(action = 'editar este embarque') {
     if (canEditShipment) return true;
@@ -1137,12 +1152,39 @@ export default function ContainerLoader() {
         {/* ── Main area ── */}
         <main className="main">
           {over && <div className="warning-bar">⚠️ La carga supera la capacidad del contenedor. Reducí las cantidades o eliminá productos.</div>}
+          {physicalWarnings.length > 0 && (
+            <div className="warning-bar" style={{ background: '#FDF0ED', borderColor: 'rgba(192,97,74,0.18)', color: '#8A3F2F', display: 'grid', gap: 8 }}>
+              <div style={{ fontWeight: 600 }}>No entra de forma segura con las restricciones actuales</div>
+              {physicalWarnings.slice(0, 3).map(warning => (
+                <div key={warning.instanceId} style={{ fontSize: 12, lineHeight: 1.45 }}>
+                  <strong>{warning.name}</strong>: {warning.detail}. Sugerencias: {warning.suggestions.join(' · ')}
+                </div>
+              ))}
+              {physicalWarnings.length > 3 && (
+                <div style={{ fontSize: 12, opacity: 0.8 }}>
+                  +{physicalWarnings.length - 3} advertencia{physicalWarnings.length - 3 === 1 ? '' : 's'} más en esta carga.
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="section">
             <div className="section-header">
               <div className="section-title">Visualización del Contenedor {ct.label}</div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                 <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--muted)' }}>{ct.dims}</span>
+                <span style={{ padding: '4px 8px', borderRadius: 999, background: '#EAF7F0', color: '#2F8F5B', fontSize: 10, fontFamily: "'DM Mono', monospace" }}>
+                  Verde {supportSummary.stable}
+                </span>
+                {(supportSummary.partial > 0 || supportSummary.auxiliary > 0) && (
+                  <span style={{ padding: '4px 8px', borderRadius: 999, background: '#FBF3E6', color: '#8C6B3C', fontSize: 10, fontFamily: "'DM Mono', monospace" }}>
+                    Amarillo {supportSummary.partial + supportSummary.auxiliary}
+                  </span>
+                )}
+                <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 8px', borderRadius: 999, border: '1px solid var(--border)', fontSize: 10, fontFamily: "'DM Mono', monospace", color: 'var(--muted)' }}>
+                  <input type="checkbox" checked={allowAuxiliarySupport} onChange={e => setAllowAuxiliarySupport(e.target.checked)} />
+                  Permitir soporte auxiliar
+                </label>
                 {loadedProducts.some(p => p.weight > 0) && (
                   <button
                     onClick={() => setShowWeightMap(v => !v)}
@@ -1394,7 +1436,7 @@ export default function ContainerLoader() {
 
               {/* Inspector panel */}
               {inspector && (
-                <div style={{ position: 'absolute', right: 14, top: 14, zIndex: 60, width: 'min(272px, calc(100% - 28px))', maxHeight: 'calc(100% - 28px)', background: 'linear-gradient(180deg, rgba(251,247,241,0.98), rgba(243,236,227,0.98))', border: '1px solid rgba(141,121,102,0.22)', borderRadius: 18, boxShadow: '0 20px 44px rgba(97,78,60,0.18)', fontFamily: "'DM Mono', monospace", backdropFilter: 'blur(14px)', overflowX: 'hidden', overflowY: 'auto' }}>
+                <div className="cl-inspector-panel" style={{ position: 'absolute', right: 14, top: 14, zIndex: 60, width: 'min(272px, calc(100% - 28px))', maxHeight: 'calc(100% - 28px)', background: 'linear-gradient(180deg, rgba(251,247,241,0.98), rgba(243,236,227,0.98))', border: '1px solid rgba(141,121,102,0.22)', borderRadius: 18, boxShadow: '0 20px 44px rgba(97,78,60,0.18)', fontFamily: "'DM Mono', monospace", backdropFilter: 'blur(14px)', overflowX: 'hidden', overflowY: 'auto' }}>
                   <div style={{ padding: '14px 14px 12px', background: 'linear-gradient(135deg, var(--c1), #a48f7d)', color: 'var(--c5)', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
                       <div style={{ width: 34, height: 34, borderRadius: 10, background: 'rgba(248,241,233,0.16)', display: 'grid', placeItems: 'center', fontSize: 16, flexShrink: 0 }}>
@@ -1418,6 +1460,18 @@ export default function ContainerLoader() {
                         <div style={{ fontSize: 9, color: 'var(--muted)', letterSpacing: 1 }}>PESO</div>
                         <div style={{ fontSize: 11, color: 'var(--text)', marginTop: 4 }}>{inspector.weight > 0 ? `${inspector.weight} kg` : '—'}</div>
                       </div>
+                    </div>
+                    <div style={{ marginTop: 10, padding: '9px 10px', borderRadius: 12, background: getSupportVisual(inspector.supportStatus).bg, border: `1px solid ${getSupportVisual(inspector.supportStatus).color}22` }}>
+                      <div style={{ fontSize: 9, color: 'var(--muted)', letterSpacing: 1, marginBottom: 4 }}>ESTABILIDAD</div>
+                      <div style={{ fontSize: 11, color: getSupportVisual(inspector.supportStatus).color, fontWeight: 700 }}>
+                        {getSupportVisual(inspector.supportStatus).label}
+                        {typeof inspector.supportPercent === 'number' ? ` · ${Math.round(inspector.supportPercent * 100)}% apoyo` : ''}
+                      </div>
+                      {inspector.supportReason && (
+                        <div style={{ fontSize: 10, color: 'var(--text2)', marginTop: 5, lineHeight: 1.45 }}>
+                          {inspector.supportReason}
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -1454,7 +1508,7 @@ export default function ContainerLoader() {
               )}
 
               {/* Zone buttons */}
-              <div style={{ position: 'absolute', top: 10, left: 10, zIndex: 10, display: 'flex', gap: 5, alignItems: 'center', flexWrap: 'wrap' }}>
+              <div className="cl-zone-controls" style={{ position: 'absolute', top: 10, left: 10, zIndex: 10, display: 'flex', gap: 5, alignItems: 'center', flexWrap: 'wrap' }}>
                 <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--muted)', letterSpacing: 1 }}>ZONA:</span>
                 {[0, 1, 2].map(i => {
                   const isSet = priorityZones[i] !== null;
@@ -1474,13 +1528,13 @@ export default function ContainerLoader() {
 
               {/* Active zones indicator */}
               {activeZoneCount > 0 && (
-                <div style={{ position: 'absolute', top: 10, right: 10, zIndex: 10, display: 'flex', gap: 8, alignItems: 'center' }}>
+                <div className="cl-zone-indicator" style={{ position: 'absolute', top: 10, right: 10, zIndex: 10, display: 'flex', gap: 8, alignItems: 'center' }}>
                   <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--c1)', letterSpacing: 1, textTransform: 'uppercase', background: 'rgba(248,241,233,0.9)', padding: '4px 8px', borderRadius: 4, border: '1px solid var(--c1)' }}>● ZONAS ACTIVAS</span>
                 </div>
               )}
 
               {/* Hint bar */}
-              <div id="hintBar" style={{ position: 'absolute', bottom: 8, left: '50%', transform: 'translateX(-50%)', fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'rgba(141,121,102,0.6)', letterSpacing: 1, pointerEvents: 'none', whiteSpace: 'nowrap' }}>
+              <div id="hintBar" className="cl-hint-bar" style={{ position: 'absolute', bottom: 8, left: '50%', transform: 'translateX(-50%)', fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'rgba(141,121,102,0.6)', letterSpacing: 1, pointerEvents: 'none', whiteSpace: 'nowrap' }}>
                 {canEditShipment ? '🖱 DRAG PARA MOVER · SCROLL ZOOM · CLIC = SELECCIONAR · DOBLE CLIC = FIJAR ZONA' : '👁 SCROLL ZOOM · CLIC = SELECCIONAR · VISTA SOLO LECTURA'}
               </div>
             </div>

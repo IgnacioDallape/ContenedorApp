@@ -3,6 +3,16 @@ const GRID_RES = 5; // 5cm cells — accurate pallet fitting
 const FIT_EPS = 0.1;
 let _GRID_COLS = Math.ceil(590 / GRID_RES);
 let _GRID_ROWS = Math.ceil(235 / GRID_RES);
+const SUPPORT_EPS = 0.5;
+
+const DEFAULT_PHYSICAL_CONSTRAINTS = {
+  MIN_SUPPORT_PERCENT: 0.8,
+  ALLOW_OVERHANG: false,
+  ALLOW_AUXILIARY_SUPPORT: false,
+  CENTER_OF_GRAVITY_CHECK: true,
+};
+
+let PHYSICAL_CONSTRAINTS = { ...DEFAULT_PHYSICAL_CONSTRAINTS };
 
 // Container dimensions — set via setContainerDimensions() when type changes
 let CONT_L = 589, CONT_W = 235, CONT_H = 239, CONTAINER_VOL = (589*235*239)/1e6;
@@ -11,6 +21,18 @@ export function setContainerDimensions(L, W, H, vol) {
   CONT_L = L; CONT_W = W; CONT_H = H; CONTAINER_VOL = vol;
   _GRID_COLS = Math.ceil(L / GRID_RES);
   _GRID_ROWS = Math.ceil(W / GRID_RES);
+  invalidatePackingCache();
+}
+
+export function getPackingPhysicalConstraints() {
+  return { ...PHYSICAL_CONSTRAINTS };
+}
+
+export function setPackingPhysicalConstraints(next = {}) {
+  PHYSICAL_CONSTRAINTS = {
+    ...PHYSICAL_CONSTRAINTS,
+    ...next,
+  };
   invalidatePackingCache();
 }
 
@@ -39,6 +61,186 @@ function hmSet(hm, px, pz, dX, dZ, h) {
   for (let gz = gz0; gz < gz1; gz++)
     for (let gx = gx0; gx < gx1; gx++)
       hm[hmIdx(gx, gz)] = h;
+}
+
+function overlaps1D(a0, a1, b0, b1) {
+  return Math.max(0, Math.min(a1, b1) - Math.max(a0, b0));
+}
+
+function getSupportContacts(position, placedItems) {
+  if (position.y <= SUPPORT_EPS) {
+    return {
+      onFloor: true,
+      contacts: [{
+        x0: position.x,
+        x1: position.x + position.dX,
+        z0: position.z,
+        z1: position.z + position.dZ,
+      }],
+    };
+  }
+
+  const contacts = [];
+  for (const item of placedItems) {
+    const topY = item.y + item.dY;
+    if (Math.abs(topY - position.y) > SUPPORT_EPS) continue;
+    const overlapX = overlaps1D(position.x, position.x + position.dX, item.x, item.x + item.dX);
+    const overlapZ = overlaps1D(position.z, position.z + position.dZ, item.z, item.z + item.dZ);
+    if (overlapX <= FIT_EPS || overlapZ <= FIT_EPS) continue;
+    contacts.push({
+      x0: Math.max(position.x, item.x),
+      x1: Math.min(position.x + position.dX, item.x + item.dX),
+      z0: Math.max(position.z, item.z),
+      z1: Math.min(position.z + position.dZ, item.z + item.dZ),
+    });
+  }
+  return { onFloor: false, contacts };
+}
+
+function summarizeSupportCoverage(position, contacts) {
+  if (!contacts.length) {
+    return {
+      supportArea: 0,
+      supportPercent: 0,
+      spanRatioX: 0,
+      spanRatioZ: 0,
+      centerSupported: false,
+    };
+  }
+
+  const baseArea = Math.max(1, position.dX * position.dZ);
+  const centerX = position.x + position.dX / 2;
+  const centerZ = position.z + position.dZ / 2;
+
+  let supportArea = 0;
+  let minX = Infinity;
+  let maxX = -Infinity;
+  let minZ = Infinity;
+  let maxZ = -Infinity;
+  let centerSupported = false;
+
+  for (const contact of contacts) {
+    const width = Math.max(0, contact.x1 - contact.x0);
+    const depth = Math.max(0, contact.z1 - contact.z0);
+    supportArea += width * depth;
+    minX = Math.min(minX, contact.x0);
+    maxX = Math.max(maxX, contact.x1);
+    minZ = Math.min(minZ, contact.z0);
+    maxZ = Math.max(maxZ, contact.z1);
+    if (
+      centerX >= contact.x0 - FIT_EPS &&
+      centerX <= contact.x1 + FIT_EPS &&
+      centerZ >= contact.z0 - FIT_EPS &&
+      centerZ <= contact.z1 + FIT_EPS
+    ) {
+      centerSupported = true;
+    }
+  }
+
+  return {
+    supportArea,
+    supportPercent: Math.min(1, supportArea / baseArea),
+    spanRatioX: Math.min(1, Math.max(0, maxX - minX) / Math.max(position.dX, 1)),
+    spanRatioZ: Math.min(1, Math.max(0, maxZ - minZ) / Math.max(position.dZ, 1)),
+    centerSupported,
+  };
+}
+
+function describeSupportFailure(supportPercent, centerSupported, spanRatioX, spanRatioZ) {
+  if (!centerSupported) return 'El centro de gravedad queda fuera del área apoyada';
+  if (supportPercent < PHYSICAL_CONSTRAINTS.MIN_SUPPORT_PERCENT) {
+    return `Apoyo insuficiente (${Math.round(supportPercent * 100)}% de base soportada)`;
+  }
+  if (!PHYSICAL_CONSTRAINTS.ALLOW_OVERHANG && Math.min(spanRatioX, spanRatioZ) < 0.55) {
+    return 'Voladizo lateral peligroso o apoyo demasiado angosto';
+  }
+  return 'Posición inestable con las restricciones actuales';
+}
+
+function makeSupportSuggestions(item) {
+  return [
+    'Rotar pieza',
+    'Cambiar orden de carga',
+    item.type === 'pallet' ? 'Usar pallet con base más estable' : 'Usar separadores/tacos/pallets',
+    'Reducir cantidad',
+    'Cargar en otro contenedor',
+    'Permitir soporte auxiliar manualmente',
+  ];
+}
+
+function validatePhysicalSupport(item, position, placedItems) {
+  const contactsInfo = getSupportContacts(position, placedItems);
+  if (contactsInfo.onFloor) {
+    return {
+      valid: true,
+      status: 'stable',
+      supportPercent: 1,
+      supportArea: position.dX * position.dZ,
+      centerSupported: true,
+      spanRatioX: 1,
+      spanRatioZ: 1,
+      requiresAuxiliarySupport: false,
+      reason: '',
+      suggestions: [],
+    };
+  }
+
+  const summary = summarizeSupportCoverage(position, contactsInfo.contacts);
+  const meetsSupport = summary.supportPercent + FIT_EPS >= PHYSICAL_CONSTRAINTS.MIN_SUPPORT_PERCENT;
+  const centerOk = !PHYSICAL_CONSTRAINTS.CENTER_OF_GRAVITY_CHECK || summary.centerSupported;
+  const spanOk = PHYSICAL_CONSTRAINTS.ALLOW_OVERHANG || Math.min(summary.spanRatioX, summary.spanRatioZ) >= 0.55;
+  const fullyStable = meetsSupport && centerOk && spanOk;
+  const partialAcceptable = meetsSupport && centerOk;
+
+  if (fullyStable) {
+    return {
+      valid: true,
+      status: summary.supportPercent >= 0.95 ? 'stable' : 'partial',
+      supportPercent: summary.supportPercent,
+      supportArea: summary.supportArea,
+      centerSupported: summary.centerSupported,
+      spanRatioX: summary.spanRatioX,
+      spanRatioZ: summary.spanRatioZ,
+      requiresAuxiliarySupport: false,
+      reason: '',
+      suggestions: [],
+    };
+  }
+
+  const reason = describeSupportFailure(
+    summary.supportPercent,
+    summary.centerSupported,
+    summary.spanRatioX,
+    summary.spanRatioZ
+  );
+
+  if (PHYSICAL_CONSTRAINTS.ALLOW_AUXILIARY_SUPPORT && (summary.supportPercent > 0 || partialAcceptable)) {
+    return {
+      valid: true,
+      status: 'auxiliary',
+      supportPercent: summary.supportPercent,
+      supportArea: summary.supportArea,
+      centerSupported: summary.centerSupported,
+      spanRatioX: summary.spanRatioX,
+      spanRatioZ: summary.spanRatioZ,
+      requiresAuxiliarySupport: true,
+      reason,
+      suggestions: makeSupportSuggestions(item),
+    };
+  }
+
+  return {
+    valid: false,
+    status: 'invalid',
+    supportPercent: summary.supportPercent,
+    supportArea: summary.supportArea,
+    centerSupported: summary.centerSupported,
+    spanRatioX: summary.spanRatioX,
+    spanRatioZ: summary.spanRatioZ,
+    requiresAuxiliarySupport: false,
+    reason,
+    suggestions: makeSupportSuggestions(item),
+  };
 }
 
 
@@ -75,6 +277,8 @@ function runPacking(products) {
   const hm = makeHeightMap();
   const packed = [];
   const placed = {};
+  const warnings = [];
+  const rejectedSupportByInstance = new Map();
   const instanceManualPos = window._instanceManualPos || {};
   const instanceLockedOri = window._instanceLockedOri || {};
 
@@ -135,6 +339,67 @@ function runPacking(products) {
     dominantPalletOri[pid] = bestOri;
   }
 
+  function buildPackedItem(u, px, pz, ori, y, support) {
+    return {
+      x: px, y, z: pz, dX: ori.dX, dY: ori.dY, dZ: ori.dZ,
+      color: u.color, name: u.name, type: u.type,
+      productId: u.id, instanceId: u.instanceId,
+      pct: ((u.vol * u.qty) / CONTAINER_VOL * 100).toFixed(1),
+      dims: `${u.dims.L}×${u.dims.W}×${u.dims.H} cm`,
+      packedItems: u.packedItems || null,
+      palletBase: u.palletBase || null,
+      supportPercent: support?.supportPercent ?? 1,
+      supportArea: support?.supportArea ?? (ori.dX * ori.dZ),
+      supportStatus: support?.status ?? 'stable',
+      supportReason: support?.reason || '',
+      centerSupported: support?.centerSupported ?? true,
+      requiresAuxiliarySupport: !!support?.requiresAuxiliarySupport,
+    };
+  }
+
+  function registerUnsafePlacement(u, support, context = 'auto') {
+    const currentPercent = support?.supportPercent ?? 0;
+    const existing = rejectedSupportByInstance.get(u.instanceId);
+    if (existing && (existing.supportPercent ?? 0) >= currentPercent) return;
+    rejectedSupportByInstance.set(u.instanceId, {
+      kind: 'physical-support',
+      instanceId: u.instanceId,
+      productId: u.id,
+      name: u.name,
+      type: u.type,
+      context,
+      message: 'No entra de forma segura con las restricciones actuales',
+      detail: support?.reason || 'La base apoyada no alcanza para una carga estable',
+      supportPercent: currentPercent,
+      requiresAuxiliarySupport: !!support?.requiresAuxiliarySupport,
+      suggestions: support?.suggestions || makeSupportSuggestions(u),
+    });
+  }
+
+  function clearUnsafePlacement(u) {
+    rejectedSupportByInstance.delete(u.instanceId);
+  }
+
+  function consumeUnsafePlacementWarning(u, context = 'auto') {
+    const warning = rejectedSupportByInstance.get(u.instanceId);
+    if (!warning) return;
+    warnings.push({
+      ...warning,
+      context: warning.context || context,
+    });
+    rejectedSupportByInstance.delete(u.instanceId);
+  }
+
+  function tryPlaceAt(u, px, pz, ori, h, context = 'auto') {
+    if ((u.type === 'pallet' && h > 1) || (h + ori.dY > CONT_H + FIT_EPS)) return null;
+    const support = validatePhysicalSupport(u, { x: px, y: h, z: pz, dX: ori.dX, dY: ori.dY, dZ: ori.dZ }, packed);
+    if (!support.valid) {
+      registerUnsafePlacement(u, support, context);
+      return null;
+    }
+    return { px, pz, ori, y: h, support };
+  }
+
   function placeUnit(u, manualPosOverride) {
     const prio = u.priorityZone || null;
     const locked = u.lockedOri || null;
@@ -181,21 +446,15 @@ function runPacking(products) {
       const px = Math.max(0, Math.min(CONT_L - ori.dX, manualPosOverride.x));
       const pz = Math.max(0, Math.min(CONT_W - ori.dZ, manualPosOverride.z));
       const h = hmGetMax(hm, px, pz, ori.dX, ori.dZ);
-      const posBlocked = (u.type === 'pallet' && h > 1) || (h + ori.dY > CONT_H + FIT_EPS);
-      if (posBlocked) {
+      const placement = tryPlaceAt(u, px, pz, ori, h, 'manual');
+      if (!placement) {
         // Ninguna unidad arrastrada manualmente se reubica sola.
         // Si la posición elegida colisiona o excede altura, se rechaza y el caller
         // puede restaurar la posición anterior.
         return false;
       } else {
-        hmSetPallet(hm, px, pz, ori.dX, ori.dZ, h, ori.dY, u.packedItems, u.palletBase);
-        packed.push({ x: px, y: h, z: pz, dX: ori.dX, dY: ori.dY, dZ: ori.dZ,
-          color: u.color, name: u.name, type: u.type,
-          productId: u.id, instanceId: u.instanceId,
-          pct: ((u.vol * u.qty) / CONTAINER_VOL * 100).toFixed(1),
-          dims: `${u.dims.L}×${u.dims.W}×${u.dims.H} cm`,
-          packedItems: u.packedItems || null,
-          palletBase: u.palletBase || null });
+        hmSetPallet(hm, placement.px, placement.pz, placement.ori.dX, placement.ori.dZ, placement.y, placement.ori.dY, u.packedItems, u.palletBase);
+        packed.push(buildPackedItem(u, placement.px, placement.pz, placement.ori, placement.y, placement.support));
         placed[u.id]++;
         return true;
       }
@@ -203,6 +462,7 @@ function runPacking(products) {
 
     // Best-fit scan
     let bestPx = -1, bestPz = -1, bestH = Infinity, bestScore = Infinity, bestOri = orientations[0];
+    let bestSupport = null;
 
     for (const ori of orientations) {
       for (let pz = 0; pz < CONT_W; pz += GRID_RES) {
@@ -210,11 +470,8 @@ function runPacking(products) {
           if (px + ori.dX > CONT_L + FIT_EPS) continue;
           if (pz + ori.dZ > CONT_W + FIT_EPS) continue;
           const h = hmGetMax(hm, px, pz, ori.dX, ori.dZ);
-          if (h + ori.dY > CONT_H + FIT_EPS) continue;
-          // PALLETS NEVER STACK — physical constraint, period
-          // Excepción: si el pallet tenía un pin que fue liberado (se estaba moviendo),
-          // permitir colocarlo en la primera posición libre de piso que encuentre
-          if (u.type === 'pallet' && h > 1) continue;
+          const placement = tryPlaceAt(u, px, pz, ori, h, 'auto');
+          if (!placement) continue;
           let score;
           if (prio) {
             const cx = px + ori.dX / 2;
@@ -240,7 +497,14 @@ function runPacking(products) {
             // Boxes: BFD — minimize resulting height, fill X before Z
             score = (h + ori.dY) * 10000000 + px * 100 + pz;
           }
-          if (score < bestScore) { bestScore = score; bestH = h; bestPx = px; bestPz = pz; bestOri = ori; }
+          if (score < bestScore) {
+            bestScore = score;
+            bestH = h;
+            bestPx = px;
+            bestPz = pz;
+            bestOri = ori;
+            bestSupport = placement.support;
+          }
         }
       }
     }
@@ -254,13 +518,8 @@ function runPacking(products) {
       return false;
     }
     hmSetPallet(hm, bestPx, bestPz, bestOri.dX, bestOri.dZ, bestH, bestOri.dY, u.packedItems, u.palletBase);
-    packed.push({ x: bestPx, y: bestH, z: bestPz, dX: bestOri.dX, dY: bestOri.dY, dZ: bestOri.dZ,
-      color: u.color, name: u.name, type: u.type,
-      productId: u.id, instanceId: u.instanceId,
-      pct: ((u.vol * u.qty) / CONTAINER_VOL * 100).toFixed(1),
-      dims: `${u.dims.L}×${u.dims.W}×${u.dims.H} cm`,
-      packedItems: u.packedItems || null,
-      palletBase: u.palletBase || null });
+    packed.push(buildPackedItem(u, bestPx, bestPz, bestOri, bestH, bestSupport));
+    clearUnsafePlacement(u);
     placed[u.id]++;
     return true;
   }
@@ -317,15 +576,15 @@ function runPacking(products) {
         if (idx >= group.length) break;
         const u = group[idx];
         const h = hmGetMax(hm, cp.px, cp.pz, cp.ori.dX, cp.ori.dZ);
-        if (h > 1 || h + cp.ori.dY > CONT_H + FIT_EPS) { idx++; continue; }
-        hmSetPallet(hm, cp.px, cp.pz, cp.ori.dX, cp.ori.dZ, h, cp.ori.dY, u.packedItems, u.palletBase);
-        packed.push({ x: cp.px, y: h, z: cp.pz, dX: cp.ori.dX, dY: cp.ori.dY, dZ: cp.ori.dZ,
-          color: u.color, name: u.name, type: u.type,
-          productId: u.id, instanceId: u.instanceId,
-          pct: ((u.vol * u.qty) / CONTAINER_VOL * 100).toFixed(1),
-          dims: `${u.dims.L}×${u.dims.W}×${u.dims.H} cm`,
-          packedItems: u.packedItems || null,
-          palletBase: u.palletBase || null });
+        const placement = tryPlaceAt(u, cp.px, cp.pz, cp.ori, h, 'pattern');
+        if (!placement) {
+          consumeUnsafePlacementWarning(u, 'pattern');
+          idx++;
+          continue;
+        }
+        hmSetPallet(hm, placement.px, placement.pz, placement.ori.dX, placement.ori.dZ, placement.y, placement.ori.dY, u.packedItems, u.palletBase);
+        packed.push(buildPackedItem(u, placement.px, placement.pz, placement.ori, placement.y, placement.support));
+        clearUnsafePlacement(u);
         placed[u.id]++;
         handledByPattern.add(u.instanceId);
         idx++;
@@ -383,16 +642,15 @@ function runPacking(products) {
       if (idx >= group.length) break;
       const u = group[idx];
       const h = hmGetMax(hm, cp.px, cp.pz, cp.ori.dX, cp.ori.dZ);
-      if (h > 1) { idx++; continue; }
-      if (h + cp.ori.dY > CONT_H + FIT_EPS) { idx++; continue; }
-      hmSetPallet(hm, cp.px, cp.pz, cp.ori.dX, cp.ori.dZ, h, cp.ori.dY, u.packedItems, u.palletBase);
-      packed.push({ x: cp.px, y: h, z: cp.pz, dX: cp.ori.dX, dY: cp.ori.dY, dZ: cp.ori.dZ,
-        color: u.color, name: u.name, type: u.type,
-        productId: u.id, instanceId: u.instanceId,
-        pct: ((u.vol * u.qty) / CONTAINER_VOL * 100).toFixed(1),
-        dims: `${u.dims.L}×${u.dims.W}×${u.dims.H} cm`,
-        packedItems: u.packedItems || null,
-        palletBase: u.palletBase || null });
+      const placement = tryPlaceAt(u, cp.px, cp.pz, cp.ori, h, 'pattern');
+      if (!placement) {
+        consumeUnsafePlacementWarning(u, 'pattern');
+        idx++;
+        continue;
+      }
+      hmSetPallet(hm, placement.px, placement.pz, placement.ori.dX, placement.ori.dZ, placement.y, placement.ori.dY, u.packedItems, u.palletBase);
+      packed.push(buildPackedItem(u, placement.px, placement.pz, placement.ori, placement.y, placement.support));
+      clearUnsafePlacement(u);
       placed[u.id]++;
       handledByPattern.add(u.instanceId);
       idx++;
@@ -402,10 +660,35 @@ function runPacking(products) {
   // Standard BFD for remaining units
   for (const u of freeUnits) {
     if (handledByPattern.has(u.instanceId)) continue;
-    placeUnit(u, null);
+    const placedSafely = placeUnit(u, null);
+    if (!placedSafely) consumeUnsafePlacementWarning(u, 'auto');
   }
 
-  return { packed, placed, hm };
+  for (const item of packed) {
+    if (!item.requiresAuxiliarySupport) continue;
+    warnings.push({
+      kind: 'physical-support',
+      instanceId: item.instanceId,
+      productId: item.productId,
+      name: item.name,
+      type: item.type,
+      context: 'placed-with-auxiliary-support',
+      message: 'La pieza requiere soporte fÃ­sico adicional',
+      detail: item.supportReason || 'La pieza fue aceptada usando soporte auxiliar',
+      supportPercent: item.supportPercent ?? 0,
+      requiresAuxiliarySupport: true,
+      suggestions: makeSupportSuggestions(item),
+    });
+  }
+
+  const supportSummary = packed.reduce((acc, item) => {
+    if (item.supportStatus === 'stable') acc.stable += 1;
+    else if (item.supportStatus === 'partial') acc.partial += 1;
+    else if (item.supportStatus === 'auxiliary') acc.auxiliary += 1;
+    return acc;
+  }, { stable: 0, partial: 0, auxiliary: 0 });
+
+  return { packed, placed, hm, warnings, supportSummary, physicalConstraints: getPackingPhysicalConstraints() };
 }
 
 
@@ -419,7 +702,7 @@ function runPackingCached(products) {
   const key = JSON.stringify(products.map(p => ({
     id: p.id, qty: p.qty, dims: p.dims,
     lockedOri: p.lockedOri, priorityZone: p.priorityZone, priorityZoneSlot: p.priorityZoneSlot
-  }))) + JSON.stringify(window._instanceManualPos);
+  }))) + JSON.stringify(window._instanceManualPos) + JSON.stringify(PHYSICAL_CONSTRAINTS);
   if (key === _packingCacheKey && _packingCache) return _packingCache;
   _packingCache = runPacking(products);
   _packingCacheKey = key;
@@ -431,4 +714,4 @@ function invalidatePackingCache() {
   _packingCacheKey = '';
 }
 
-export { runPacking, runPackingCached, invalidatePackingCache, hmGetMax, hmSetPallet };
+export { runPacking, runPackingCached, invalidatePackingCache, hmGetMax, hmSetPallet, validatePhysicalSupport };
