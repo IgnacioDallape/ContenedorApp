@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { _sb } from '../../lib/supabase.js';
 import { getAppUrl } from '../../lib/appUrl.js';
+import BrandMark from '../Brand/BrandMark.jsx';
 
 export default function LoginPage({ initialMode = 'login', initialMessage = '' }) {
   const [panel, setPanel] = useState(initialMode === 'recovery' ? 'reset' : initialMode === 'forgot' ? 'forgot' : 'login');
@@ -262,26 +263,6 @@ export default function LoginPage({ initialMode = 'login', initialMessage = '' }
     </button>
   );
 
-  const ShipLogo = () => (
-    <svg width="58" height="58" viewBox="0 0 64 64" fill="none" aria-hidden="true">
-      <path d="M14 39H50L46 50H18L14 39Z" fill="#F24E4E" />
-      <path d="M10 50H54C52 54.8 47.3 58 42 58H22C16.7 58 12 54.8 10 50Z" fill="#4A90E2" />
-      <path d="M18 31H46V39H18V31Z" fill="#FFF4E6" />
-      <path d="M21 24H43V31H21V24Z" fill="#FFF4E6" />
-      <path d="M27 16H39V24H27V16Z" fill="#FFF4E6" />
-      <path d="M36 10L46 16H36V10Z" fill="#8D7966" />
-      <path d="M39 10V31" stroke="#6B5D4F" strokeWidth="2" strokeLinecap="round" />
-      <path d="M27 16L36 10" stroke="#6B5D4F" strokeWidth="2" strokeLinecap="round" />
-      <path d="M21 34H26" stroke="#22C1F1" strokeWidth="2.5" strokeLinecap="round" />
-      <path d="M30 34H35" stroke="#22C1F1" strokeWidth="2.5" strokeLinecap="round" />
-      <path d="M39 34H44" stroke="#22C1F1" strokeWidth="2.5" strokeLinecap="round" />
-      <path d="M24 27H28" stroke="#22C1F1" strokeWidth="2.5" strokeLinecap="round" />
-      <path d="M32 27H36" stroke="#22C1F1" strokeWidth="2.5" strokeLinecap="round" />
-      <path d="M40 27H44" stroke="#22C1F1" strokeWidth="2.5" strokeLinecap="round" />
-      <path d="M17 43H47" stroke="#6B5D4F" strokeWidth="2" strokeLinecap="round" />
-    </svg>
-  );
-
   const GoogleButton = ({ label }) => (
     <button
       type="button"
@@ -326,7 +307,7 @@ export default function LoginPage({ initialMode = 'login', initialMessage = '' }
                 justifyContent: 'center',
               }}
             >
-              <ShipLogo />
+              <BrandMark size={58} />
             </div>
             <h1>ImportaPro</h1>
             <p>Sistema de gestion de carga</p>

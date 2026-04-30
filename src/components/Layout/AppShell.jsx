@@ -12,6 +12,7 @@ import Simulator from '../ImportaPro/Simulator.jsx';
 import Prices from '../ImportaPro/Prices.jsx';
 import Settings from '../ImportaPro/Settings.jsx';
 import Comparator from '../ImportaPro/Comparator.jsx';
+import BrandMark from '../Brand/BrandMark.jsx';
 import UpgradeModal from './UpgradeModal.jsx';
 
 const ContainerLoader = lazy(() => import('../ContainerLoader/ContainerLoader.jsx'));
@@ -21,26 +22,6 @@ const Loader = () => (
   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh', fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'var(--muted)', letterSpacing: 2 }}>
     Cargando...
   </div>
-);
-
-const ShipMark = ({ size = 58 }) => (
-  <svg width={size} height={size} viewBox="0 0 64 64" fill="none" aria-hidden="true">
-    <path d="M14 39H50L46 50H18L14 39Z" fill="#F24E4E" />
-    <path d="M10 50H54C52 54.8 47.3 58 42 58H22C16.7 58 12 54.8 10 50Z" fill="#4A90E2" />
-    <path d="M18 31H46V39H18V31Z" fill="#FFF4E6" />
-    <path d="M21 24H43V31H21V24Z" fill="#FFF4E6" />
-    <path d="M27 16H39V24H27V16Z" fill="#FFF4E6" />
-    <path d="M36 10L46 16H36V10Z" fill="#8D7966" />
-    <path d="M39 10V31" stroke="#6B5D4F" strokeWidth="2" strokeLinecap="round" />
-    <path d="M27 16L36 10" stroke="#6B5D4F" strokeWidth="2" strokeLinecap="round" />
-    <path d="M21 34H26" stroke="#22C1F1" strokeWidth="2.5" strokeLinecap="round" />
-    <path d="M30 34H35" stroke="#22C1F1" strokeWidth="2.5" strokeLinecap="round" />
-    <path d="M39 34H44" stroke="#22C1F1" strokeWidth="2.5" strokeLinecap="round" />
-    <path d="M24 27H28" stroke="#22C1F1" strokeWidth="2.5" strokeLinecap="round" />
-    <path d="M32 27H36" stroke="#22C1F1" strokeWidth="2.5" strokeLinecap="round" />
-    <path d="M40 27H44" stroke="#22C1F1" strokeWidth="2.5" strokeLinecap="round" />
-    <path d="M17 43H47" stroke="#6B5D4F" strokeWidth="2" strokeLinecap="round" />
-  </svg>
 );
 
 function WelcomePanel({ label, userPlan }) {
@@ -72,7 +53,7 @@ function WelcomePanel({ label, userPlan }) {
               justifyContent: 'center',
             }}
           >
-            <ShipMark size={64} />
+            <BrandMark size={64} />
           </div>
         </div>
         <h1 style={{ margin: 0, fontFamily: "'Cormorant Garamond', serif", fontSize: 50, lineHeight: 1.05, color: 'var(--text)' }}>
@@ -232,7 +213,7 @@ export default function AppShell() {
           <span>Menu</span>
         </button>
         <div className="mobile-topbar-brand">
-          <div className="mobile-topbar-mark"><ShipMark size={22} /></div>
+          <div className="mobile-topbar-mark"><BrandMark size={22} /></div>
           <div>
             <div className="mobile-topbar-title">ImportaPro</div>
             <div className="mobile-topbar-sub">{sectionNames[activeSection] || 'Inicio'}</div>
@@ -260,7 +241,7 @@ export default function AppShell() {
       <aside className={`mobile-drawer${mobileMenuOpen ? ' open' : ''}`}>
         <div className="mobile-drawer-header">
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div className="mobile-topbar-mark"><ShipMark size={22} /></div>
+            <div className="mobile-topbar-mark"><BrandMark size={22} /></div>
             <div>
               <div className="mobile-topbar-title">ImportaPro</div>
               <div className="mobile-topbar-sub">Menu principal</div>
@@ -297,7 +278,7 @@ export default function AppShell() {
               color: 'transparent',
             }}
           >
-            <ShipMark size={26} />
+            <BrandMark size={26} />
           </div>
           <div>
             <div className="brand-name">ImportaPro</div>
