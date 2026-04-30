@@ -4,6 +4,7 @@ import useAppStore from './stores/appStore.js';
 import useContainerStore from './stores/containerStore.js';
 import LoginPage from './components/Auth/LoginPage.jsx';
 import AppShell from './components/Layout/AppShell.jsx';
+import PWAInstallPrompt from './components/PWAInstallPrompt.jsx';
 import SharePage from './components/Share/SharePage.jsx';
 import Toast from './components/Toast.jsx';
 
@@ -55,6 +56,7 @@ export default function App() {
   return (
     <>
       {!user ? <LoginPage initialMode={authMode} initialMessage={authMessage} /> : <AppShell />}
+      <PWAInstallPrompt />
       <Toast />
     </>
   );
