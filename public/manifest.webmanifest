@@ -1,4 +1,5 @@
 {
+  "id": "/",
   "name": "ImportaPro",
   "short_name": "ImportaPro",
   "description": "Calculadora de importacion, carga de contenedores y armado de pallets en una app instalable.",
@@ -9,6 +10,12 @@
   "background_color": "#F8F4EE",
   "theme_color": "#8D7966",
   "icons": [
+    {
+      "src": "/favicon-48.png",
+      "sizes": "48x48",
+      "type": "image/png",
+      "purpose": "any"
+    },
     {
       "src": "/pwa-192.png",
       "sizes": "192x192",
