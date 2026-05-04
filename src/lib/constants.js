@@ -20,7 +20,15 @@ export const ZONE_COLORS     = [0xc1704a, 0x4a7dc1, 0x4ac16b];
 export const ZONE_COLORS_HEX = ['#c1704a', '#4a7dc1', '#4ac16b'];
 export const ZONE_LABELS     = ['Zona 1', 'Zona 2', 'Zona 3'];
 
-export const WEIGHT_LIMITS = { '20ft': 28000, '40ft': 26500, '40hc': 26500 };
+// Carga util operativa estimada para validar mercaderia cargada.
+// Es intencionalmente conservadora: confirmar siempre contra placa CSC y transportista.
+export const WEIGHT_LIMITS = {
+  '20ft': 24000,
+  '40ft': 26500,
+  '40hc': 26500,
+  semi145: 28000,
+  semi155: 28000,
+};
 
 export const NCM_FRECUENTES = [
   // Electrónica y accesorios

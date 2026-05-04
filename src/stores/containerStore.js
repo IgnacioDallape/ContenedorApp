@@ -50,7 +50,7 @@ const useContainerStore = create((set, get) => {
   shipmentContainers: [makeDefaultContainer(1, '20ft')],
   activeContainerIdx: 0,
   currentShipmentId: null,
-  semiWeightLimit: 28000,
+  semiWeightLimit: WEIGHT_LIMITS.semi145,
 
   // Active container products
   loadedProducts: [],
@@ -86,6 +86,7 @@ const useContainerStore = create((set, get) => {
       currentContainerType: type,
       CONT_L: ct.L, CONT_W: ct.W, CONT_H: ct.H,
       CONTAINER_VOL: ct.vol,
+      ...(type.startsWith('semi') ? { semiWeightLimit: WEIGHT_LIMITS[type] || WEIGHT_LIMITS.semi145 } : {}),
     });
     // sync to active shipment container
     const { shipmentContainers, activeContainerIdx } = get();
@@ -104,6 +105,7 @@ const useContainerStore = create((set, get) => {
       currentContainerType: type,
       CONT_L: ct.L, CONT_W: ct.W, CONT_H: ct.H,
       CONTAINER_VOL: ct.vol,
+      ...(type.startsWith('semi') ? { semiWeightLimit: WEIGHT_LIMITS[type] || WEIGHT_LIMITS.semi145 } : {}),
     });
     get()._syncWindowGlobals();
   },
@@ -416,7 +418,7 @@ const useContainerStore = create((set, get) => {
   resetShipmentId() { set({ currentShipmentId: null }); },
   setCurrentShipmentId(id) { set({ currentShipmentId: id }); },
 
-  setSemiWeightLimit(val) { set({ semiWeightLimit: parseInt(val) || 28000 }); },
+  setSemiWeightLimit(val) { set({ semiWeightLimit: parseInt(val) || WEIGHT_LIMITS.semi145 }); },
 
   // Catalog
   async loadCatalog() {
