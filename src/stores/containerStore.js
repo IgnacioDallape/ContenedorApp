@@ -324,12 +324,53 @@ const useContainerStore = create((set, get) => {
   },
 
   removeContainer(idx) {
-    const { shipmentContainers } = get();
+    const {
+      shipmentContainers,
+      activeContainerIdx,
+      loadedProducts,
+      priorityZones,
+      instanceManualPos,
+      instanceLockedOri,
+      currentContainerType,
+    } = get();
+
     if (shipmentContainers.length <= 1) return false;
-    const updated = shipmentContainers.filter((_, i) => i !== idx);
-    set({ shipmentContainers: updated });
-    const newIdx = Math.min(get().activeContainerIdx, updated.length - 1);
-    get().switchToContainer(newIdx);
+
+    const synced = [...shipmentContainers];
+    if (synced[activeContainerIdx]) {
+      synced[activeContainerIdx] = {
+        ...synced[activeContainerIdx],
+        products: [...loadedProducts],
+        priorityZones: [...priorityZones],
+        instanceManualPos: { ...instanceManualPos },
+        instanceLockedOri: { ...instanceLockedOri },
+        type: currentContainerType,
+      };
+    }
+
+    const updated = synced.filter((_, i) => i !== idx).map((container, index) => ({
+      ...container,
+      id: index + 1,
+    }));
+
+    const nextIdx = idx < activeContainerIdx
+      ? activeContainerIdx - 1
+      : Math.min(activeContainerIdx, updated.length - 1);
+
+    const next = updated[nextIdx];
+    const nextType = next?.type || '20ft';
+
+    set({
+      shipmentContainers: updated,
+      activeContainerIdx: nextIdx,
+      loadedProducts: [...(next?.products || [])],
+      priorityZones: [...(next?.priorityZones || [null, null, null])],
+      instanceManualPos: { ...(next?.instanceManualPos || {}) },
+      instanceLockedOri: { ...(next?.instanceLockedOri || {}) },
+      selectedInstanceId: null,
+    });
+
+    get()._setContainerTypeInternal(nextType);
     return true;
   },
 
