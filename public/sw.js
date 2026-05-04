@@ -1,10 +1,13 @@
-const CACHE_NAME = 'importapro-shell-v1';
+const CACHE_NAME = 'importapro-shell-v2';
 const CORE_ASSETS = [
   '/',
   '/index.html',
   '/manifest.webmanifest',
   '/app-icon.svg',
   '/apple-touch-icon.png',
+  '/favicon-16.png',
+  '/favicon-32.png',
+  '/favicon-48.png',
   '/pwa-192.png',
   '/pwa-512.png',
 ];
