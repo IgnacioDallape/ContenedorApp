@@ -2084,7 +2084,7 @@ header { display: none !important; }
     height: auto !important;
     min-height: calc(100dvh - 58px) !important;
     overflow: visible !important;
-    padding-top: 10px !important;
+    padding-top: 34px !important;
     padding-bottom: 96px !important;
   }
 
@@ -2098,7 +2098,7 @@ header { display: none !important; }
   }
 
   .pallet-builder-sidebar > div:first-child {
-    padding: 18px 16px 12px !important;
+    padding: 24px 16px 12px !important;
   }
 
   .pallet-builder-sidebar > div:nth-child(2),
@@ -2170,7 +2170,7 @@ header { display: none !important; }
     justify-content: center !important;
     overflow-y: auto !important;
     -webkit-overflow-scrolling: touch;
-    padding: calc(72px + env(safe-area-inset-top, 0px)) 14px calc(102px + env(safe-area-inset-bottom, 0px)) !important;
+    padding: calc(74px + env(safe-area-inset-top, 0px)) 14px calc(118px + env(safe-area-inset-bottom, 0px)) !important;
   }
 
   .pb-product-modal {
@@ -2186,16 +2186,13 @@ header { display: none !important; }
   }
 
   .pb-product-form-actions {
-    position: sticky !important;
-    bottom: 0 !important;
-    z-index: 2;
     display: grid !important;
     grid-template-columns: 1fr 1fr !important;
     gap: 10px !important;
-    margin: 16px -18px -18px !important;
-    padding: 12px 18px max(14px, env(safe-area-inset-bottom, 0px)) !important;
-    background: linear-gradient(180deg, rgba(255,255,255,0.72), var(--bg-2) 34%);
-    border-top: 1px solid var(--border);
+    margin: 18px 0 0 !important;
+    padding: 0 !important;
+    background: transparent;
+    border-top: 0;
   }
 
   .pb-product-form-actions button {
