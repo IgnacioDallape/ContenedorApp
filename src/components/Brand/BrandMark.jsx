@@ -2,41 +2,41 @@ export default function BrandMark({ size = 58, title = 'ImportaPro' }) {
   return (
     <svg width={size} height={size} viewBox="0 0 72 72" fill="none" aria-label={title} role="img">
       <defs>
-        <linearGradient id="brand-hull" x1="13" y1="47" x2="55" y2="59" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#FF6B5C" />
-          <stop offset="1" stopColor="#D94841" />
+        <linearGradient id="brand-hull" x1="17" y1="45" x2="52" y2="54" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#FF6F5E" />
+          <stop offset="1" stopColor="#D64A43" />
         </linearGradient>
-        <linearGradient id="brand-water" x1="13" y1="55" x2="59" y2="61" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#66A8FF" />
-          <stop offset="1" stopColor="#2D6ED1" />
+        <linearGradient id="brand-water" x1="15" y1="55" x2="54" y2="60" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#70B6FF" />
+          <stop offset="1" stopColor="#3B7BE0" />
         </linearGradient>
-        <linearGradient id="brand-body" x1="18" y1="24" x2="49" y2="41" gradientUnits="userSpaceOnUse">
+        <linearGradient id="brand-body" x1="20" y1="22" x2="46" y2="40" gradientUnits="userSpaceOnUse">
           <stop stopColor="#FFFDF9" />
-          <stop offset="1" stopColor="#F3EBDD" />
+          <stop offset="1" stopColor="#F7F0E7" />
         </linearGradient>
       </defs>
 
-      <path d="M19 48H57L52 58H23L19 48Z" fill="url(#brand-hull)" />
-      <path d="M13 58H59C56.6 63.1 51.5 66 45.9 66H26.1C20.5 66 15.4 63.1 13 58Z" fill="url(#brand-water)" />
-      <path d="M22 37H51V48H22V37Z" fill="url(#brand-body)" />
-      <path d="M25 29H47V37H25V29Z" fill="url(#brand-body)" />
-      <path d="M30 21H42V29H30V21Z" fill="url(#brand-body)" />
-      <path d="M42 15L52 21H42V15Z" fill="#B49782" />
-      <path d="M43 15V37" stroke="#5E4A3C" strokeWidth="2.4" strokeLinecap="round" />
-      <path d="M31 21L42 15" stroke="#5E4A3C" strokeWidth="2.4" strokeLinecap="round" />
-      <path d="M22 40.5H29" stroke="#26C6F7" strokeWidth="2.8" strokeLinecap="round" />
-      <path d="M33 40.5H40" stroke="#26C6F7" strokeWidth="2.8" strokeLinecap="round" />
-      <path d="M44 40.5H49" stroke="#26C6F7" strokeWidth="2.8" strokeLinecap="round" />
-      <path d="M26 32.5H31" stroke="#26C6F7" strokeWidth="2.8" strokeLinecap="round" />
-      <path d="M34 32.5H39" stroke="#26C6F7" strokeWidth="2.8" strokeLinecap="round" />
-      <path d="M42 32.5H47" stroke="#26C6F7" strokeWidth="2.8" strokeLinecap="round" />
-      <path d="M21 51H54" stroke="#604B3D" strokeWidth="2.2" strokeLinecap="round" />
-      <path d="M17 61C19.5 59.4 21.4 59.3 24 61" stroke="#97C7FF" strokeWidth="2" strokeLinecap="round" />
-      <path d="M27 63C29.4 61.5 31.5 61.3 34 63" stroke="#97C7FF" strokeWidth="2" strokeLinecap="round" />
-      <path d="M38 61C40.6 59.4 42.4 59.2 45 61" stroke="#97C7FF" strokeWidth="2" strokeLinecap="round" />
-      <path d="M48 63C50.5 61.5 52.7 61.2 55 63" stroke="#97C7FF" strokeWidth="2" strokeLinecap="round" />
-      <circle cx="56.5" cy="18.5" r="2.5" fill="#E8DACA" />
-      <circle cx="17" cy="23" r="1.8" fill="#E8DACA" />
+      <path d="M19 46H53L49.5 54H22.5L19 46Z" fill="url(#brand-hull)" />
+      <path d="M15 54.5H57C55 58.3 50.6 60.5 45.8 60.5H26.2C21.4 60.5 17 58.3 15 54.5Z" fill="url(#brand-water)" />
+      <path d="M20 38H48V46H20V38Z" fill="url(#brand-body)" />
+      <path d="M23 30H45V38H23V30Z" fill="url(#brand-body)" />
+      <path d="M29 22H41V30H29V22Z" fill="url(#brand-body)" />
+      <path d="M40 16L49.5 22H40V16Z" fill="#A88C77" />
+      <path d="M40 16V38" stroke="#615040" strokeWidth="2.2" strokeLinecap="round" />
+      <path d="M30 22L40 16" stroke="#615040" strokeWidth="2.2" strokeLinecap="round" />
+      <path d="M21.5 41.5H28" stroke="#27C7F7" strokeWidth="2.4" strokeLinecap="round" />
+      <path d="M31 41.5H37.5" stroke="#27C7F7" strokeWidth="2.4" strokeLinecap="round" />
+      <path d="M40.5 41.5H46.5" stroke="#27C7F7" strokeWidth="2.4" strokeLinecap="round" />
+      <path d="M24.5 33.6H29.5" stroke="#27C7F7" strokeWidth="2.4" strokeLinecap="round" />
+      <path d="M32.2 33.6H37.2" stroke="#27C7F7" strokeWidth="2.4" strokeLinecap="round" />
+      <path d="M39.8 33.6H44.2" stroke="#27C7F7" strokeWidth="2.4" strokeLinecap="round" />
+      <path d="M20 49H50.5" stroke="#6A5645" strokeWidth="1.9" strokeLinecap="round" />
+      <path d="M19 57.5C21 56.1 22.8 56.1 25 57.5" stroke="#93C6FF" strokeWidth="1.8" strokeLinecap="round" />
+      <path d="M28 59C30.1 57.7 32 57.6 34.1 59" stroke="#93C6FF" strokeWidth="1.8" strokeLinecap="round" />
+      <path d="M37 57.5C39.1 56.1 41 56 43.1 57.5" stroke="#93C6FF" strokeWidth="1.8" strokeLinecap="round" />
+      <path d="M46 59C48 57.7 49.8 57.5 51.6 59" stroke="#93C6FF" strokeWidth="1.8" strokeLinecap="round" />
+      <circle cx="53.5" cy="18.5" r="2.1" fill="#E2D4C5" />
+      <circle cx="20.2" cy="21.7" r="1.6" fill="#E2D4C5" />
     </svg>
   );
 }
