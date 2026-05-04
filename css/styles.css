@@ -25,8 +25,10 @@
   --sidebar-w: 240px;
   --radius: 6px;
   --radius-lg: 10px;
-  --font: 'Inter', sans-serif;
-  --font-head: 'Playfair Display', serif;
+  --font: 'Cormorant Garamond', serif;
+  --font-head: 'Cormorant Garamond', serif;
+  --font-ui: 'Cormorant Garamond', serif;
+  --font-mono: 'DM Mono', monospace;
   --shadow: 0 1px 3px rgba(0,0,0,0.07), 0 1px 2px rgba(0,0,0,0.05);
   --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
 
@@ -44,7 +46,7 @@
   --success: #6b8c6b;
 }
 
-body { font-family: var(--font); background: var(--bg); color: var(--text); min-height: 100vh; font-size: 13.5px; line-height: 1.6; -webkit-font-smoothing: antialiased; overflow-x: hidden; }
+body { font-family: var(--font); background: var(--bg); color: var(--text); min-height: 100vh; font-size: 16px; line-height: 1.62; -webkit-font-smoothing: antialiased; overflow-x: hidden; }
 
 /* ── APP SHELL ── */
 .app-shell { display: flex; min-height: 100vh; }
@@ -113,12 +115,14 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); min-
   --sidebar-w: 240px;
   --radius: 6px;
   --radius-lg: 10px;
-  --font: 'Inter', sans-serif;
-  --font-head: 'Playfair Display', serif;
+  --font: 'Cormorant Garamond', serif;
+  --font-head: 'Cormorant Garamond', serif;
+  --font-ui: 'Cormorant Garamond', serif;
+  --font-mono: 'DM Mono', monospace;
   --shadow: 0 1px 3px rgba(0,0,0,0.07), 0 1px 2px rgba(0,0,0,0.05);
   --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
 }
-body { font-family: var(--font); background: var(--bg); color: var(--text); min-height: 100vh; font-size: 13.5px; line-height: 1.6; -webkit-font-smoothing: antialiased; }
+body { font-family: var(--font); background: var(--bg); color: var(--text); min-height: 100vh; font-size: 16px; line-height: 1.62; -webkit-font-smoothing: antialiased; }
 .app-shell { display: flex; min-height: 100vh; }
 
 /* Sidebar */
@@ -2301,5 +2305,290 @@ header { display: none !important; }
 
   #section-container .breakdown-table table {
     min-width: 720px !important;
+  }
+}
+
+/* Typography refresh: Apple Garamond inspired, larger and more legible */
+html {
+  font-size: 16px;
+}
+
+body,
+button,
+input,
+select,
+textarea {
+  font-family: var(--font) !important;
+}
+
+body {
+  font-size: 16px !important;
+  letter-spacing: 0.01em;
+}
+
+button,
+input,
+select,
+textarea {
+  font-size: 16px !important;
+  line-height: 1.35;
+}
+
+.brand-name {
+  font-size: 21px !important;
+  line-height: 1.05;
+  letter-spacing: -0.01em;
+}
+
+.brand-sub {
+  font-size: 12.5px !important;
+  line-height: 1.25;
+}
+
+.nav-section,
+.mobile-drawer-section,
+.section-label,
+.card-title,
+.tc-label,
+.big-label,
+.pm-label,
+.dm-label,
+.ncm-alt-label,
+.container-selector-label,
+.prices-section-label,
+.pallet-builder-label,
+.field label,
+.login-field label {
+  font-family: var(--font) !important;
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.16em !important;
+  line-height: 1.35 !important;
+}
+
+.nav-item {
+  font-size: 16px !important;
+  padding: 10px 12px !important;
+}
+
+.nav-icon {
+  width: 31px !important;
+  height: 31px !important;
+  font-size: 15px !important;
+}
+
+.page-header h1,
+.header-brand h1 {
+  font-family: var(--font-head) !important;
+  font-size: 38px !important;
+  line-height: 1.05 !important;
+  letter-spacing: -0.02em !important;
+}
+
+.page-sub {
+  font-size: 16px !important;
+  line-height: 1.55 !important;
+}
+
+.card,
+.product-card,
+.ncm-result-card,
+.product-card p,
+.bd-row,
+.ncm-row,
+.ncm-alt-row,
+.sens-row,
+.compare-table,
+.trader-note,
+.warn-box,
+.toast,
+.cap-body,
+.cat-meta,
+.prices-plan-footer-copy,
+.pallet-builder-empty p,
+#section-container .queue-meta {
+  font-size: 15.5px !important;
+  line-height: 1.6 !important;
+}
+
+.product-name,
+.modal-title,
+.cap-title,
+.ncm-hero-copy h2,
+.ncm-library-head h3,
+.login-form-title {
+  font-family: var(--font-head) !important;
+  letter-spacing: -0.01em !important;
+}
+
+.product-name {
+  font-size: 27px !important;
+}
+
+.modal-title,
+.cap-title {
+  font-size: 28px !important;
+}
+
+.field {
+  gap: 7px !important;
+}
+
+.unit {
+  font-size: 12px !important;
+}
+
+.btn-primary,
+.btn-outline,
+.btn-text,
+.ctog-btn,
+.btn-icon,
+.login-btn,
+.login-link,
+.logout-btn,
+.reorder-btn,
+.cont-type-btn,
+.rot-action-btn,
+.nudge-btn {
+  font-family: var(--font) !important;
+  font-size: 15px !important;
+}
+
+.big-value {
+  font-size: 50px !important;
+}
+
+.big-sub,
+.pct-meta,
+.prod-pill-meta,
+.product-date,
+.badge,
+.cat-price,
+.cat-link,
+.sidebar-user-name,
+.sidebar-logout,
+.header-user {
+  font-size: 13.5px !important;
+}
+
+.ch-head,
+.compare-table th,
+.sens-row:first-child {
+  font-family: var(--font) !important;
+  font-size: 13px !important;
+  letter-spacing: 0.14em !important;
+}
+
+.ch-row,
+.ch-name-input,
+.prod-pill-name,
+.pm-value,
+.dm-value,
+.bd-total .bd-label,
+.bd-total .bd-val {
+  font-size: 16px !important;
+}
+
+.cat-name {
+  font-family: var(--font-head) !important;
+  font-size: 23px !important;
+  font-weight: 700 !important;
+}
+
+.login-brand h1 {
+  font-size: 42px !important;
+  letter-spacing: 0.04em !important;
+}
+
+.login-brand p,
+.login-form-sub {
+  font-family: var(--font) !important;
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.18em !important;
+}
+
+.login-tagline {
+  font-family: var(--font) !important;
+  font-size: 16px !important;
+}
+
+#section-container [style*="letter-spacing"],
+.pallet-builder-root [style*="letter-spacing"] {
+  font-family: var(--font) !important;
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.16em !important;
+}
+
+.pallet-builder-root h1,
+.pallet-builder-root h2,
+.pallet-builder-root h3,
+#section-container h1,
+#section-container h2,
+#section-container h3 {
+  font-family: var(--font-head) !important;
+}
+
+.mobile-topbar-title {
+  font-size: 22px !important;
+  line-height: 1 !important;
+}
+
+.mobile-topbar-sub {
+  font-size: 12.5px !important;
+}
+
+.mobile-topbar-btn,
+.mobile-topbar-menu {
+  font-size: 14px !important;
+}
+
+@media (max-width: 680px) {
+  body {
+    font-size: 16px !important;
+  }
+
+  .page-header h1,
+  .header-brand h1 {
+    font-size: 30px !important;
+  }
+
+  .page-sub {
+    font-size: 15px !important;
+  }
+
+  .nav-section,
+  .mobile-drawer-section,
+  .section-label,
+  .card-title,
+  .field label,
+  .tc-label,
+  .big-label,
+  .pm-label,
+  .dm-label,
+  .container-selector-label,
+  #section-container [style*="letter-spacing"],
+  .pallet-builder-root [style*="letter-spacing"] {
+    font-size: 12.5px !important;
+    letter-spacing: 0.15em !important;
+  }
+
+  .card,
+  .product-card,
+  .bd-row,
+  .ncm-row,
+  .compare-table,
+  .prices-plan-footer-copy,
+  .pallet-builder-empty p,
+  #section-container .queue-meta {
+    font-size: 15px !important;
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    font-size: 16px !important;
   }
 }
