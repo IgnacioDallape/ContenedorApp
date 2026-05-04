@@ -337,7 +337,18 @@ function pb_findLowestCandidatesForUnit(unit, existingPacked, hm, palL, palW, ma
   }));
 }
 
-function pb_estimateLayerFill(candidate, remainingUnits, packed, palL, palW, maxH) {
+function pb_unitSignature(unit) {
+  return [
+    unit._sourceId ?? unit.id,
+    unit.dims?.L,
+    unit.dims?.W,
+    unit.dims?.H,
+    unit.mustBeBase ? 1 : 0,
+    unit.noRotate ? 1 : 0,
+  ].join('|');
+}
+
+function pb_estimateLayerFill(candidate, remainingUnits, packed, palL, palW, maxH, scanLimit = remainingUnits.length) {
   const nextPacked = [
     ...packed,
     {
@@ -352,10 +363,18 @@ function pb_estimateLayerFill(candidate, remainingUnits, packed, palL, palW, max
   const nextHm = pb_buildHMFromPacked(nextPacked, palL, palW);
   let sameLayerArea = candidate.ori.dX * candidate.ori.dZ;
   let closePlacements = 0;
+  const seen = new Set([pb_unitSignature(candidate.unit)]);
+  let scanned = 0;
 
   for (let unitIdx = 0; unitIdx < remainingUnits.length; unitIdx++) {
     const unit = remainingUnits[unitIdx];
     if (unit.uid === candidate.unit.uid) continue;
+    const signature = pb_unitSignature(unit);
+    if (seen.has(signature)) continue;
+    seen.add(signature);
+    scanned++;
+    if (scanned > scanLimit) break;
+
     const options = pb_findLowestCandidatesForUnit(unit, nextPacked, nextHm, palL, palW, maxH);
     const sameLayerOptions = options
       .filter(option => Math.abs(option.y - candidate.y) <= PB_HEIGHT_EPS)
@@ -451,9 +470,14 @@ function pb_simulateLayerPattern(seedCandidate, remainingUnits, packed, palL, pa
 function pb_chooseBestCandidate(remainingUnits, packed, hm, palL, palW, maxH) {
   let layerY = Infinity;
   const layerCandidates = [];
+  const seenUnits = new Set();
 
   for (let unitIdx = 0; unitIdx < remainingUnits.length; unitIdx++) {
     const unit = remainingUnits[unitIdx];
+    const signature = pb_unitSignature(unit);
+    if (seenUnits.has(signature)) continue;
+    seenUnits.add(signature);
+
     const candidates = pb_findLowestCandidatesForUnit(unit, packed, hm, palL, palW, maxH);
     if (!candidates.length) continue;
 
@@ -472,13 +496,18 @@ function pb_chooseBestCandidate(remainingUnits, packed, hm, palL, palW, maxH) {
 
   if (!layerCandidates.length) return null;
 
-  const candidateLimit = remainingUnits.length > 80 ? 5 : remainingUnits.length > 45 ? 8 : 14;
-  const shouldSimulatePatterns = remainingUnits.length <= 80;
+  const totalRemaining = remainingUnits.length;
+  const candidateLimit = totalRemaining > 120 ? 3 : totalRemaining > 80 ? 4 : totalRemaining > 45 ? 6 : 12;
+  const shouldEstimateLayer = totalRemaining <= 60;
+  const shouldSimulatePatterns = totalRemaining <= 32;
+  const estimateScanLimit = totalRemaining > 40 ? 18 : remainingUnits.length;
   const rankedCandidates = layerCandidates
     .sort((a, b) => a.score - b.score)
     .slice(0, candidateLimit)
     .map(candidate => {
-      const estimate = pb_estimateLayerFill(candidate, remainingUnits, packed, palL, palW, maxH);
+      const estimate = shouldEstimateLayer
+        ? pb_estimateLayerFill(candidate, remainingUnits, packed, palL, palW, maxH, estimateScanLimit)
+        : { sameLayerArea: candidate.ori.dX * candidate.ori.dZ, closePlacements: 0 };
       const simulation = shouldSimulatePatterns
         ? pb_simulateLayerPattern(candidate, remainingUnits, packed, palL, palW, maxH)
         : {
@@ -703,10 +732,18 @@ function pb_polishPallets(pallets, products, palL, palW, maxH) {
 function pb_finalizePallets(pallets, products, palL, palW, maxH) {
   let working = pallets;
   const totalUnits = products.reduce((sum, product) => sum + (product.qty || 0), 0);
-  const maxPasses = totalUnits > 80 ? 1 : 2;
+  if (totalUnits > 120) {
+    return working
+      .filter(pallet => pallet.boxes.length > 0)
+      .map((pallet, idx) => pb_finalizeResultMeta({ ...pallet, idx }, products));
+  }
+
+  const maxPasses = totalUnits > 60 ? 1 : 2;
   for (let pass = 0; pass < maxPasses; pass++) {
     working = pb_rebalancePallets(working, products, palL, palW, maxH);
-    working = pb_polishPallets(working, products, palL, palW, maxH);
+    if (totalUnits <= 60) {
+      working = pb_polishPallets(working, products, palL, palW, maxH);
+    }
   }
   return working
     .filter(pallet => pallet.boxes.length > 0)
@@ -780,6 +817,75 @@ function pb_scorePackedLayout(packed, palL, palW, maxH) {
   return top * 1500 + shapePenalty + isolatedPenalty - packed.length * 1200 - usedVolumeRatio * 18000;
 }
 
+function pb_runPackingFast(products, palL, palW, maxH) {
+  const remaining = products
+    .filter(product => (product.qty || 0) > 0)
+    .map(product => ({ ...product, qty: product.qty || 0 }));
+  const placedById = {};
+  const packed = [];
+  let y = 0;
+  let layerSafety = 0;
+
+  while (remaining.some(product => product.qty > 0) && layerSafety < 80) {
+    layerSafety++;
+    let best = null;
+
+    for (const product of remaining) {
+      if (product.qty <= 0) continue;
+      if (product.mustBeBase && y > PB_HEIGHT_EPS) continue;
+
+      const orientations = pb_getOrientations(product, palL, palW);
+      for (const ori of orientations) {
+        if (y + ori.dY > maxH + PB_HEIGHT_EPS) continue;
+        const cols = Math.floor((palL + PB_HEIGHT_EPS) / ori.dX);
+        const rows = Math.floor((palW + PB_HEIGHT_EPS) / ori.dZ);
+        const capacity = cols * rows;
+        if (capacity <= 0) continue;
+
+        const count = Math.min(product.qty, capacity);
+        const usedArea = count * ori.dX * ori.dZ;
+        const fitRatio = usedArea / Math.max(1, palL * palW);
+        const score = count * 100000 + fitRatio * 10000 + usedArea - ori.dY * 120;
+        if (!best || score > best.score) {
+          best = { product, ori, cols, rows, count, score };
+        }
+      }
+    }
+
+    if (!best) break;
+
+    let placedThisLayer = 0;
+    for (let row = 0; row < best.rows && placedThisLayer < best.count; row++) {
+      for (let col = 0; col < best.cols && placedThisLayer < best.count; col++) {
+        const idx = placedById[best.product.id] || 0;
+        placedById[best.product.id] = idx + 1;
+        packed.push({
+          x: col * best.ori.dX,
+          y,
+          z: row * best.ori.dZ,
+          dX: best.ori.dX,
+          dY: best.ori.dY,
+          dZ: best.ori.dZ,
+          color: best.product.color,
+          name: best.product.name,
+          id: best.product.id,
+          uid: `${best.product.id}::${idx}`,
+          score: 0,
+          mustBeBase: !!best.product.mustBeBase,
+          noRotate: !!best.product.noRotate,
+          sourceDims: { ...best.product.dims },
+        });
+        placedThisLayer++;
+      }
+    }
+
+    best.product.qty -= placedThisLayer;
+    y += best.ori.dY;
+  }
+
+  return packed;
+}
+
 function pb_runPackingCore(products, palL, palW, maxH, strategy = 'balanced') {
   const packed = [];
   const units = [];
@@ -794,6 +900,7 @@ function pb_runPackingCore(products, palL, palW, maxH, strategy = 'balanced') {
   }
 
   pb_sortUnitsForStrategy(units, strategy);
+  const totalUnits = units.length;
 
   const hm = pb_makeHM(palW, palL);
   let safety = 0;
@@ -816,11 +923,15 @@ function pb_runPackingCore(products, palL, palW, maxH, strategy = 'balanced') {
     units.splice(unitIdx, 1);
   }
 
-  return pb_optimizePackedLayout(packed, unitsByUid, palL, palW, maxH);
+  return totalUnits > 80 ? packed : pb_optimizePackedLayout(packed, unitsByUid, palL, palW, maxH);
 }
 
 export function pb_runPacking(products, palL, palW, maxH) {
   const totalUnits = products.reduce((sum, product) => sum + (product.qty || 0), 0);
+  if (totalUnits > 60) {
+    return pb_runPackingFast(products, palL, palW, maxH);
+  }
+
   const strategies = totalUnits > 80
     ? ['balanced']
     : totalUnits > 40

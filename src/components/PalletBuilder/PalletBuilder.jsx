@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState } from 'react';
 import usePalletStore, { pb_validatePlacement } from '../../stores/palletStore.js';
 import useContainerStore from '../../stores/containerStore.js';
 import useAppStore from '../../stores/appStore.js';
@@ -23,6 +23,7 @@ export default function PalletBuilder() {
   const [showProductForm, setShowProductForm] = useState(false);
   const [catalogModal, setCatalogModal] = useState(false);
   const [catalogSel, setCatalogSel] = useState({}); // { id: qty }
+  const [isBuilding, setIsBuilding] = useState(false);
 
   const pt = PB_PALLET_TYPES[palletType];
 
@@ -93,10 +94,17 @@ export default function PalletBuilder() {
   // ── Build ──
   function handleBuild() {
     if (!products.length) return showToast('Agregá productos primero', 'error');
-    build();
-    if (usePalletStore.getState().results.length) {
-      showToast(`✓ ${usePalletStore.getState().results.length} pallet(s) armado(s)`, 'success');
-    }
+    setIsBuilding(true);
+    window.setTimeout(() => {
+      try {
+        build();
+        if (usePalletStore.getState().results.length) {
+          showToast(`✓ ${usePalletStore.getState().results.length} pallet(s) armado(s)`, 'success');
+        }
+      } finally {
+        setIsBuilding(false);
+      }
+    }, 0);
   }
 
   // ── Export to container ──
@@ -350,9 +358,9 @@ export default function PalletBuilder() {
             className="btn-primary"
             style={{ width: '100%', padding: '10px 0' }}
             onClick={handleBuild}
-            disabled={!products.length}
+            disabled={!products.length || isBuilding}
           >
-            Armar pallets
+            {isBuilding ? 'Armando...' : 'Armar pallets'}
           </button>
         </div>
       </aside>
@@ -549,10 +557,12 @@ export default function PalletBuilder() {
       {/* ── PRODUCT FORM MODAL ── */}
       {showProductForm && (
         <div
+          className="pb-product-modal-overlay"
           style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }}
           onClick={e => { if (e.target === e.currentTarget) cancelForm(); }}
         >
           <div
+            className="pb-product-modal"
             style={{ background: 'var(--bg-2)', borderRadius: 12, padding: 24, width: '100%', maxWidth: 400, boxShadow: '0 8px 32px rgba(0,0,0,0.18)' }}
             onClick={e => e.stopPropagation()}
           >
@@ -637,7 +647,7 @@ export default function PalletBuilder() {
               </div>
             </div>
 
-            <div style={{ display: 'flex', gap: 10, marginTop: 16, justifyContent: 'flex-end' }}>
+            <div className="pb-product-form-actions" style={{ display: 'flex', gap: 10, marginTop: 16, justifyContent: 'flex-end' }}>
               <button
                 onClick={cancelForm}
                 style={{ padding: '9px 18px', background: 'var(--bg-3)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', cursor: 'pointer', fontSize: 13 }}

@@ -2084,6 +2084,8 @@ header { display: none !important; }
     height: auto !important;
     min-height: calc(100dvh - 58px) !important;
     overflow: visible !important;
+    padding-top: 10px !important;
+    padding-bottom: 96px !important;
   }
 
   .pallet-builder-sidebar {
@@ -2093,6 +2095,17 @@ header { display: none !important; }
     overflow: visible !important;
     border-right: 0 !important;
     border-bottom: 1px solid var(--border) !important;
+  }
+
+  .pallet-builder-sidebar > div:first-child {
+    padding: 18px 16px 12px !important;
+  }
+
+  .pallet-builder-sidebar > div:nth-child(2),
+  .pallet-builder-sidebar > div:nth-child(3),
+  .pallet-builder-sidebar > div:nth-child(4) {
+    padding-left: 16px !important;
+    padding-right: 16px !important;
   }
 
   .pallet-builder-main,
@@ -2105,8 +2118,8 @@ header { display: none !important; }
   }
 
   .pallet-builder-empty {
-    min-height: 240px !important;
-    padding: 32px 20px !important;
+    min-height: 190px !important;
+    padding: 26px 20px !important;
     text-align: center;
   }
 
@@ -2150,6 +2163,43 @@ header { display: none !important; }
     width: 100% !important;
     max-height: none !important;
     margin-top: 12px;
+  }
+
+  .pb-product-modal-overlay {
+    align-items: flex-start !important;
+    justify-content: center !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+    padding: calc(72px + env(safe-area-inset-top, 0px)) 14px calc(102px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  .pb-product-modal {
+    width: min(100%, 420px) !important;
+    max-height: none !important;
+    padding: 18px !important;
+    margin: 0 auto !important;
+  }
+
+  .pb-product-modal .form-grid-2 {
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 12px !important;
+  }
+
+  .pb-product-form-actions {
+    position: sticky !important;
+    bottom: 0 !important;
+    z-index: 2;
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 10px !important;
+    margin: 16px -18px -18px !important;
+    padding: 12px 18px max(14px, env(safe-area-inset-bottom, 0px)) !important;
+    background: linear-gradient(180deg, rgba(255,255,255,0.72), var(--bg-2) 34%);
+    border-top: 1px solid var(--border);
+  }
+
+  .pb-product-form-actions button {
+    width: 100%;
   }
 }
 
