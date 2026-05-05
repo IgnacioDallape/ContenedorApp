@@ -1121,6 +1121,132 @@ function pb_fillLayerGaps(products, placements, placedCounts, remaining, palL, p
   }
 }
 
+function pb_collectSupportAnchors(supportRects, layerPlacements, palL, palW, ori) {
+  const maxX = Math.max(0, pb_roundToGrid(palL - ori.dX));
+  const maxZ = Math.max(0, pb_roundToGrid(palW - ori.dZ));
+  const xs = new Set();
+  const zs = new Set();
+
+  for (const anchor of pb_collectLayerAnchors(layerPlacements, palL, palW, ori)) {
+    xs.add(pb_roundToGrid(anchor.x));
+    zs.add(pb_roundToGrid(anchor.z));
+  }
+
+  for (const support of supportRects) {
+    xs.add(pb_roundToGrid(support.x));
+    xs.add(pb_roundToGrid(support.x + support.dX - ori.dX));
+    xs.add(pb_roundToGrid(support.x + (support.dX - ori.dX) / 2));
+    xs.add(pb_roundToGrid(support.x + support.dX));
+    xs.add(pb_roundToGrid(support.x - ori.dX));
+
+    zs.add(pb_roundToGrid(support.z));
+    zs.add(pb_roundToGrid(support.z + support.dZ - ori.dZ));
+    zs.add(pb_roundToGrid(support.z + (support.dZ - ori.dZ) / 2));
+    zs.add(pb_roundToGrid(support.z + support.dZ));
+    zs.add(pb_roundToGrid(support.z - ori.dZ));
+  }
+
+  const anchors = [];
+  for (const x of [...xs].filter(x => x >= -PB_HEIGHT_EPS && x <= maxX + PB_HEIGHT_EPS).sort((a, b) => a - b)) {
+    for (const z of [...zs].filter(z => z >= -PB_HEIGHT_EPS && z <= maxZ + PB_HEIGHT_EPS).sort((a, b) => a - b)) {
+      anchors.push({ x: Math.max(0, x), z: Math.max(0, z) });
+    }
+  }
+  return anchors;
+}
+
+function pb_collides3D(packed, rect, y, dY) {
+  return packed.some(box => {
+    const overlapsX = rect.x < box.x + box.dX - PB_HEIGHT_EPS && rect.x + rect.dX > box.x + PB_HEIGHT_EPS;
+    const overlapsZ = rect.z < box.z + box.dZ - PB_HEIGHT_EPS && rect.z + rect.dZ > box.z + PB_HEIGHT_EPS;
+    const overlapsY = y < box.y + box.dY - PB_HEIGHT_EPS && y + dY > box.y + PB_HEIGHT_EPS;
+    return overlapsX && overlapsZ && overlapsY;
+  });
+}
+
+function pb_topOffRemainingProducts(remaining, packed, uidCounters, palL, palW, maxH) {
+  let safety = 0;
+
+  while (remaining.some(product => product.qty > 0) && safety < 400) {
+    safety++;
+    const levels = [
+      0,
+      ...packed
+        .map(box => Math.round((box.y + box.dY) * 10) / 10)
+        .filter(level => level > PB_HEIGHT_EPS && level < maxH - PB_HEIGHT_EPS),
+    ].filter((level, index, arr) => arr.indexOf(level) === index).sort((a, b) => a - b);
+
+    let best = null;
+
+    for (const y of levels) {
+      const supportRects = y <= PB_HEIGHT_EPS
+        ? [{ x: 0, z: 0, dX: palL, dZ: palW }]
+        : packed
+            .filter(box => Math.abs((box.y + box.dY) - y) <= PB_HEIGHT_EPS)
+            .map(box => ({ x: box.x, z: box.z, dX: box.dX, dZ: box.dZ }));
+      if (!supportRects.length) continue;
+
+      const layerPlacements = packed.filter(box => Math.abs(box.y - y) <= PB_HEIGHT_EPS);
+      for (const product of remaining) {
+        if (product.qty <= 0) continue;
+        if (product.mustBeBase && y > PB_HEIGHT_EPS) continue;
+
+        for (const ori of pb_getOrientations(product, palL, palW)) {
+          if (y + ori.dY > maxH + PB_HEIGHT_EPS) continue;
+          const option = {
+            product,
+            ori,
+            area: ori.dX * ori.dZ,
+            weight: Number(product.weight || 0),
+          };
+
+          for (const anchor of pb_collectSupportAnchors(supportRects, layerPlacements, palL, palW, ori)) {
+            const rect = { x: anchor.x, z: anchor.z, dX: ori.dX, dZ: ori.dZ };
+            if (rect.x + rect.dX > palL + PB_HEIGHT_EPS) continue;
+            if (rect.z + rect.dZ > palW + PB_HEIGHT_EPS) continue;
+            if (pb_collides3D(packed, rect, y, ori.dY)) continue;
+
+            const support = pb_supportForRect(rect, supportRects);
+            if (!support.supported) continue;
+
+            const score =
+              y * 900 +
+              pb_scoreFastLayerPlacement(option, rect, layerPlacements, palL, palW, support) -
+              option.area * 1.5 -
+              support.supportPercent * 900;
+
+            if (!best || score < best.score) {
+              best = { product, ori, x: rect.x, z: rect.z, y, score };
+            }
+          }
+        }
+      }
+    }
+
+    if (!best) break;
+    const idx = uidCounters[best.product.id] || 0;
+    uidCounters[best.product.id] = idx + 1;
+    best.product.qty -= 1;
+    packed.push({
+      x: best.x,
+      y: best.y,
+      z: best.z,
+      dX: best.ori.dX,
+      dY: best.ori.dY,
+      dZ: best.ori.dZ,
+      color: best.product.color,
+      name: best.product.name,
+      id: best.product.id,
+      uid: `${best.product.id}::${idx}`,
+      score: best.score,
+      weight: Number(best.product.weight || 0),
+      mustBeBase: !!best.product.mustBeBase,
+      noRotate: !!best.product.noRotate,
+      sourceDims: { ...best.product.dims },
+    });
+  }
+}
+
 function pb_packLayerForHeight(products, palL, palW, layerH, supportRects, allowMixedFill = false) {
   const remaining = new Map();
   for (const product of products) {
@@ -1211,7 +1337,7 @@ function pb_chooseDenseLayer(products, palL, palW, remainingHeight, supportRects
 
   let best = null;
   for (const layerH of heights) {
-    const layer = pb_packLayerForHeight(products, palL, palW, layerH, supportRects, false);
+    const layer = pb_packLayerForHeight(products, palL, palW, layerH, supportRects, true);
     if (!layer.placements.length) continue;
     const score =
       layer.coverage * 125000 +
@@ -1291,6 +1417,7 @@ function pb_runPackingLayered(products, palL, palW, maxH) {
     if (!placedThisPass) break;
   }
 
+  pb_topOffRemainingProducts(remaining, packed, uidCounters, palL, palW, maxH);
   return packed;
 }
 
