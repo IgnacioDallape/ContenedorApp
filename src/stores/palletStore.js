@@ -1059,9 +1059,9 @@ function pb_scoreFastLayerPlacement(option, rect, placements, palL, palW, suppor
 
   return (
     distToCenter * 10 +
-    option.ori.dY * 6 -
-    rect.dX * rect.dZ * 4.8 -
-    option.weight * 38 -
+    option.ori.dY * 42 -
+    rect.dX * rect.dZ * 5.7 -
+    option.weight * 24 -
     sharedEdge * 95 -
     touchesWall * 220 -
     support.supportPercent * 1800
@@ -1119,6 +1119,73 @@ function pb_fillLayerGaps(products, placements, placedCounts, remaining, palL, p
       sourceDims: { ...best.product.dims },
     });
   }
+}
+
+function pb_buildDenseGridSeed(option, supportRects, palL, palW) {
+  const cols = Math.floor((palL + PB_HEIGHT_EPS) / option.ori.dX);
+  const rows = Math.floor((palW + PB_HEIGHT_EPS) / option.ori.dZ);
+  const maxQty = Math.min(option.product.qty || 0, cols * rows);
+  if (cols <= 0 || rows <= 0 || maxQty <= 0) return null;
+
+  const placements = [];
+  const placedCounts = { [option.product.id]: 0 };
+
+  for (let row = 0; row < rows && placements.length < maxQty; row++) {
+    for (let col = 0; col < cols && placements.length < maxQty; col++) {
+      const rect = {
+        x: pb_roundToGrid(col * option.ori.dX),
+        z: pb_roundToGrid(row * option.ori.dZ),
+        dX: option.ori.dX,
+        dZ: option.ori.dZ,
+      };
+      const support = pb_supportForRect(rect, supportRects);
+      if (!support.supported) continue;
+
+      const idx = placedCounts[option.product.id] || 0;
+      placedCounts[option.product.id] = idx + 1;
+      placements.push({
+        x: rect.x,
+        z: rect.z,
+        dX: option.ori.dX,
+        dY: option.ori.dY,
+        dZ: option.ori.dZ,
+        color: option.product.color,
+        name: option.product.name,
+        id: option.product.id,
+        uid: `${option.product.id}::grid::${idx}`,
+        score: 0,
+        weight: option.weight,
+        mustBeBase: !!option.product.mustBeBase,
+        noRotate: !!option.product.noRotate,
+        sourceDims: { ...option.product.dims },
+      });
+    }
+  }
+
+  if (!placements.length) return null;
+
+  const area = placements.reduce((sum, box) => sum + box.dX * box.dZ, 0);
+  const supportArea = supportRects.reduce((sum, rect) => sum + rect.dX * rect.dZ, 0);
+  const coverage = area / Math.max(1, supportArea);
+  const shape = pb_measureLayerShape(
+    placements.map(box => ({ x: box.x, y: 0, z: box.z, dX: box.dX, dY: box.dY, dZ: box.dZ })),
+    palL,
+    palW
+  );
+
+  return {
+    placements,
+    placedCounts,
+    area,
+    coverage,
+    score:
+      coverage * 100000 +
+      placements.length * 320 +
+      area * 2 -
+      option.ori.dY * 780 -
+      shape.holeCells * 100 -
+      shape.holeCount * 1600,
+  };
 }
 
 function pb_collectSupportAnchors(supportRects, layerPlacements, palL, palW, ori) {
@@ -1255,8 +1322,15 @@ function pb_packLayerForHeight(products, palL, palW, layerH, supportRects, allow
   }
 
   const options = pb_buildLayerOptions(products, palL, palW, layerH, layerH);
-  const placements = [];
-  const placedCounts = {};
+  let bestSeed = null;
+  for (const option of options) {
+    const seed = pb_buildDenseGridSeed(option, supportRects, palL, palW);
+    if (!seed || seed.coverage < 0.82) continue;
+    if (!bestSeed || seed.score > bestSeed.score) bestSeed = seed;
+  }
+
+  const placements = bestSeed ? bestSeed.placements.map(box => ({ ...box })) : [];
+  const placedCounts = bestSeed ? { ...bestSeed.placedCounts } : {};
   for (const [productId, count] of Object.entries(placedCounts)) {
     const key = [...remaining.keys()].find(value => String(value) === productId);
     if (key != null) remaining.set(key, Math.max(0, (remaining.get(key) || 0) - count));
@@ -1340,14 +1414,14 @@ function pb_chooseDenseLayer(products, palL, palW, remainingHeight, supportRects
     const layer = pb_packLayerForHeight(products, palL, palW, layerH, supportRects, true);
     if (!layer.placements.length) continue;
     const score =
-      layer.coverage * 125000 +
+      layer.coverage * 140000 +
       layer.compactness * 20000 +
       layer.placements.length * 240 -
       layer.shape.holeCells * 80 -
       layer.shape.holeCount * 1400 -
-      layer.layerH * 8 +
-      layer.totalWeight * 80 +
-      layer.averageArea * 0.8;
+      layer.layerH * 520 +
+      layer.totalWeight * 30 +
+      layer.averageArea * 2.4;
     if (!best || score > best.score) best = { ...layer, score };
   }
   return best;
