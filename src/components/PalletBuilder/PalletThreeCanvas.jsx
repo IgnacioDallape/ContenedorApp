@@ -88,6 +88,11 @@ function getPointerHit(renderer, camera, raycaster, boxGroup, clientX, clientY) 
 export default function PalletThreeCanvas({ result, selectedBoxUid, onSelectBox, onUpdateBoxes }) {
   const mountRef = useRef(null);
   const threeRef = useRef(null);
+  const selectedBoxUidRef = useRef(selectedBoxUid);
+
+  useEffect(() => {
+    selectedBoxUidRef.current = selectedBoxUid;
+  }, [selectedBoxUid]);
 
   useEffect(() => {
     const container = mountRef.current;
@@ -144,7 +149,7 @@ export default function PalletThreeCanvas({ result, selectedBoxUid, onSelectBox,
       camera.aspect = nextWidth / nextHeight;
       camera.updateProjectionMatrix();
       renderer.setSize(nextWidth, nextHeight);
-      if (threeRef.current?.bounds) {
+      if (threeRef.current?.bounds && !threeRef.current.userAdjustedCamera) {
         fitCameraToObject(camera, controls, threeRef.current.bounds.size, threeRef.current.bounds.center);
       }
     };
@@ -159,6 +164,8 @@ export default function PalletThreeCanvas({ result, selectedBoxUid, onSelectBox,
       selectedOutline: null,
       hoveredMesh: null,
       boxMeshMap: new Map(),
+      lastFitKey: null,
+      userAdjustedCamera: false,
       isDragging: false,
       dragStart: null,
       dragPlaneY: null,
@@ -169,6 +176,9 @@ export default function PalletThreeCanvas({ result, selectedBoxUid, onSelectBox,
       mouseDownPos: { x: 0, y: 0 },
       mouseDownTime: 0,
     };
+    controls.addEventListener('start', () => {
+      if (threeRef.current) threeRef.current.userAdjustedCamera = true;
+    });
 
     return () => {
       cancelAnimationFrame(rafId);
@@ -334,13 +344,29 @@ export default function PalletThreeCanvas({ result, selectedBoxUid, onSelectBox,
       ),
     };
     t.bounds = bounds;
-    fitCameraToObject(camera, controls, bounds.size, bounds.center);
+    const fitKey = `${result.idx ?? 'pallet'}:${palL}:${palW}:${maxHeight}`;
+    if (t.lastFitKey !== fitKey) {
+      fitCameraToObject(camera, controls, bounds.size, bounds.center);
+      t.lastFitKey = fitKey;
+      t.userAdjustedCamera = false;
+    }
 
+    const selectedUid = selectedBoxUidRef.current;
+    if (selectedUid && t.boxMeshMap.has(selectedUid)) {
+      t.selectedMeshes = t.boxMeshMap.get(selectedUid).filter(mesh => mesh.isMesh);
+      applySelectedStyle(false);
+    }
+  }, [result, applySelectedStyle, clearSelectionStyles]);
+
+  useEffect(() => {
+    const t = threeRef.current;
+    if (!t) return;
+    clearSelectionStyles();
     if (selectedBoxUid && t.boxMeshMap.has(selectedBoxUid)) {
       t.selectedMeshes = t.boxMeshMap.get(selectedBoxUid).filter(mesh => mesh.isMesh);
       applySelectedStyle(false);
     }
-  }, [result, selectedBoxUid, applySelectedStyle, clearSelectionStyles]);
+  }, [selectedBoxUid, applySelectedStyle, clearSelectionStyles]);
 
   const hitSelected = useCallback((e) => {
     const t = threeRef.current;
