@@ -90,6 +90,24 @@ function pb_getOrientations(unit, palL, palW) {
   });
 }
 
+function pb_boxGravityPriority(box) {
+  const footprint = (box.dX || 0) * (box.dZ || 0);
+  const volume = footprint * (box.dY || 0);
+  const weight = Number(box.weight || 0);
+  return weight * 550 + footprint * 12 + volume * 0.09;
+}
+
+function pb_unitGravityPriority(unit) {
+  const dims = unit.dims || {};
+  const foot = Math.max(
+    (dims.L || 0) * (dims.W || 0),
+    (dims.L || 0) * (dims.H || 0),
+    (dims.W || 0) * (dims.H || 0)
+  );
+  const volume = (dims.L || 0) * (dims.W || 0) * (dims.H || 0);
+  return Number(unit.weight || 0) * 550 + foot * 12 + volume * 0.09;
+}
+
 function pb_collectAnchors(packed, palL, palW, ori) {
   const maxX = Math.max(0, pb_roundToGrid(palL - ori.dX));
   const maxZ = Math.max(0, pb_roundToGrid(palW - ori.dZ));
@@ -284,11 +302,12 @@ function pb_scoreCandidate(unit, candidate, packed, palL, palW) {
   const footprint = candidate.ori.dX * candidate.ori.dZ;
   const slenderness = candidate.ori.dY / Math.max(candidate.ori.dX, candidate.ori.dZ, 1);
   const isBase = candidate.y <= PB_HEIGHT_EPS;
+  const gravityPriority = Number(unit.weight || 0) * 550 + footprint * 12 + (footprint * candidate.ori.dY) * 0.09;
 
   const holePenalty = layerShape.holeCells * 180 + layerShape.holeCount * 1600;
   const fillGapPenalty = fillGapArea * (isBase ? 2.2 : 4.6);
   const perimeterPenalty = layerShape.perimeter * (isBase ? 3.4 : 6.8);
-  const topPenalty = topY * 120 + candidate.y * 24;
+  const topPenalty = topY * 120 + candidate.y * 24 + (!isBase ? gravityPriority * (candidate.y / 48) * 0.9 : 0);
   const centerPenalty = isBase ? distToCenter * 0.45 : distToCenter * 2.6;
   const towerPenalty = candidate.y > PB_HEIGHT_EPS ? slenderness * 240 : slenderness * 40;
   const isolationPenalty = layerPlacements.length && adjacency.sideContacts === 0 ? 900 : 0;
@@ -298,7 +317,7 @@ function pb_scoreCandidate(unit, candidate, packed, palL, palW) {
   const wallReward = isBase ? touchesWall * 220 + layerShape.edgeTouch * 3 : 0;
   const compactReward = occupiedArea * (isBase ? 1.9 : 1.2);
   const centerFillReward = candidate.y > PB_HEIGHT_EPS ? Math.max(0, 220 - distToCenter * 2.4) : 0;
-  const basePriorityReward = unit.mustBeBase && isBase ? 400 : 0;
+  const basePriorityReward = isBase ? gravityPriority * 0.55 + (unit.mustBeBase ? 400 : 0) : 0;
 
   return holePenalty + fillGapPenalty + perimeterPenalty + topPenalty + centerPenalty + towerPenalty + isolationPenalty
     - footprintReward - adjacencyReward - wallReward - compactReward - centerFillReward - basePriorityReward;
@@ -799,6 +818,7 @@ function pb_tryAppendUnitToPacked(unit, boxes, palL, palW, maxH) {
     id: unit.id,
     uid: unit.uid,
     score: candidate.score,
+    weight: Number(unit.weight || 0),
     mustBeBase: !!unit.mustBeBase,
     noRotate: !!unit.noRotate,
     sourceDims: { ...unit.dims },
@@ -983,9 +1003,11 @@ function pb_sortUnitsForStrategy(units, strategy) {
     }
 
     if (strategy === 'count-fill') {
+      const aGravity = pb_unitGravityPriority(a);
+      const bGravity = pb_unitGravityPriority(b);
+      if (Math.abs(bGravity - aGravity) > 0.01) return bGravity - aGravity;
       if (Math.abs(aMinH - bMinH) > 0.01) return aMinH - bMinH;
-      if (Math.abs(aVolume - bVolume) > 0.01) return aVolume - bVolume;
-      return aFoot - bFoot;
+      return bFoot - aFoot;
     }
 
     if (Math.abs(bVolume - aVolume) > 0.01) return bVolume - aVolume;
@@ -1000,6 +1022,7 @@ function pb_scorePackedLayout(packed, palL, palW, maxH) {
   const layerYs = [...new Set(packed.map(box => Math.round(box.y * 10) / 10))].sort((a, b) => a - b);
   let shapePenalty = 0;
   let isolatedPenalty = 0;
+  let gravityPenalty = 0;
   let volume = 0;
 
   for (const y of layerYs) {
@@ -1019,10 +1042,38 @@ function pb_scorePackedLayout(packed, palL, palW, maxH) {
     volume += box.dX * box.dY * box.dZ;
     const slenderness = box.dY / Math.max(box.dX, box.dZ, 1);
     if (box.y > PB_HEIGHT_EPS && slenderness > 1.1) isolatedPenalty += slenderness * 650;
+    gravityPenalty += pb_boxGravityPriority(box) * Math.max(0, box.y) * 0.42;
+    if (box.y > PB_HEIGHT_EPS) {
+      const supportBoxes = packed.filter(candidate => Math.abs((candidate.y + candidate.dY) - box.y) <= PB_HEIGHT_EPS);
+      const supportPriority = supportBoxes.reduce((sum, support) => {
+        const overlapArea = pb_boxSupportOverlap(support, box);
+        if (overlapArea <= PB_HEIGHT_EPS) return sum;
+        const coverage = overlapArea / Math.max(1, box.dX * box.dZ);
+        return sum + pb_boxGravityPriority(support) * coverage;
+      }, 0);
+      const boxPriority = pb_boxGravityPriority(box);
+      if (boxPriority > supportPriority * 1.12) {
+        gravityPenalty += (boxPriority - supportPriority) * 14;
+      }
+    }
+  }
+
+  for (let a = 0; a < packed.length; a++) {
+    for (let b = a + 1; b < packed.length; b++) {
+      const first = packed[a];
+      const second = packed[b];
+      const firstPriority = pb_boxGravityPriority(first);
+      const secondPriority = pb_boxGravityPriority(second);
+      if (firstPriority > secondPriority && first.y > second.y + PB_HEIGHT_EPS) {
+        gravityPenalty += (firstPriority - secondPriority) * (first.y - second.y) * 0.18;
+      } else if (secondPriority > firstPriority && second.y > first.y + PB_HEIGHT_EPS) {
+        gravityPenalty += (secondPriority - firstPriority) * (second.y - first.y) * 0.18;
+      }
+    }
   }
 
   const usedVolumeRatio = volume / Math.max(1, palL * palW * maxH);
-  return top * 1500 + shapePenalty + isolatedPenalty - packed.length * 1200 - usedVolumeRatio * 18000;
+  return top * 1500 + shapePenalty + isolatedPenalty + gravityPenalty - packed.length * 1200 - usedVolumeRatio * 18000;
 }
 
 function pb_runPackingFast(products, palL, palW, maxH) {
@@ -1073,7 +1124,8 @@ function pb_runPackingFast(products, palL, palW, maxH) {
       const usedArea = count * ori.dX * ori.dZ;
       const fitRatio = usedArea / Math.max(1, palL * palW);
       const averageWeight = group.totalQty ? group.totalWeight / group.totalQty : 0;
-      const score = count * 100000 + fitRatio * 10000 + usedArea + averageWeight * 40 - ori.dY * 120;
+      const layerGravity = averageWeight * 550 + (usedArea / Math.max(1, count)) * 12 + (usedArea * ori.dY / Math.max(1, count)) * 0.09;
+      const score = fitRatio * 240000 + usedArea * 18 + layerGravity * 18 + count * 9000 - ori.dY * 420;
       if (!best || score > best.score) {
         best = { group, ori, cols, rows, count, score };
       }
@@ -1508,8 +1560,10 @@ function pb_topOffRemainingProducts(remaining, packed, uidCounters, palL, palW, 
             const support = pb_supportForRect(rect, supportRects);
             if (!support.supported) continue;
 
+            const gravityPriority = option.weight * 550 + option.area * 12 + option.area * option.ori.dY * 0.09;
             const score =
               y * 900 +
+              (y > PB_HEIGHT_EPS ? gravityPriority * (y / 52) * 0.72 : -gravityPriority * 0.18) +
               pb_scoreFastLayerPlacement(option, rect, layerPlacements, palL, palW, support) -
               option.area * 1.5 -
               support.supportPercent * 900;
@@ -1785,6 +1839,7 @@ function pb_runPackingGreedy(products, palL, palW, maxH, strategy = 'footprint')
       id: unit.id,
       uid: unit.uid,
       score,
+      weight: Number(unit.weight || 0),
       mustBeBase: !!unit.mustBeBase,
       noRotate: !!unit.noRotate,
       sourceDims: { ...unit.dims },
@@ -1825,6 +1880,7 @@ function pb_runPackingCore(products, palL, palW, maxH, strategy = 'balanced') {
       x: px, y, z: pz,
       dX: ori.dX, dY: ori.dY, dZ: ori.dZ,
       color: unit.color, name: unit.name, id: unit.id, uid: unit.uid, score,
+      weight: Number(unit.weight || 0),
       mustBeBase: !!unit.mustBeBase,
       noRotate: !!unit.noRotate,
       sourceDims: { ...unit.dims },
