@@ -6,7 +6,11 @@ const PB_HEIGHT_EPS = 0.1;
 const PB_CELL_AREA = PB_GRID_RES * PB_GRID_RES;
 export const PB_PALLET_BASE_H = 14;
 const PB_PRECISE_MAX_UNITS = 4;
-const PB_POLISH_MAX_UNITS = 4;
+const PB_POLISH_MAX_UNITS = 10;
+const PB_REBALANCE_MAX_UNITS = 180;
+const PB_REBALANCE_MAX_SOURCE_UNITS = 24;
+const PB_REPACK_MERGE_MAX_UNITS = 120;
+const PB_REPACK_MERGE_MAX_SOURCE_UNITS = 18;
 const PB_MIN_LAYER_SUPPORT_COVERAGE = 0.45;
 
 function pb_makeHM(palW, palL) {
@@ -624,6 +628,38 @@ function pb_makeUnitFromBox(box, sourceProduct) {
   };
 }
 
+function pb_productsFromBoxes(boxes, sourceById) {
+  const byId = new Map();
+
+  for (const box of boxes) {
+    if (!byId.has(box.id)) {
+      const sourceProduct = sourceById.get(box.id) || {};
+      byId.set(box.id, {
+        ...sourceProduct,
+        id: box.id,
+        name: box.name || sourceProduct.name || 'Producto',
+        color: box.color || sourceProduct.color,
+        weight: Number(box.weight ?? sourceProduct.weight ?? 0),
+        mustBeBase: !!(box.mustBeBase || sourceProduct.mustBeBase),
+        noRotate: !!(box.noRotate || sourceProduct.noRotate),
+        dims: box.sourceDims ? {
+          L: box.sourceDims.L,
+          W: box.sourceDims.W,
+          H: box.sourceDims.H,
+        } : {
+          L: box.dX,
+          W: box.dZ,
+          H: box.dY,
+        },
+        qty: 0,
+      });
+    }
+    byId.get(box.id).qty += 1;
+  }
+
+  return [...byId.values()];
+}
+
 export function pb_validatePlacement(boxes, movingBox, palL, palW, maxH, nextX, nextZ, nextDims = null) {
   const dX = nextDims?.dX ?? movingBox.dX;
   const dY = nextDims?.dY ?? movingBox.dY;
@@ -652,6 +688,95 @@ export function pb_validatePlacement(boxes, movingBox, palL, palW, maxH, nextX, 
   }
 
   return { valid: true, x, y, z, dX, dY, dZ };
+}
+
+function pb_boxSupportOverlap(lower, upper) {
+  const overlapX = Math.max(0, Math.min(lower.x + lower.dX, upper.x + upper.dX) - Math.max(lower.x, upper.x));
+  const overlapZ = Math.max(0, Math.min(lower.z + lower.dZ, upper.z + upper.dZ) - Math.max(lower.z, upper.z));
+  return overlapX * overlapZ;
+}
+
+function pb_directlySupports(lower, upper) {
+  return Math.abs((lower.y + lower.dY) - upper.y) <= PB_HEIGHT_EPS && pb_boxSupportOverlap(lower, upper) > PB_HEIGHT_EPS;
+}
+
+export function pb_getSupportedStack(boxes, rootUid) {
+  const group = new Set([rootUid]);
+  let changed = true;
+
+  while (changed) {
+    changed = false;
+    for (const box of boxes) {
+      if (group.has(box.uid)) continue;
+      const hasGroupedSupport = boxes.some(support => group.has(support.uid) && pb_directlySupports(support, box));
+      if (!hasGroupedSupport) continue;
+      group.add(box.uid);
+      changed = true;
+    }
+  }
+
+  return [...group];
+}
+
+export function pb_validateGroupPlacement(boxes, rootUid, palL, palW, maxH, nextX, nextZ) {
+  const root = boxes.find(box => box.uid === rootUid);
+  if (!root) return { valid: false, reason: 'missing-root', groupUids: [], placements: [] };
+
+  const x = pb_roundToGrid(nextX);
+  const z = pb_roundToGrid(nextZ);
+  const dx = x - root.x;
+  const dz = z - root.z;
+  const groupUids = pb_getSupportedStack(boxes, rootUid);
+  const group = boxes.filter(box => groupUids.includes(box.uid));
+  const staticBoxes = boxes.filter(box => !groupUids.includes(box.uid));
+  const moved = group.map(box => ({
+    ...box,
+    x: pb_roundToGrid(box.x + dx),
+    z: pb_roundToGrid(box.z + dz),
+  }));
+
+  for (const box of moved) {
+    if (box.x < -PB_HEIGHT_EPS || box.z < -PB_HEIGHT_EPS) {
+      return { valid: false, reason: 'out-of-bounds', groupUids, placements: moved };
+    }
+    if (box.x + box.dX > palL + PB_HEIGHT_EPS || box.z + box.dZ > palW + PB_HEIGHT_EPS) {
+      return { valid: false, reason: 'out-of-bounds', groupUids, placements: moved };
+    }
+    if (box.y + box.dY > maxH + PB_HEIGHT_EPS) {
+      return { valid: false, reason: 'too-high', groupUids, placements: moved };
+    }
+  }
+
+  for (const box of moved) {
+    if (pb_collides3D(staticBoxes, { x: box.x, z: box.z, dX: box.dX, dZ: box.dZ }, box.y, box.dY)) {
+      return { valid: false, reason: 'collision', groupUids, placements: moved };
+    }
+  }
+
+  for (const box of moved) {
+    if (box.y <= PB_HEIGHT_EPS) continue;
+    const supportRects = [...staticBoxes, ...moved]
+      .filter(candidate => candidate.uid !== box.uid && Math.abs((candidate.y + candidate.dY) - box.y) <= PB_HEIGHT_EPS)
+      .map(candidate => ({ x: candidate.x, z: candidate.z, dX: candidate.dX, dZ: candidate.dZ }));
+    const support = pb_supportForRect({ x: box.x, z: box.z, dX: box.dX, dZ: box.dZ }, supportRects);
+    if (!support.supported) {
+      return { valid: false, reason: 'unsupported', groupUids, placements: moved };
+    }
+  }
+
+  return {
+    valid: true,
+    groupUids,
+    placements: moved.map(box => ({
+      uid: box.uid,
+      x: box.x,
+      y: box.y,
+      z: box.z,
+      dX: box.dX,
+      dY: box.dY,
+      dZ: box.dZ,
+    })),
+  };
 }
 
 function pb_tryAppendUnitToPacked(unit, boxes, palL, palW, maxH) {
@@ -720,6 +845,38 @@ function pb_rebalancePallets(pallets, products, palL, palW, maxH) {
   return working;
 }
 
+function pb_mergeRepackPallets(pallets, products, palL, palW, maxH) {
+  let working = pallets.map(pallet => ({
+    ...pallet,
+    boxes: pallet.boxes.map(box => ({ ...box })),
+  }));
+  const sourceById = new Map(products.map(product => [product.id, product]));
+
+  for (let targetIdx = 0; targetIdx < working.length - 1; targetIdx++) {
+    for (let sourceIdx = working.length - 1; sourceIdx > targetIdx; sourceIdx--) {
+      const sourceCount = working[sourceIdx]?.boxes?.length || 0;
+      if (!sourceCount || sourceCount > PB_REPACK_MERGE_MAX_SOURCE_UNITS) continue;
+
+      const combinedBoxes = [...working[targetIdx].boxes, ...working[sourceIdx].boxes];
+      if (combinedBoxes.length > PB_REPACK_MERGE_MAX_UNITS) continue;
+
+      const combinedProducts = pb_productsFromBoxes(combinedBoxes, sourceById);
+      const repacked = pb_runPacking(combinedProducts, palL, palW, maxH);
+      if (repacked.length < combinedBoxes.length) continue;
+
+      const repackedTop = repacked.reduce((maxY, box) => Math.max(maxY, box.y + box.dY), 0);
+      if (repackedTop > maxH + PB_HEIGHT_EPS) continue;
+
+      working[targetIdx].boxes = repacked;
+      working[sourceIdx].boxes = [];
+    }
+  }
+
+  return working
+    .filter(pallet => pallet.boxes.length > 0)
+    .map((pallet, idx) => pb_finalizeResultMeta({ ...pallet, idx }, products));
+}
+
 function pb_polishPallets(pallets, products, palL, palW, maxH) {
   const sourceById = new Map(products.map(product => [product.id, product]));
   return pallets.map((pallet, idx) => {
@@ -735,7 +892,9 @@ function pb_polishPallets(pallets, products, palL, palW, maxH) {
 function pb_finalizePallets(pallets, products, palL, palW, maxH) {
   let working = pallets;
   const totalUnits = products.reduce((sum, product) => sum + (product.qty || 0), 0);
-  if (totalUnits > PB_POLISH_MAX_UNITS) {
+  const hasSmallTail = working.some((pallet, idx) => idx > 0 && (pallet.boxes?.length || 0) <= PB_REBALANCE_MAX_SOURCE_UNITS);
+
+  if (totalUnits > PB_REBALANCE_MAX_UNITS && !hasSmallTail) {
     return working
       .filter(pallet => pallet.boxes.length > 0)
       .map((pallet, idx) => pb_finalizeResultMeta({ ...pallet, idx }, products));
@@ -743,8 +902,11 @@ function pb_finalizePallets(pallets, products, palL, palW, maxH) {
 
   const maxPasses = totalUnits > 10 ? 1 : 2;
   for (let pass = 0; pass < maxPasses; pass++) {
+    if (totalUnits <= PB_REPACK_MERGE_MAX_UNITS) {
+      working = pb_mergeRepackPallets(working, products, palL, palW, maxH);
+    }
     working = pb_rebalancePallets(working, products, palL, palW, maxH);
-    if (totalUnits <= 10) {
+    if (totalUnits <= PB_POLISH_MAX_UNITS) {
       working = pb_polishPallets(working, products, palL, palW, maxH);
     }
   }

@@ -469,7 +469,7 @@ export default function PalletBuilder() {
                           </button>
                         </div>
                         <div style={{ marginTop: 10, padding: '8px 10px', borderRadius: 10, background: 'rgba(141,121,102,0.08)', color: 'var(--muted)', fontSize: 10, lineHeight: 1.45 }}>
-                          Podés arrastrar la caja dentro del pallet. Queda limitada por largo, ancho, altura máxima y apoyo real.
+                          Podés arrastrar la caja dentro del pallet. Si sostiene otras cajas, se mueve la pila completa y queda limitada por largo, ancho, altura máxima y apoyo real.
                         </div>
                       </div>
 

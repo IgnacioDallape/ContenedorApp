@@ -1,7 +1,7 @@
 import { useEffect, useRef, useCallback } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { pb_validatePlacement, PB_PALLET_BASE_H } from '../../stores/palletStore.js';
+import { pb_validateGroupPlacement, PB_PALLET_BASE_H } from '../../stores/palletStore.js';
 
 function fitCameraToObject(camera, controls, size, center) {
   const maxSize = Math.max(size.x, size.y, size.z, 1);
@@ -172,6 +172,7 @@ export default function PalletThreeCanvas({ result, selectedBoxUid, onSelectBox,
       dragOffsets: null,
       dragBoxUid: null,
       dragPreviewPlacement: null,
+      dragPreviewPlacements: null,
       dragInvalid: false,
       mouseDownPos: { x: 0, y: 0 },
       mouseDownTime: 0,
@@ -385,6 +386,7 @@ export default function PalletThreeCanvas({ result, selectedBoxUid, onSelectBox,
     t.isDragging = false;
     t.dragStart = null;
     t.dragPreviewPlacement = null;
+    t.dragPreviewPlacements = null;
     t.dragInvalid = false;
 
     if (e.button !== 0) return;
@@ -435,9 +437,9 @@ export default function PalletThreeCanvas({ result, selectedBoxUid, onSelectBox,
         nextX = Math.max(0, Math.min(result.palL - box.dX, nextX));
         nextZ = Math.max(0, Math.min(result.palW - box.dZ, nextZ));
 
-        const placement = pb_validatePlacement(
+        const placement = pb_validateGroupPlacement(
           result.boxes,
-          box,
+          box.uid,
           result.palL,
           result.palW,
           result.maxHeight,
@@ -445,10 +447,12 @@ export default function PalletThreeCanvas({ result, selectedBoxUid, onSelectBox,
           nextZ
         );
 
-        t.dragPreviewPlacement = placement.valid ? placement : null;
+        t.dragPreviewPlacement = null;
+        t.dragPreviewPlacements = placement.valid ? placement.placements : null;
         t.dragInvalid = !placement.valid;
 
-        const previewPlacement = placement.valid ? placement : {
+        const fallbackPlacement = {
+          uid: box.uid,
           x: nextX,
           y: box.y,
           z: nextZ,
@@ -456,12 +460,15 @@ export default function PalletThreeCanvas({ result, selectedBoxUid, onSelectBox,
           dY: box.dY,
           dZ: box.dZ,
         };
-        const previewY = PB_PALLET_BASE_H + previewPlacement.y + box.dY / 2;
-        const previewX = previewPlacement.x + box.dX / 2;
-        const previewZ = previewPlacement.z + box.dZ / 2;
-        const meshes = t.boxMeshMap.get(box.uid) || [];
-        meshes.forEach(mesh => {
-          mesh.position.set(previewX, previewY, previewZ);
+        const previewPlacements = placement.placements?.length ? placement.placements : [fallbackPlacement];
+        previewPlacements.forEach(previewPlacement => {
+          const previewY = PB_PALLET_BASE_H + previewPlacement.y + previewPlacement.dY / 2;
+          const previewX = previewPlacement.x + previewPlacement.dX / 2;
+          const previewZ = previewPlacement.z + previewPlacement.dZ / 2;
+          const meshes = t.boxMeshMap.get(previewPlacement.uid) || [];
+          meshes.forEach(mesh => {
+            mesh.position.set(previewX, previewY, previewZ);
+          });
         });
 
         applySelectedStyle(t.dragInvalid);
@@ -499,18 +506,20 @@ export default function PalletThreeCanvas({ result, selectedBoxUid, onSelectBox,
     t.renderer.domElement.style.cursor = 'default';
 
     if (t.dragStart && t.dragBoxUid && wasDragging) {
-      const selectedUid = t.dragBoxUid;
-      const nextPlacement = t.dragPreviewPlacement;
+      const nextPlacements = t.dragPreviewPlacements;
       t.dragStart = null;
       t.dragBoxUid = null;
       t.dragOffsets = null;
       t.dragPlaneY = null;
+      t.dragPreviewPlacement = null;
+      t.dragPreviewPlacements = null;
       t.dragInvalid = false;
 
-      if (nextPlacement?.valid) {
+      if (nextPlacements?.length) {
+        const placementMap = new Map(nextPlacements.map(placement => [placement.uid, placement]));
         onUpdateBoxes(result.boxes.map(box =>
-          box.uid === selectedUid
-            ? { ...box, ...nextPlacement }
+          placementMap.has(box.uid)
+            ? { ...box, ...placementMap.get(box.uid) }
             : box
         ));
       } else {
@@ -523,6 +532,8 @@ export default function PalletThreeCanvas({ result, selectedBoxUid, onSelectBox,
     t.dragBoxUid = null;
     t.dragOffsets = null;
     t.dragPlaneY = null;
+    t.dragPreviewPlacement = null;
+    t.dragPreviewPlacements = null;
     t.dragInvalid = false;
 
     if (Date.now() - t.mouseDownTime > 300) return;
@@ -545,6 +556,8 @@ export default function PalletThreeCanvas({ result, selectedBoxUid, onSelectBox,
       t.dragBoxUid = null;
       t.dragOffsets = null;
       t.dragPlaneY = null;
+      t.dragPreviewPlacement = null;
+      t.dragPreviewPlacements = null;
       t.dragInvalid = false;
       onUpdateBoxes(result?.boxes?.map(box => ({ ...box })) || []);
     }
