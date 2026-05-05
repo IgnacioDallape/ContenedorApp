@@ -5,6 +5,8 @@ export const PB_GRID_RES = 2;
 const PB_HEIGHT_EPS = 0.1;
 const PB_CELL_AREA = PB_GRID_RES * PB_GRID_RES;
 export const PB_PALLET_BASE_H = 14;
+const PB_PRECISE_MAX_UNITS = 4;
+const PB_POLISH_MAX_UNITS = 4;
 
 function pb_makeHM(palW, palL) {
   const cols = Math.ceil((palL + PB_GRID_RES) / PB_GRID_RES);
@@ -732,16 +734,16 @@ function pb_polishPallets(pallets, products, palL, palW, maxH) {
 function pb_finalizePallets(pallets, products, palL, palW, maxH) {
   let working = pallets;
   const totalUnits = products.reduce((sum, product) => sum + (product.qty || 0), 0);
-  if (totalUnits > 120) {
+  if (totalUnits > PB_POLISH_MAX_UNITS) {
     return working
       .filter(pallet => pallet.boxes.length > 0)
       .map((pallet, idx) => pb_finalizeResultMeta({ ...pallet, idx }, products));
   }
 
-  const maxPasses = totalUnits > 60 ? 1 : 2;
+  const maxPasses = totalUnits > 10 ? 1 : 2;
   for (let pass = 0; pass < maxPasses; pass++) {
     working = pb_rebalancePallets(working, products, palL, palW, maxH);
-    if (totalUnits <= 60) {
+    if (totalUnits <= 10) {
       working = pb_polishPallets(working, products, palL, palW, maxH);
     }
   }
@@ -886,6 +888,122 @@ function pb_runPackingFast(products, palL, palW, maxH) {
   return packed;
 }
 
+function pb_fastCandidateScore(candidate, packed, palL, palW) {
+  const { px, pz, ori, y } = candidate;
+  const layerPlacements = packed.filter(item => Math.abs(item.y - y) <= PB_HEIGHT_EPS);
+  const adjacency = pb_computeAdjacency(layerPlacements, px, pz, ori, y);
+  const topY = y + ori.dY;
+  const centerX = px + ori.dX / 2;
+  const centerZ = pz + ori.dZ / 2;
+  const distToCenter = Math.hypot(centerX - palL / 2, centerZ - palW / 2);
+  const touchesWall =
+    (px <= PB_HEIGHT_EPS ? 1 : 0) +
+    (pz <= PB_HEIGHT_EPS ? 1 : 0) +
+    (Math.abs(px + ori.dX - palL) <= PB_HEIGHT_EPS ? 1 : 0) +
+    (Math.abs(pz + ori.dZ - palW) <= PB_HEIGHT_EPS ? 1 : 0);
+  const footprint = ori.dX * ori.dZ;
+  const isBase = y <= PB_HEIGHT_EPS;
+
+  return (
+    topY * 100000 +
+    y * 12000 +
+    distToCenter * (isBase ? 4 : 16) +
+    pz * 7 +
+    px * 3 -
+    adjacency.sharedEdge * 90 -
+    adjacency.sideContacts * 420 -
+    touchesWall * (isBase ? 650 : 120) -
+    footprint * 1.15
+  );
+}
+
+function pb_findGreedyCandidatesForUnit(unit, packed, hm, palL, palW, maxH) {
+  const candidates = [];
+  const orientations = pb_getOrientations(unit, palL, palW);
+
+  for (const ori of orientations) {
+    const anchors = pb_collectAnchors(packed, palL, palW, ori);
+    for (const anchor of anchors) {
+      const px = Math.max(0, pb_roundToGrid(anchor.x));
+      const pz = Math.max(0, pb_roundToGrid(anchor.z));
+      const plateau = pb_getPlateauStats(hm, px, pz, ori.dX, ori.dZ);
+      if (!plateau.flat) continue;
+      if (plateau.y + ori.dY > maxH + PB_HEIGHT_EPS) continue;
+      if (unit.mustBeBase && plateau.y > PB_HEIGHT_EPS) continue;
+      const candidate = { unit, px, pz, ori, y: plateau.y };
+      candidates.push({
+        ...candidate,
+        score: pb_fastCandidateScore(candidate, packed, palL, palW),
+      });
+    }
+  }
+
+  return candidates.sort((a, b) => a.score - b.score);
+}
+
+function pb_runPackingGreedy(products, palL, palW, maxH) {
+  const packed = [];
+  const units = [];
+
+  for (const p of products.filter(p => (p.qty || 0) > 0)) {
+    for (let i = 0; i < p.qty; i++) {
+      units.push({ ...p, _idx: i, _sourceId: p.id, uid: `${p.id}::${i}` });
+    }
+  }
+
+  pb_sortUnitsForStrategy(units, 'footprint');
+  const hm = pb_makeHM(palW, palL);
+  let safety = 0;
+
+  while (units.length && safety < 1000) {
+    safety++;
+    let best = null;
+    const scanLimit = units.length > 120 ? 8 : units.length > 60 ? 12 : 18;
+    const seen = new Set();
+    let scanned = 0;
+
+    for (let unitIdx = 0; unitIdx < units.length; unitIdx++) {
+      const unit = units[unitIdx];
+      const signature = pb_unitSignature(unit);
+      if (seen.has(signature)) continue;
+      seen.add(signature);
+      scanned++;
+      if (scanned > scanLimit) break;
+
+      const candidates = pb_findGreedyCandidatesForUnit(unit, packed, hm, palL, palW, maxH);
+      if (!candidates.length) continue;
+      const candidate = candidates[0];
+      const score = candidate.score - (unit.dims.L * unit.dims.W * unit.dims.H) * 0.08;
+      if (!best || score < best.score) {
+        best = { ...candidate, unitIdx, score };
+      }
+    }
+
+    if (!best) break;
+    const { unitIdx, unit, px, pz, ori, y, score } = best;
+    pb_hmSet(hm, px, pz, ori.dX, ori.dZ, y + ori.dY);
+    packed.push({
+      x: px,
+      y,
+      z: pz,
+      dX: ori.dX,
+      dY: ori.dY,
+      dZ: ori.dZ,
+      color: unit.color,
+      name: unit.name,
+      id: unit.id,
+      uid: unit.uid,
+      score,
+      mustBeBase: !!unit.mustBeBase,
+      noRotate: !!unit.noRotate,
+      sourceDims: { ...unit.dims },
+    });
+    units.splice(unitIdx, 1);
+  }
+
+  return packed;
+}
+
 function pb_runPackingCore(products, palL, palW, maxH, strategy = 'balanced') {
   const packed = [];
   const units = [];
@@ -928,15 +1046,13 @@ function pb_runPackingCore(products, palL, palW, maxH, strategy = 'balanced') {
 
 export function pb_runPacking(products, palL, palW, maxH) {
   const totalUnits = products.reduce((sum, product) => sum + (product.qty || 0), 0);
-  if (totalUnits > 60) {
-    return pb_runPackingFast(products, palL, palW, maxH);
+  if (totalUnits > PB_PRECISE_MAX_UNITS) {
+    return pb_runPackingGreedy(products, palL, palW, maxH);
   }
 
-  const strategies = totalUnits > 80
+  const strategies = totalUnits > 8
     ? ['balanced']
-    : totalUnits > 40
-      ? ['balanced', 'footprint']
-      : ['balanced', 'footprint', 'low-height', 'long-side'];
+    : ['balanced', 'footprint'];
   let bestPacked = [];
   let bestScore = Infinity;
 
