@@ -941,6 +941,276 @@ function pb_findGreedyCandidatesForUnit(unit, packed, hm, palL, palW, maxH) {
   return candidates.sort((a, b) => a.score - b.score);
 }
 
+function pb_rectsOverlap(a, b) {
+  return (
+    a.x < b.x + b.dX - PB_HEIGHT_EPS &&
+    a.x + a.dX > b.x + PB_HEIGHT_EPS &&
+    a.z < b.z + b.dZ - PB_HEIGHT_EPS &&
+    a.z + a.dZ > b.z + PB_HEIGHT_EPS
+  );
+}
+
+function pb_collectLayerAnchors(placements, palL, palW, ori) {
+  const maxX = Math.max(0, pb_roundToGrid(palL - ori.dX));
+  const maxZ = Math.max(0, pb_roundToGrid(palW - ori.dZ));
+  const xs = new Set([0, maxX, pb_roundToGrid((palL - ori.dX) / 2)]);
+  const zs = new Set([0, maxZ, pb_roundToGrid((palW - ori.dZ) / 2)]);
+
+  for (const box of placements) {
+    xs.add(pb_roundToGrid(box.x));
+    xs.add(pb_roundToGrid(box.x + box.dX));
+    xs.add(pb_roundToGrid(box.x - ori.dX));
+    xs.add(pb_roundToGrid(box.x + box.dX - ori.dX));
+
+    zs.add(pb_roundToGrid(box.z));
+    zs.add(pb_roundToGrid(box.z + box.dZ));
+    zs.add(pb_roundToGrid(box.z - ori.dZ));
+    zs.add(pb_roundToGrid(box.z + box.dZ - ori.dZ));
+  }
+
+  const anchors = [];
+  const xList = [...xs].filter(x => x >= -PB_HEIGHT_EPS && x <= maxX + PB_HEIGHT_EPS).sort((a, b) => a - b);
+  const zList = [...zs].filter(z => z >= -PB_HEIGHT_EPS && z <= maxZ + PB_HEIGHT_EPS).sort((a, b) => a - b);
+  for (const x of xList) {
+    for (const z of zList) anchors.push({ x: Math.max(0, x), z: Math.max(0, z) });
+  }
+  return anchors;
+}
+
+function pb_scoreLayerCandidate(candidate, placements, palL, palW) {
+  const next = { x: candidate.x, z: candidate.z, dX: candidate.ori.dX, dZ: candidate.ori.dZ };
+  const centerX = next.x + next.dX / 2;
+  const centerZ = next.z + next.dZ / 2;
+  const distToCenter = Math.hypot(centerX - palL / 2, centerZ - palW / 2);
+  const adjacency = placements.reduce((acc, box) => {
+    const overlapX = Math.max(0, Math.min(next.x + next.dX, box.x + box.dX) - Math.max(next.x, box.x));
+    const overlapZ = Math.max(0, Math.min(next.z + next.dZ, box.z + box.dZ) - Math.max(next.z, box.z));
+    const touchesX = Math.abs(next.x + next.dX - box.x) <= PB_HEIGHT_EPS || Math.abs(box.x + box.dX - next.x) <= PB_HEIGHT_EPS;
+    const touchesZ = Math.abs(next.z + next.dZ - box.z) <= PB_HEIGHT_EPS || Math.abs(box.z + box.dZ - next.z) <= PB_HEIGHT_EPS;
+    if (touchesX && overlapZ > PB_HEIGHT_EPS) acc.shared += overlapZ;
+    if (touchesZ && overlapX > PB_HEIGHT_EPS) acc.shared += overlapX;
+    return acc;
+  }, { shared: 0 });
+  const touchesWall =
+    (next.x <= PB_HEIGHT_EPS ? 1 : 0) +
+    (next.z <= PB_HEIGHT_EPS ? 1 : 0) +
+    (Math.abs(next.x + next.dX - palL) <= PB_HEIGHT_EPS ? 1 : 0) +
+    (Math.abs(next.z + next.dZ - palW) <= PB_HEIGHT_EPS ? 1 : 0);
+  const area = next.dX * next.dZ;
+  const nextLayer = [
+    ...placements.map(box => ({ x: box.x, y: 0, z: box.z, dX: box.dX, dY: candidate.ori.dY, dZ: box.dZ })),
+    { x: next.x, y: 0, z: next.z, dX: next.dX, dY: candidate.ori.dY, dZ: next.dZ },
+  ];
+  const shape = pb_measureLayerShape(nextLayer, palL, palW);
+  const occupiedArea = shape.occupiedCells * PB_CELL_AREA;
+  const bboxArea = Math.max(occupiedArea, shape.bboxCells * PB_CELL_AREA);
+  const gapArea = Math.max(0, bboxArea - occupiedArea);
+
+  return (
+    gapArea * 7 +
+    shape.perimeter * 4 +
+    distToCenter * 12 -
+    adjacency.shared * 120 -
+    touchesWall * 450 -
+    area * 2.8
+  );
+}
+
+function pb_packLayerForHeight(products, palL, palW, layerH) {
+  const remaining = new Map();
+  for (const product of products) {
+    if ((product.qty || 0) <= 0) continue;
+    remaining.set(product.id, product.qty || 0);
+  }
+
+  const options = [];
+  for (const product of products) {
+    if ((product.qty || 0) <= 0) continue;
+    for (const ori of pb_getOrientations(product, palL, palW)) {
+      if (Math.abs(ori.dY - layerH) > PB_HEIGHT_EPS) continue;
+      options.push({ product, ori, area: ori.dX * ori.dZ });
+    }
+  }
+
+  options.sort((a, b) => b.area - a.area || Math.max(b.ori.dX, b.ori.dZ) - Math.max(a.ori.dX, a.ori.dZ));
+  function makeGridSeed(option) {
+    const cols = Math.floor((palL + PB_HEIGHT_EPS) / option.ori.dX);
+    const rows = Math.floor((palW + PB_HEIGHT_EPS) / option.ori.dZ);
+    const capacity = cols * rows;
+    const qty = Math.min(option.product.qty || 0, capacity);
+    if (qty <= 0 || cols <= 0 || rows <= 0) return null;
+
+    const usedCols = Math.min(cols, qty);
+    const usedRows = Math.ceil(qty / Math.max(1, cols));
+    const usedW = usedCols * option.ori.dX;
+    const usedD = Math.min(rows, usedRows) * option.ori.dZ;
+    const offsetX = pb_roundToGrid((palL - usedW) / 2);
+    const offsetZ = pb_roundToGrid((palW - usedD) / 2);
+    const seedPlacements = [];
+    const seedCounts = { [option.product.id]: 0 };
+    let placed = 0;
+
+    for (let row = 0; row < rows && placed < qty; row++) {
+      const remainingInRow = qty - placed;
+      const countInRow = Math.min(cols, remainingInRow);
+      const rowW = countInRow * option.ori.dX;
+      const rowOffsetX = pb_roundToGrid((palL - rowW) / 2);
+      for (let col = 0; col < countInRow && placed < qty; col++) {
+        const idx = seedCounts[option.product.id] || 0;
+        seedCounts[option.product.id] = idx + 1;
+        seedPlacements.push({
+          x: Math.max(0, rowOffsetX + col * option.ori.dX),
+          z: Math.max(0, offsetZ + row * option.ori.dZ),
+          dX: option.ori.dX,
+          dY: option.ori.dY,
+          dZ: option.ori.dZ,
+          color: option.product.color,
+          name: option.product.name,
+          id: option.product.id,
+          uid: `${option.product.id}::grid::${idx}`,
+          score: 0,
+          mustBeBase: !!option.product.mustBeBase,
+          noRotate: !!option.product.noRotate,
+          sourceDims: { ...option.product.dims },
+        });
+        placed++;
+      }
+    }
+
+    const area = seedPlacements.reduce((sum, box) => sum + box.dX * box.dZ, 0);
+    return {
+      placements: seedPlacements,
+      counts: seedCounts,
+      score: area * 100 + seedPlacements.length * 20 - Math.abs(offsetX) - Math.abs(offsetZ),
+    };
+  }
+
+  let bestSeed = { placements: [], counts: {}, score: -Infinity };
+  for (const option of options) {
+    const seed = makeGridSeed(option);
+    if (seed && seed.score > bestSeed.score) bestSeed = seed;
+  }
+
+  const placements = bestSeed.placements.map(box => ({ ...box }));
+  const placedCounts = { ...bestSeed.counts };
+  for (const [productId, count] of Object.entries(placedCounts)) {
+    const key = [...remaining.keys()].find(value => String(value) === productId);
+    if (key != null) remaining.set(key, Math.max(0, (remaining.get(key) || 0) - count));
+  }
+  let safety = 0;
+
+  while (safety < 500) {
+    safety++;
+    let best = null;
+
+    for (const option of options) {
+      const qtyLeft = remaining.get(option.product.id) || 0;
+      if (qtyLeft <= 0) continue;
+
+      const anchors = pb_collectLayerAnchors(placements, palL, palW, option.ori);
+      for (const anchor of anchors) {
+        const candidateRect = { x: anchor.x, z: anchor.z, dX: option.ori.dX, dZ: option.ori.dZ };
+        if (candidateRect.x + candidateRect.dX > palL + PB_HEIGHT_EPS) continue;
+        if (candidateRect.z + candidateRect.dZ > palW + PB_HEIGHT_EPS) continue;
+        if (placements.some(box => pb_rectsOverlap(candidateRect, box))) continue;
+        const score = pb_scoreLayerCandidate({ ...option, x: candidateRect.x, z: candidateRect.z }, placements, palL, palW);
+        if (!best || score < best.score) {
+          best = { ...option, x: candidateRect.x, z: candidateRect.z, score };
+        }
+      }
+    }
+
+    if (!best) break;
+    const idx = placedCounts[best.product.id] || 0;
+    placedCounts[best.product.id] = idx + 1;
+    remaining.set(best.product.id, (remaining.get(best.product.id) || 0) - 1);
+    placements.push({
+      x: best.x,
+      z: best.z,
+      dX: best.ori.dX,
+      dY: best.ori.dY,
+      dZ: best.ori.dZ,
+      color: best.product.color,
+      name: best.product.name,
+      id: best.product.id,
+      uid: `${best.product.id}::layer::${idx}`,
+      score: best.score,
+      mustBeBase: !!best.product.mustBeBase,
+      noRotate: !!best.product.noRotate,
+      sourceDims: { ...best.product.dims },
+    });
+  }
+
+  const area = placements.reduce((sum, box) => sum + box.dX * box.dZ, 0);
+  const shape = pb_measureLayerShape(
+    placements.map(box => ({ x: box.x, y: 0, z: box.z, dX: box.dX, dY: box.dY, dZ: box.dZ })),
+    palL,
+    palW
+  );
+  const coverage = area / Math.max(1, palL * palW);
+  const compactness = shape.bboxCells > 0 ? shape.occupiedCells / shape.bboxCells : 0;
+  return { placements, placedCounts, area, coverage, compactness, layerH, shape };
+}
+
+function pb_chooseDenseLayer(products, palL, palW, remainingHeight) {
+  const heights = new Set();
+  for (const product of products) {
+    if ((product.qty || 0) <= 0) continue;
+    for (const ori of pb_getOrientations(product, palL, palW)) {
+      if (ori.dY <= remainingHeight + PB_HEIGHT_EPS) heights.add(Math.round(ori.dY * 10) / 10);
+    }
+  }
+
+  let best = null;
+  for (const layerH of heights) {
+    const layer = pb_packLayerForHeight(products, palL, palW, layerH);
+    if (!layer.placements.length) continue;
+    const score =
+      layer.coverage * 100000 +
+      layer.compactness * 18000 +
+      layer.placements.length * 280 -
+      layer.shape.holeCells * 80 -
+      layer.shape.holeCount * 1400 -
+      layer.layerH * 18;
+    if (!best || score > best.score) best = { ...layer, score };
+  }
+  return best;
+}
+
+function pb_runPackingLayered(products, palL, palW, maxH) {
+  const remaining = products
+    .filter(product => (product.qty || 0) > 0)
+    .map(product => ({ ...product, qty: product.qty || 0 }));
+  const packed = [];
+  const uidCounters = {};
+  let y = 0;
+  let safety = 0;
+
+  while (remaining.some(product => product.qty > 0) && y < maxH - PB_HEIGHT_EPS && safety < 120) {
+    safety++;
+    const layer = pb_chooseDenseLayer(remaining, palL, palW, maxH - y);
+    if (!layer || !layer.placements.length) break;
+
+    for (const box of layer.placements) {
+      const idx = uidCounters[box.id] || 0;
+      uidCounters[box.id] = idx + 1;
+      packed.push({
+        ...box,
+        y,
+        uid: `${box.id}::${idx}`,
+      });
+    }
+
+    for (const product of remaining) {
+      product.qty -= layer.placedCounts[product.id] || 0;
+    }
+
+    y += layer.layerH;
+  }
+
+  return packed;
+}
+
 function pb_runPackingGreedy(products, palL, palW, maxH) {
   const packed = [];
   const units = [];
@@ -1047,7 +1317,7 @@ function pb_runPackingCore(products, palL, palW, maxH, strategy = 'balanced') {
 export function pb_runPacking(products, palL, palW, maxH) {
   const totalUnits = products.reduce((sum, product) => sum + (product.qty || 0), 0);
   if (totalUnits > PB_PRECISE_MAX_UNITS) {
-    return pb_runPackingGreedy(products, palL, palW, maxH);
+    return pb_runPackingLayered(products, palL, palW, maxH);
   }
 
   const strategies = totalUnits > 8
