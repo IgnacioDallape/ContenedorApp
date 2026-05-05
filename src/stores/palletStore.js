@@ -1008,137 +1008,129 @@ function pb_collectLayerAnchors(placements, palL, palW, ori) {
   return anchors;
 }
 
-function pb_scoreLayerCandidate(candidate, placements, palL, palW, support = null) {
-  const next = { x: candidate.x, z: candidate.z, dX: candidate.ori.dX, dZ: candidate.ori.dZ };
-  const centerX = next.x + next.dX / 2;
-  const centerZ = next.z + next.dZ / 2;
-  const distToCenter = Math.hypot(centerX - palL / 2, centerZ - palW / 2);
-  const adjacency = placements.reduce((acc, box) => {
-    const overlapX = Math.max(0, Math.min(next.x + next.dX, box.x + box.dX) - Math.max(next.x, box.x));
-    const overlapZ = Math.max(0, Math.min(next.z + next.dZ, box.z + box.dZ) - Math.max(next.z, box.z));
-    const touchesX = Math.abs(next.x + next.dX - box.x) <= PB_HEIGHT_EPS || Math.abs(box.x + box.dX - next.x) <= PB_HEIGHT_EPS;
-    const touchesZ = Math.abs(next.z + next.dZ - box.z) <= PB_HEIGHT_EPS || Math.abs(box.z + box.dZ - next.z) <= PB_HEIGHT_EPS;
-    if (touchesX && overlapZ > PB_HEIGHT_EPS) acc.shared += overlapZ;
-    if (touchesZ && overlapX > PB_HEIGHT_EPS) acc.shared += overlapX;
-    return acc;
-  }, { shared: 0 });
-  const touchesWall =
-    (next.x <= PB_HEIGHT_EPS ? 1 : 0) +
-    (next.z <= PB_HEIGHT_EPS ? 1 : 0) +
-    (Math.abs(next.x + next.dX - palL) <= PB_HEIGHT_EPS ? 1 : 0) +
-    (Math.abs(next.z + next.dZ - palW) <= PB_HEIGHT_EPS ? 1 : 0);
-  const area = next.dX * next.dZ;
-  const nextLayer = [
-    ...placements.map(box => ({ x: box.x, y: 0, z: box.z, dX: box.dX, dY: candidate.ori.dY, dZ: box.dZ })),
-    { x: next.x, y: 0, z: next.z, dX: next.dX, dY: candidate.ori.dY, dZ: next.dZ },
-  ];
-  const shape = pb_measureLayerShape(nextLayer, palL, palW);
-  const occupiedArea = shape.occupiedCells * PB_CELL_AREA;
-  const bboxArea = Math.max(occupiedArea, shape.bboxCells * PB_CELL_AREA);
-  const gapArea = Math.max(0, bboxArea - occupiedArea);
-
-  return (
-    gapArea * 7 +
-    shape.perimeter * 4 +
-    distToCenter * 12 -
-    (support?.supportPercent || 0) * 2400 -
-    adjacency.shared * 120 -
-    touchesWall * 450 -
-    area * 2.8
-  );
-}
-
 function pb_supportCoverage(supportRects, palL, palW) {
   const supportArea = supportRects.reduce((sum, rect) => sum + rect.dX * rect.dZ, 0);
   return supportArea / Math.max(1, palL * palW);
 }
 
-function pb_packLayerForHeight(products, palL, palW, layerH, supportRects) {
+function pb_buildLayerOptions(products, palL, palW, remainingHeight, layerH = null) {
+  const options = [];
+  for (const product of products) {
+    if ((product.qty || 0) <= 0) continue;
+    for (const ori of pb_getOrientations(product, palL, palW)) {
+      if (ori.dY > remainingHeight + PB_HEIGHT_EPS) continue;
+      if (layerH != null && Math.abs(ori.dY - layerH) > PB_HEIGHT_EPS) continue;
+      options.push({
+        product,
+        ori,
+        area: ori.dX * ori.dZ,
+        weight: Number(product.weight || 0),
+      });
+    }
+  }
+
+  return options.sort((a, b) => {
+    const areaDiff = b.area - a.area;
+    if (Math.abs(areaDiff) > 0.01) return areaDiff;
+    const weightDiff = b.weight - a.weight;
+    if (Math.abs(weightDiff) > 0.01) return weightDiff;
+    return Math.max(b.ori.dX, b.ori.dZ) - Math.max(a.ori.dX, a.ori.dZ);
+  });
+}
+
+function pb_scoreFastLayerPlacement(option, rect, placements, palL, palW, support) {
+  const centerX = rect.x + rect.dX / 2;
+  const centerZ = rect.z + rect.dZ / 2;
+  const distToCenter = Math.hypot(centerX - palL / 2, centerZ - palW / 2);
+  let sharedEdge = 0;
+  for (const box of placements) {
+    const overlapX = Math.max(0, Math.min(rect.x + rect.dX, box.x + box.dX) - Math.max(rect.x, box.x));
+    const overlapZ = Math.max(0, Math.min(rect.z + rect.dZ, box.z + box.dZ) - Math.max(rect.z, box.z));
+    const touchesX = Math.abs(rect.x + rect.dX - box.x) <= PB_HEIGHT_EPS || Math.abs(box.x + box.dX - rect.x) <= PB_HEIGHT_EPS;
+    const touchesZ = Math.abs(rect.z + rect.dZ - box.z) <= PB_HEIGHT_EPS || Math.abs(box.z + box.dZ - rect.z) <= PB_HEIGHT_EPS;
+    if (touchesX && overlapZ > PB_HEIGHT_EPS) sharedEdge += overlapZ;
+    if (touchesZ && overlapX > PB_HEIGHT_EPS) sharedEdge += overlapX;
+  }
+  const touchesWall =
+    (rect.x <= PB_HEIGHT_EPS ? 1 : 0) +
+    (rect.z <= PB_HEIGHT_EPS ? 1 : 0) +
+    (Math.abs(rect.x + rect.dX - palL) <= PB_HEIGHT_EPS ? 1 : 0) +
+    (Math.abs(rect.z + rect.dZ - palW) <= PB_HEIGHT_EPS ? 1 : 0);
+
+  return (
+    distToCenter * 10 +
+    option.ori.dY * 6 -
+    rect.dX * rect.dZ * 4.8 -
+    option.weight * 38 -
+    sharedEdge * 95 -
+    touchesWall * 220 -
+    support.supportPercent * 1800
+  );
+}
+
+function pb_fillLayerGaps(products, placements, placedCounts, remaining, palL, palW, remainingHeight, supportRects) {
+  const options = pb_buildLayerOptions(products, palL, palW, remainingHeight);
+  let safety = 0;
+
+  while (safety < 300) {
+    safety++;
+    let best = null;
+
+    for (const option of options) {
+      const qtyLeft = remaining.get(option.product.id) || 0;
+      if (qtyLeft <= 0) continue;
+
+      const anchors = pb_collectLayerAnchors(placements, palL, palW, option.ori);
+      for (const anchor of anchors) {
+        const candidateRect = { x: anchor.x, z: anchor.z, dX: option.ori.dX, dZ: option.ori.dZ };
+        if (candidateRect.x + candidateRect.dX > palL + PB_HEIGHT_EPS) continue;
+        if (candidateRect.z + candidateRect.dZ > palW + PB_HEIGHT_EPS) continue;
+        if (placements.some(box => pb_rectsOverlap(candidateRect, box))) continue;
+
+        const support = pb_supportForRect(candidateRect, supportRects);
+        if (!support.supported) continue;
+
+        const score = pb_scoreFastLayerPlacement(option, candidateRect, placements, palL, palW, support);
+
+        if (!best || score < best.score) {
+          best = { ...option, x: candidateRect.x, z: candidateRect.z, score };
+        }
+      }
+    }
+
+    if (!best) break;
+    const idx = placedCounts[best.product.id] || 0;
+    placedCounts[best.product.id] = idx + 1;
+    remaining.set(best.product.id, (remaining.get(best.product.id) || 0) - 1);
+    placements.push({
+      x: best.x,
+      z: best.z,
+      dX: best.ori.dX,
+      dY: best.ori.dY,
+      dZ: best.ori.dZ,
+      color: best.product.color,
+      name: best.product.name,
+      id: best.product.id,
+      uid: `${best.product.id}::fill::${idx}`,
+      score: best.score,
+      weight: best.weight,
+      mustBeBase: !!best.product.mustBeBase,
+      noRotate: !!best.product.noRotate,
+      sourceDims: { ...best.product.dims },
+    });
+  }
+}
+
+function pb_packLayerForHeight(products, palL, palW, layerH, supportRects, allowMixedFill = false) {
   const remaining = new Map();
   for (const product of products) {
     if ((product.qty || 0) <= 0) continue;
     remaining.set(product.id, product.qty || 0);
   }
 
-  const options = [];
-  for (const product of products) {
-    if ((product.qty || 0) <= 0) continue;
-    for (const ori of pb_getOrientations(product, palL, palW)) {
-      if (Math.abs(ori.dY - layerH) > PB_HEIGHT_EPS) continue;
-      options.push({ product, ori, area: ori.dX * ori.dZ });
-    }
-  }
-
-  options.sort((a, b) => b.area - a.area || Math.max(b.ori.dX, b.ori.dZ) - Math.max(a.ori.dX, a.ori.dZ));
-  function makeGridSeed(option) {
-    const cols = Math.floor((palL + PB_HEIGHT_EPS) / option.ori.dX);
-    const rows = Math.floor((palW + PB_HEIGHT_EPS) / option.ori.dZ);
-    const capacity = cols * rows;
-    const qty = Math.min(option.product.qty || 0, capacity);
-    if (qty <= 0 || cols <= 0 || rows <= 0) return null;
-
-    const usedCols = Math.min(cols, qty);
-    const usedRows = Math.ceil(qty / Math.max(1, cols));
-    const usedW = usedCols * option.ori.dX;
-    const usedD = Math.min(rows, usedRows) * option.ori.dZ;
-    const offsetX = pb_roundToGrid((palL - usedW) / 2);
-    const offsetZ = pb_roundToGrid((palW - usedD) / 2);
-    const seedPlacements = [];
-    const seedCounts = { [option.product.id]: 0 };
-    let placed = 0;
-
-    for (let row = 0; row < rows && placed < qty; row++) {
-      const remainingInRow = qty - placed;
-      const countInRow = Math.min(cols, remainingInRow);
-      const rowW = countInRow * option.ori.dX;
-      const rowOffsetX = pb_roundToGrid((palL - rowW) / 2);
-      for (let col = 0; col < countInRow && placed < qty; col++) {
-        const rect = {
-          x: Math.max(0, rowOffsetX + col * option.ori.dX),
-          z: Math.max(0, offsetZ + row * option.ori.dZ),
-          dX: option.ori.dX,
-          dZ: option.ori.dZ,
-        };
-        const support = pb_supportForRect(rect, supportRects);
-        if (!support.supported) continue;
-
-        const idx = seedCounts[option.product.id] || 0;
-        seedCounts[option.product.id] = idx + 1;
-        seedPlacements.push({
-          x: rect.x,
-          z: rect.z,
-          dX: option.ori.dX,
-          dY: option.ori.dY,
-          dZ: option.ori.dZ,
-          color: option.product.color,
-          name: option.product.name,
-          id: option.product.id,
-          uid: `${option.product.id}::grid::${idx}`,
-          score: 0,
-          mustBeBase: !!option.product.mustBeBase,
-          noRotate: !!option.product.noRotate,
-          sourceDims: { ...option.product.dims },
-        });
-        placed++;
-      }
-    }
-
-    const area = seedPlacements.reduce((sum, box) => sum + box.dX * box.dZ, 0);
-    return {
-      placements: seedPlacements,
-      counts: seedCounts,
-      score: area * 100 + seedPlacements.length * 20 - Math.abs(offsetX) - Math.abs(offsetZ),
-    };
-  }
-
-  let bestSeed = { placements: [], counts: {}, score: -Infinity };
-  for (const option of options) {
-    const seed = makeGridSeed(option);
-    if (seed && seed.score > bestSeed.score) bestSeed = seed;
-  }
-
-  const placements = bestSeed.placements.map(box => ({ ...box }));
-  const placedCounts = { ...bestSeed.counts };
+  const options = pb_buildLayerOptions(products, palL, palW, layerH, layerH);
+  const placements = [];
+  const placedCounts = {};
   for (const [productId, count] of Object.entries(placedCounts)) {
     const key = [...remaining.keys()].find(value => String(value) === productId);
     if (key != null) remaining.set(key, Math.max(0, (remaining.get(key) || 0) - count));
@@ -1161,7 +1153,7 @@ function pb_packLayerForHeight(products, palL, palW, layerH, supportRects) {
         if (placements.some(box => pb_rectsOverlap(candidateRect, box))) continue;
         const support = pb_supportForRect(candidateRect, supportRects);
         if (!support.supported) continue;
-        const score = pb_scoreLayerCandidate({ ...option, x: candidateRect.x, z: candidateRect.z }, placements, palL, palW, support);
+        const score = pb_scoreFastLayerPlacement(option, candidateRect, placements, palL, palW, support);
         if (!best || score < best.score) {
           best = { ...option, x: candidateRect.x, z: candidateRect.z, score };
         }
@@ -1183,10 +1175,15 @@ function pb_packLayerForHeight(products, palL, palW, layerH, supportRects) {
       id: best.product.id,
       uid: `${best.product.id}::layer::${idx}`,
       score: best.score,
+      weight: best.weight,
       mustBeBase: !!best.product.mustBeBase,
       noRotate: !!best.product.noRotate,
       sourceDims: { ...best.product.dims },
     });
+  }
+
+  if (allowMixedFill) {
+    pb_fillLayerGaps(products, placements, placedCounts, remaining, palL, palW, layerH, supportRects);
   }
 
   const area = placements.reduce((sum, box) => sum + box.dX * box.dZ, 0);
@@ -1195,9 +1192,12 @@ function pb_packLayerForHeight(products, palL, palW, layerH, supportRects) {
     palL,
     palW
   );
-  const coverage = area / Math.max(1, palL * palW);
+  const supportArea = supportRects.reduce((sum, rect) => sum + rect.dX * rect.dZ, 0);
+  const coverage = area / Math.max(1, supportArea);
   const compactness = shape.bboxCells > 0 ? shape.occupiedCells / shape.bboxCells : 0;
-  return { placements, placedCounts, area, coverage, compactness, layerH, shape };
+  const totalWeight = placements.reduce((sum, box) => sum + Number(box.weight || 0), 0);
+  const averageArea = placements.length ? area / placements.length : 0;
+  return { placements, placedCounts, area, coverage, compactness, layerH, shape, totalWeight, averageArea };
 }
 
 function pb_chooseDenseLayer(products, palL, palW, remainingHeight, supportRects) {
@@ -1211,15 +1211,17 @@ function pb_chooseDenseLayer(products, palL, palW, remainingHeight, supportRects
 
   let best = null;
   for (const layerH of heights) {
-    const layer = pb_packLayerForHeight(products, palL, palW, layerH, supportRects);
+    const layer = pb_packLayerForHeight(products, palL, palW, layerH, supportRects, false);
     if (!layer.placements.length) continue;
     const score =
-      layer.coverage * 100000 +
-      layer.compactness * 18000 +
-      layer.placements.length * 280 -
+      layer.coverage * 125000 +
+      layer.compactness * 20000 +
+      layer.placements.length * 240 -
       layer.shape.holeCells * 80 -
       layer.shape.holeCount * 1400 -
-      layer.layerH * 18;
+      layer.layerH * 8 +
+      layer.totalWeight * 80 +
+      layer.averageArea * 0.8;
     if (!best || score > best.score) best = { ...layer, score };
   }
   return best;
@@ -1261,8 +1263,11 @@ function pb_runPackingLayered(products, palL, palW, maxH) {
         continue;
       }
 
-      const layer = pb_chooseDenseLayer(remaining, palL, palW, maxH - y, supportRects);
+      const chosenLayer = pb_chooseDenseLayer(remaining, palL, palW, maxH - y, supportRects);
       processedLevels.add(y);
+      if (!chosenLayer || !chosenLayer.placements.length) continue;
+
+      const layer = pb_packLayerForHeight(remaining, palL, palW, chosenLayer.layerH, supportRects, true);
       if (!layer || !layer.placements.length) continue;
 
       for (const box of layer.placements) {

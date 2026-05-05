@@ -9,7 +9,7 @@ function shortenUrl(url) {
 
 const MODAL_DEFAULTS = {
   id: null, name: '', imgUrl: '', link: '', price: '', weight: '',
-  type: 'box', boxL: '', boxW: '', boxH: '', palletType: 'euro', palletH: '180',
+  type: 'box', boxL: '', boxW: '', boxH: '', noRotate: false, palletType: 'euro', palletH: '180',
 };
 
 export default function Catalog() {
@@ -84,6 +84,7 @@ export default function Catalog() {
       boxL: p.type === 'box' ? String(p.dims.L) : '',
       boxW: p.type === 'box' ? String(p.dims.W) : '',
       boxH: p.type === 'box' ? String(p.dims.H) : '',
+      noRotate: !!p.noRotate,
       palletType: 'euro',
       palletH: p.type === 'pallet' ? String(p.dims.H) : '180',
     });
@@ -121,6 +122,7 @@ export default function Catalog() {
       weight,
       imgUrl: modal.imgUrl.trim() || null,
       link: modal.link.trim() || null,
+      noRotate: modal.type === 'box' ? !!modal.noRotate : false,
     };
 
     if (modal.id) {
@@ -397,6 +399,21 @@ export default function Catalog() {
                   <div className="field full">
                     <label>Alto <span className="unit">cm</span></label>
                     <input type="number" value={modal.boxH} onChange={e => setModal(m => ({ ...m, boxH: e.target.value }))} min="1" />
+                  </div>
+                  <div className="field full" style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                    <input
+                      type="checkbox"
+                      id="catalogNoRotate"
+                      checked={!!modal.noRotate}
+                      onChange={e => setModal(m => ({ ...m, noRotate: e.target.checked }))}
+                      style={{ width: 16, height: 16, marginTop: 2 }}
+                    />
+                    <label htmlFor="catalogNoRotate" style={{ cursor: 'pointer', fontSize: 13, margin: 0, lineHeight: 1.35 }}>
+                      Solo puede ir en posición por defecto
+                      <span className="unit" style={{ display: 'block', marginTop: 2 }}>
+                        Si no lo marcás, el motor puede rotarla para acomodarla mejor.
+                      </span>
+                    </label>
                   </div>
                 </>
               ) : (

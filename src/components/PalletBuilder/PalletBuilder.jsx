@@ -170,7 +170,7 @@ export default function PalletBuilder() {
         qty: Math.max(1, parseInt(qty) || 1),
         weight: p.weight || 0,
         mustBeBase: false,
-        noRotate: false,
+        noRotate: !!p.noRotate,
       });
       added++;
     }
@@ -185,7 +185,7 @@ export default function PalletBuilder() {
 
   function rotateSelectedBox() {
     if (!activeRes || !selectedBox) return;
-    if (selectedBox.noRotate) return showToast('Esta caja está marcada como no rotatable', 'error');
+    if (selectedBox.noRotate) return showToast('Esta caja solo puede ir en su posición por defecto', 'error');
 
     const nextDims = { dX: selectedBox.dZ, dY: selectedBox.dY, dZ: selectedBox.dX };
     const placement = pb_validatePlacement(
@@ -322,7 +322,7 @@ export default function PalletBuilder() {
                     )}
                     {p.noRotate && (
                       <span style={{ fontSize: 9, padding: '1px 6px', borderRadius: 10, background: 'var(--bg-3)', color: 'var(--text)', fontFamily: "'DM Mono', monospace", marginLeft: 4, border: '1px solid var(--border)' }}>
-                        SIN GIRO
+                        POS. FIJA
                       </span>
                     )}
                   </div>
@@ -582,7 +582,10 @@ export default function PalletBuilder() {
                   style={{ width: 16, height: 16 }}
                 />
                 <label htmlFor="pbNoRotate" style={{ cursor: 'pointer', fontSize: 13, margin: 0 }}>
-                  No se puede rotar la caja
+                  Solo puede ir en posición por defecto
+                  <span style={{ display: 'block', color: 'var(--text-3)', fontSize: 11, marginTop: 2 }}>
+                    Si no lo marcás, el motor puede rotarla para acomodarla mejor.
+                  </span>
                 </label>
               </div>
               <div className="field full">
@@ -757,7 +760,7 @@ export default function PalletBuilder() {
                                 qty,
                                 weight: p.weight || 0,
                                 mustBeBase: false,
-                                noRotate: false,
+                                noRotate: !!p.noRotate,
                               });
                             }
                             clearResults();
