@@ -12,6 +12,9 @@ const PB_REBALANCE_MAX_SOURCE_UNITS = 24;
 const PB_REPACK_MERGE_MAX_UNITS = 120;
 const PB_REPACK_MERGE_MAX_SOURCE_UNITS = 18;
 const PB_MULTI_STRATEGY_MAX_UNITS = 72;
+const PB_CORE_BUDGET_SMALL_MS = 7000;
+const PB_CORE_BUDGET_MEDIUM_MS = 5500;
+const PB_CORE_BUDGET_LARGE_MS = 4000;
 const PB_MIN_LAYER_SUPPORT_COVERAGE = 0.72;
 const PB_MIN_SUPPORT_PERCENT = 0.8;
 const PB_MIN_SUPPORT_AXIS_COVERAGE = 0.68;
@@ -314,6 +317,12 @@ function pb_scoreCandidate(unit, candidate, packed, palL, palW) {
   const centerPenalty = isBase ? distToCenter * 0.45 : distToCenter * 2.6;
   const towerPenalty = candidate.y > PB_HEIGHT_EPS ? slenderness * 240 : slenderness * 40;
   const isolationPenalty = layerPlacements.length && adjacency.sideContacts === 0 ? 900 : 0;
+  const supportPenalty = candidate.y > PB_HEIGHT_EPS && candidate.support
+    ? (1 - Math.min(1, candidate.support.supportPercent || 0)) * 2800 +
+      (1 - Math.min(1, candidate.support.compactness || 0)) * 2200 +
+      Math.max(0, 4 - (candidate.support.edgeSupportCount || 0)) * 520 +
+      Math.max(0, (candidate.support.centroidOffsetRatio || 0) - 0.1) * 4200
+    : 0;
 
   const footprintReward = footprint * (isBase ? 1.6 : 1.05);
   const adjacencyReward = adjacency.sharedEdge * 34 + adjacency.sideContacts * 170;
@@ -322,7 +331,7 @@ function pb_scoreCandidate(unit, candidate, packed, palL, palW) {
   const centerFillReward = candidate.y > PB_HEIGHT_EPS ? Math.max(0, 220 - distToCenter * 2.4) : 0;
   const basePriorityReward = isBase ? gravityPriority * 0.55 + (unit.mustBeBase ? 400 : 0) : 0;
 
-  return holePenalty + fillGapPenalty + perimeterPenalty + topPenalty + centerPenalty + towerPenalty + isolationPenalty
+  return holePenalty + fillGapPenalty + perimeterPenalty + topPenalty + centerPenalty + towerPenalty + isolationPenalty + supportPenalty
     - footprintReward - adjacencyReward - wallReward - compactReward - centerFillReward - basePriorityReward;
 }
 
@@ -334,6 +343,95 @@ function pb_buildHMFromPacked(packed, palL, palW) {
   const hm = pb_makeHM(palW, palL);
   for (const placement of packed) pb_applyPackedToHM(hm, placement);
   return hm;
+}
+
+function pb_getTimeBudgetForUnits(totalUnits) {
+  if (totalUnits <= 24) return PB_CORE_BUDGET_SMALL_MS;
+  if (totalUnits <= 48) return PB_CORE_BUDGET_MEDIUM_MS;
+  return PB_CORE_BUDGET_LARGE_MS;
+}
+
+function pb_intersectSupportRect(rect, support) {
+  const x = Math.max(rect.x, support.x);
+  const z = Math.max(rect.z, support.z);
+  const maxX = Math.min(rect.x + rect.dX, support.x + support.dX);
+  const maxZ = Math.min(rect.z + rect.dZ, support.z + support.dZ);
+  const dX = maxX - x;
+  const dZ = maxZ - z;
+  if (dX <= PB_HEIGHT_EPS || dZ <= PB_HEIGHT_EPS) return null;
+  return { x, z, dX, dZ };
+}
+
+function pb_measureSupportTopology(rect, supportRects) {
+  const overlaps = [];
+  let supportedArea = 0;
+  let weightedCenterX = 0;
+  let weightedCenterZ = 0;
+
+  for (const support of supportRects) {
+    const overlap = pb_intersectSupportRect(rect, support);
+    if (!overlap) continue;
+    overlaps.push(overlap);
+    const area = overlap.dX * overlap.dZ;
+    supportedArea += area;
+    weightedCenterX += (overlap.x + overlap.dX / 2) * area;
+    weightedCenterZ += (overlap.z + overlap.dZ / 2) * area;
+  }
+
+  if (!overlaps.length || supportedArea <= PB_HEIGHT_EPS) {
+    return {
+      overlapRects: [],
+      supportedArea: 0,
+      compactness: 0,
+      edgeSupportCount: 0,
+      centroidOffsetRatio: 1,
+    };
+  }
+
+  const bounds = pb_rectBounds(overlaps, rect);
+  const bboxArea = Math.max(1, (bounds.maxX - bounds.minX) * (bounds.maxZ - bounds.minZ));
+  const compactness = Math.min(1, supportedArea / bboxArea);
+  const centerX = rect.x + rect.dX / 2;
+  const centerZ = rect.z + rect.dZ / 2;
+  const centroidX = weightedCenterX / supportedArea;
+  const centroidZ = weightedCenterZ / supportedArea;
+  const centroidOffset = Math.hypot(centroidX - centerX, centroidZ - centerZ);
+  const centroidOffsetRatio = centroidOffset / Math.max(1, Math.max(rect.dX, rect.dZ));
+  const edgeSupportCount = [
+    overlaps.some(item => item.x <= rect.x + PB_HEIGHT_EPS),
+    overlaps.some(item => item.x + item.dX >= rect.x + rect.dX - PB_HEIGHT_EPS),
+    overlaps.some(item => item.z <= rect.z + PB_HEIGHT_EPS),
+    overlaps.some(item => item.z + item.dZ >= rect.z + rect.dZ - PB_HEIGHT_EPS),
+  ].filter(Boolean).length;
+
+  return {
+    overlapRects: overlaps,
+    supportedArea,
+    compactness,
+    edgeSupportCount,
+    centroidOffsetRatio,
+  };
+}
+
+function pb_assessPhysicalSupport(rect, supportRects, weight = 0) {
+  const support = pb_supportForRect(rect, supportRects);
+  const topology = pb_measureSupportTopology(rect, supportRects);
+  const footprint = rect.dX * rect.dZ;
+  const elongated = Math.max(rect.dX, rect.dZ) / Math.max(1, Math.min(rect.dX, rect.dZ));
+  const heavyOrLarge = weight >= 25 || footprint >= 2000 || elongated >= 1.7;
+  const requiredCompactness = heavyOrLarge ? 0.72 : 0.56;
+  const requiredEdgeSupport = heavyOrLarge ? 4 : 3;
+  const maxCentroidOffsetRatio = heavyOrLarge ? 0.16 : 0.24;
+
+  return {
+    ...support,
+    ...topology,
+    supported:
+      support.supported &&
+      topology.compactness >= requiredCompactness &&
+      topology.edgeSupportCount >= requiredEdgeSupport &&
+      topology.centroidOffsetRatio <= maxCentroidOffsetRatio,
+  };
 }
 
 function pb_findLowestCandidatesForUnit(unit, existingPacked, hm, palL, palW, maxH) {
@@ -350,8 +448,14 @@ function pb_findLowestCandidatesForUnit(unit, existingPacked, hm, palL, palW, ma
       if (!plateau.flat) continue;
       if (plateau.y + ori.dY > maxH + PB_HEIGHT_EPS) continue;
       if (unit.mustBeBase && plateau.y > PB_HEIGHT_EPS) continue;
+      let support = null;
+      if (plateau.y > PB_HEIGHT_EPS) {
+        const supportRects = pb_getLevelSupportRects(existingPacked, plateau.y, palL, palW);
+        support = pb_assessPhysicalSupport({ x: px, z: pz, dX: ori.dX, dZ: ori.dZ }, supportRects, Number(unit.weight || 0));
+        if (!support.supported) continue;
+      }
 
-      const candidate = { unit, px, pz, ori, y: plateau.y };
+      const candidate = { unit, px, pz, ori, y: plateau.y, support };
       if (candidate.y < lowestY - PB_HEIGHT_EPS) {
         lowestY = candidate.y;
         candidates = [candidate];
@@ -378,7 +482,7 @@ function pb_unitSignature(unit) {
   ].join('|');
 }
 
-function pb_estimateLayerFill(candidate, remainingUnits, packed, palL, palW, maxH, scanLimit = remainingUnits.length) {
+function pb_estimateLayerFill(candidate, remainingUnits, packed, palL, palW, maxH, scanLimit = remainingUnits.length, deadline = 0) {
   const nextPacked = [
     ...packed,
     {
@@ -397,6 +501,7 @@ function pb_estimateLayerFill(candidate, remainingUnits, packed, palL, palW, max
   let scanned = 0;
 
   for (let unitIdx = 0; unitIdx < remainingUnits.length; unitIdx++) {
+    if (deadline && Date.now() >= deadline) break;
     const unit = remainingUnits[unitIdx];
     if (unit.uid === candidate.unit.uid) continue;
     const signature = pb_unitSignature(unit);
@@ -441,7 +546,7 @@ function pb_scoreLayerPattern(placements, palL, palW) {
   );
 }
 
-function pb_simulateLayerPattern(seedCandidate, remainingUnits, packed, palL, palW, maxH) {
+function pb_simulateLayerPattern(seedCandidate, remainingUnits, packed, palL, palW, maxH, deadline = 0) {
   const placedUnits = new Set([seedCandidate.unit.uid]);
   const layerY = seedCandidate.y;
   const simulated = [
@@ -458,6 +563,7 @@ function pb_simulateLayerPattern(seedCandidate, remainingUnits, packed, palL, pa
   const layerPlacements = simulated.filter(item => Math.abs(item.y - layerY) <= PB_HEIGHT_EPS);
 
   for (let step = 0; step < 9; step++) {
+    if (deadline && Date.now() >= deadline) break;
     const hm = pb_buildHMFromPacked(simulated, palL, palW);
     let best = null;
 
@@ -497,7 +603,7 @@ function pb_simulateLayerPattern(seedCandidate, remainingUnits, packed, palL, pa
   };
 }
 
-function pb_chooseBestCandidate(remainingUnits, packed, hm, palL, palW, maxH) {
+function pb_chooseBestCandidate(remainingUnits, packed, hm, palL, palW, maxH, deadline = 0) {
   let layerY = Infinity;
   const layerCandidates = [];
   const seenUnits = new Set();
@@ -527,19 +633,24 @@ function pb_chooseBestCandidate(remainingUnits, packed, hm, palL, palW, maxH) {
   if (!layerCandidates.length) return null;
 
   const totalRemaining = remainingUnits.length;
-  const candidateLimit = totalRemaining > 120 ? 3 : totalRemaining > 80 ? 4 : totalRemaining > 45 ? 6 : 12;
-  const shouldEstimateLayer = totalRemaining <= 60;
-  const shouldSimulatePatterns = totalRemaining <= 32;
-  const estimateScanLimit = totalRemaining > 40 ? 18 : remainingUnits.length;
+  const timeRemaining = deadline ? Math.max(0, deadline - Date.now()) : Infinity;
+  const currentLayerY = layerCandidates[0]?.y ?? 0;
+  const evaluatingBase = currentLayerY <= PB_HEIGHT_EPS;
+  const candidateLimit = timeRemaining < 700
+    ? (totalRemaining > 24 ? 3 : 4)
+    : totalRemaining > 90 ? 3 : totalRemaining > 48 ? 4 : totalRemaining > 24 ? 5 : 7;
+  const shouldEstimateLayer = totalRemaining <= 56 && timeRemaining > 220;
+  const shouldSimulatePatterns = !evaluatingBase && totalRemaining <= 16 && timeRemaining > 1200;
+  const estimateScanLimit = totalRemaining > 32 ? 8 : totalRemaining > 18 ? 12 : remainingUnits.length;
   const rankedCandidates = layerCandidates
     .sort((a, b) => a.score - b.score)
     .slice(0, candidateLimit)
     .map(candidate => {
       const estimate = shouldEstimateLayer
-        ? pb_estimateLayerFill(candidate, remainingUnits, packed, palL, palW, maxH, estimateScanLimit)
+        ? pb_estimateLayerFill(candidate, remainingUnits, packed, palL, palW, maxH, estimateScanLimit, deadline)
         : { sameLayerArea: candidate.ori.dX * candidate.ori.dZ, closePlacements: 0 };
       const simulation = shouldSimulatePatterns
-        ? pb_simulateLayerPattern(candidate, remainingUnits, packed, palL, palW, maxH)
+        ? pb_simulateLayerPattern(candidate, remainingUnits, packed, palL, palW, maxH, deadline)
         : {
             simulatedCount: estimate.closePlacements,
             simulatedArea: estimate.sameLayerArea,
@@ -1239,7 +1350,13 @@ function pb_findGreedyCandidatesForUnit(unit, packed, hm, palL, palW, maxH) {
       if (!plateau.flat) continue;
       if (plateau.y + ori.dY > maxH + PB_HEIGHT_EPS) continue;
       if (unit.mustBeBase && plateau.y > PB_HEIGHT_EPS) continue;
-      const candidate = { unit, px, pz, ori, y: plateau.y };
+      let support = null;
+      if (plateau.y > PB_HEIGHT_EPS) {
+        const supportRects = pb_getLevelSupportRects(packed, plateau.y, palL, palW);
+        support = pb_assessPhysicalSupport({ x: px, z: pz, dX: ori.dX, dZ: ori.dZ }, supportRects, Number(unit.weight || 0));
+        if (!support.supported) continue;
+      }
+      const candidate = { unit, px, pz, ori, y: plateau.y, support };
       candidates.push({
         ...candidate,
         score: pb_fastCandidateScore(candidate, packed, palL, palW),
@@ -1414,7 +1531,7 @@ function pb_validatePackedLayout(packed, palL, palW, maxH) {
     const supportRects = others
       .filter(candidate => Math.abs((candidate.y + candidate.dY) - box.y) <= PB_HEIGHT_EPS)
       .map(candidate => ({ x: candidate.x, z: candidate.z, dX: candidate.dX, dZ: candidate.dZ }));
-    if (!pb_supportForRect({ x: box.x, z: box.z, dX: box.dX, dZ: box.dZ }, supportRects).supported) {
+    if (!pb_assessPhysicalSupport({ x: box.x, z: box.z, dX: box.dX, dZ: box.dZ }, supportRects, Number(box.weight || 0)).supported) {
       return false;
     }
   }
@@ -1447,7 +1564,7 @@ function pb_canShiftLayer(packed, layerUids, dx, dz, palL, palW, maxH) {
     const supportRects = staticBoxes
       .filter(candidate => Math.abs((candidate.y + candidate.dY) - box.y) <= PB_HEIGHT_EPS)
       .map(candidate => ({ x: candidate.x, z: candidate.z, dX: candidate.dX, dZ: candidate.dZ }));
-    if (!pb_supportForRect({ x: box.x, z: box.z, dX: box.dX, dZ: box.dZ }, supportRects).supported) {
+    if (!pb_assessPhysicalSupport({ x: box.x, z: box.z, dX: box.dX, dZ: box.dZ }, supportRects, Number(box.weight || 0)).supported) {
       return false;
     }
   }
@@ -1662,7 +1779,10 @@ function pb_scoreFastLayerPlacement(option, rect, placements, palL, palW, suppor
     option.weight * 24 -
     sharedEdge * 95 -
     touchesWall * 220 -
-    support.supportPercent * 1800
+    support.supportPercent * 1800 -
+    (support.compactness || 0) * 1400 +
+    (support.edgeSupportCount || 0) * 120 +
+    (support.centroidOffsetRatio || 0) * 3200
   );
 }
 
@@ -2296,6 +2416,68 @@ function pb_runPackingGreedy(products, palL, palW, maxH, strategy = 'footprint')
   return packed;
 }
 
+function pb_fillPackedHoles(units, packed, hm, palL, palW, maxH, deadline = 0) {
+  let safety = 0;
+
+  while (units.length && safety < 400) {
+    safety++;
+    if (deadline && Date.now() >= deadline + 1200) break;
+
+    let best = null;
+    const seen = new Set();
+    const scanLimit = units.length > 64 ? 18 : units.length > 36 ? 24 : 36;
+    let scanned = 0;
+
+    for (let unitIdx = 0; unitIdx < units.length; unitIdx++) {
+      const unit = units[unitIdx];
+      const signature = pb_unitSignature(unit);
+      if (seen.has(signature)) continue;
+      seen.add(signature);
+      scanned++;
+      if (scanned > scanLimit) break;
+
+      const candidates = pb_findGreedyCandidatesForUnit(unit, packed, hm, palL, palW, maxH);
+      if (!candidates.length) continue;
+      const candidate = candidates[0];
+      const footprint = candidate.ori.dX * candidate.ori.dZ;
+      const lowLayerReward = candidate.y <= PB_HEIGHT_EPS ? 1800 : Math.max(0, 1200 - candidate.y * 12);
+      const supportReward = candidate.support
+        ? (candidate.support.supportPercent * 900 + (candidate.support.compactness || 0) * 700)
+        : 0;
+      const score = candidate.score - footprint * 0.45 - lowLayerReward - supportReward;
+
+      if (!best || score < best.score) {
+        best = { ...candidate, unitIdx, score };
+      }
+    }
+
+    if (!best) break;
+
+    const { unitIdx, unit, px, pz, ori, y, score } = best;
+    pb_hmSet(hm, px, pz, ori.dX, ori.dZ, y + ori.dY);
+    packed.push({
+      x: px,
+      y,
+      z: pz,
+      dX: ori.dX,
+      dY: ori.dY,
+      dZ: ori.dZ,
+      color: unit.color,
+      name: unit.name,
+      id: unit.id,
+      uid: unit.uid,
+      score,
+      weight: Number(unit.weight || 0),
+      mustBeBase: !!unit.mustBeBase,
+      noRotate: !!unit.noRotate,
+      sourceDims: { ...unit.dims },
+    });
+    units.splice(unitIdx, 1);
+  }
+
+  return packed;
+}
+
 function pb_runPackingCore(products, palL, palW, maxH, strategy = 'balanced') {
   const packed = [];
   const units = [];
@@ -2311,13 +2493,15 @@ function pb_runPackingCore(products, palL, palW, maxH, strategy = 'balanced') {
 
   pb_sortUnitsForStrategy(units, strategy);
   const totalUnits = units.length;
+  const deadline = Date.now() + pb_getTimeBudgetForUnits(totalUnits);
 
   const hm = pb_makeHM(palW, palL);
   let safety = 0;
 
   while (units.length && safety < 500) {
     safety++;
-    const bestCandidate = pb_chooseBestCandidate(units, packed, hm, palL, palW, maxH);
+    if (Date.now() >= deadline && packed.length) break;
+    const bestCandidate = pb_chooseBestCandidate(units, packed, hm, palL, palW, maxH, deadline);
     if (!bestCandidate) break;
 
     const { unitIdx, unit, px, pz, ori, y, score } = bestCandidate;
@@ -2334,12 +2518,56 @@ function pb_runPackingCore(products, palL, palW, maxH, strategy = 'balanced') {
     units.splice(unitIdx, 1);
   }
 
+  pb_fillPackedHoles(units, packed, hm, palL, palW, maxH, deadline);
   return totalUnits > 80 ? packed : pb_optimizePackedLayout(packed, unitsByUid, palL, palW, maxH);
 }
 
+function pb_pickBestPackedLayout(layouts, palL, palW, maxH) {
+  const valid = layouts
+    .map(entry => ({
+      ...entry,
+      valid: pb_validatePackedLayout(entry.boxes, palL, palW, maxH),
+      score: pb_scorePackedLayout(entry.boxes, palL, palW, maxH),
+      top: entry.boxes.reduce((maxY, box) => Math.max(maxY, box.y + box.dY), 0),
+    }))
+    .filter(entry => entry.valid && entry.boxes.length);
+
+  if (!valid.length) return layouts[0]?.boxes || [];
+
+  valid.sort((a, b) => {
+    if (b.boxes.length !== a.boxes.length) return b.boxes.length - a.boxes.length;
+    if (Math.abs(a.score - b.score) > 0.01) return a.score - b.score;
+    return a.top - b.top;
+  });
+
+  return valid[0].boxes;
+}
+
 export function pb_runPacking(products, palL, palW, maxH) {
-  const packed = pb_runPackingLayered(products, palL, palW, maxH);
-  return pb_centerPackedLayout(packed, palL, palW, maxH);
+  const totalUnits = products.reduce((sum, product) => sum + Math.max(0, product.qty || 0), 0);
+  const candidates = [];
+  const unitsByUid = new Map();
+  for (const product of products.filter(item => (item.qty || 0) > 0)) {
+    for (let i = 0; i < product.qty; i++) {
+      unitsByUid.set(`${product.id}::${i}`, { ...product, uid: `${product.id}::${i}` });
+    }
+  }
+
+  const layeredPacked = pb_runPackingLayered(products, palL, palW, maxH);
+  const layered = pb_centerPackedLayout(
+    pb_optimizePackedLayout(layeredPacked, unitsByUid, palL, palW, maxH),
+    palL,
+    palW,
+    maxH
+  );
+  candidates.push({ name: 'layered', boxes: layered });
+
+  if (totalUnits <= PB_MULTI_STRATEGY_MAX_UNITS) {
+    const coreCountFill = pb_centerPackedLayout(pb_runPackingCore(products, palL, palW, maxH, 'count-fill'), palL, palW, maxH);
+    candidates.push({ name: 'core-count-fill', boxes: coreCountFill });
+  }
+
+  return pb_pickBestPackedLayout(candidates, palL, palW, maxH);
 }
 
 const usePalletStore = create((set, get) => ({
