@@ -12,7 +12,7 @@ const PB_REBALANCE_MAX_SOURCE_UNITS = 24;
 const PB_REPACK_MERGE_MAX_UNITS = 120;
 const PB_REPACK_MERGE_MAX_SOURCE_UNITS = 18;
 const PB_MULTI_STRATEGY_MAX_UNITS = 72;
-const PB_MIN_LAYER_SUPPORT_COVERAGE = 0.62;
+const PB_MIN_LAYER_SUPPORT_COVERAGE = 0.72;
 const PB_MIN_SUPPORT_PERCENT = 0.8;
 const PB_MIN_SUPPORT_AXIS_COVERAGE = 0.68;
 const PB_MAX_SUPPORT_GAP_RATIO = 0.38;
@@ -1357,13 +1357,19 @@ function pb_supportForRect(rect, supportRects) {
   const maxGapRatioZ = coverageZ.maxGap / Math.max(1, rect.dZ);
   const axisCoverage = Math.min(axisCoverageX, axisCoverageZ);
   const maxGapRatio = Math.max(maxGapRatioX, maxGapRatioZ);
+  const footprint = rect.dX * rect.dZ;
+  const spanRatio = Math.max(rect.dX, rect.dZ) / Math.max(1, Math.min(rect.dX, rect.dZ));
+  const strictSupport = footprint >= 2200 || spanRatio >= 1.7;
+  const requiredSupportPercent = strictSupport ? 0.9 : PB_MIN_SUPPORT_PERCENT;
+  const requiredAxisCoverage = strictSupport ? 0.82 : PB_MIN_SUPPORT_AXIS_COVERAGE;
+  const allowedGapRatio = strictSupport ? 0.24 : PB_MAX_SUPPORT_GAP_RATIO;
 
   return {
     supported:
-      supportPercent >= PB_MIN_SUPPORT_PERCENT &&
+      supportPercent >= requiredSupportPercent &&
       centerSupported &&
-      axisCoverage >= PB_MIN_SUPPORT_AXIS_COVERAGE &&
-      maxGapRatio <= PB_MAX_SUPPORT_GAP_RATIO,
+      axisCoverage >= requiredAxisCoverage &&
+      maxGapRatio <= allowedGapRatio,
     supportPercent,
     centerSupported,
     axisCoverageX,
@@ -1640,6 +1646,58 @@ function pb_fillLayerGaps(products, placements, placedCounts, remaining, palL, p
   }
 }
 
+function pb_extendPackedLevel(remainingProducts, packed, uidCounters, y, supportRects, palL, palW, maxH) {
+  const levelBoxes = packed
+    .filter(box => Math.abs(box.y - y) <= PB_HEIGHT_EPS)
+    .map(box => ({
+      x: box.x,
+      z: box.z,
+      dX: box.dX,
+      dY: box.dY,
+      dZ: box.dZ,
+      color: box.color,
+      name: box.name,
+      id: box.id,
+      uid: box.uid,
+      score: box.score,
+      weight: box.weight,
+      mustBeBase: !!box.mustBeBase,
+      noRotate: !!box.noRotate,
+      sourceDims: box.sourceDims ? { ...box.sourceDims } : undefined,
+    }));
+
+  if (!levelBoxes.length) return 0;
+
+  const placements = levelBoxes.map(box => ({ ...box }));
+  const placedCounts = {};
+  const remainingMap = new Map(
+    remainingProducts
+      .filter(product => (product.qty || 0) > 0)
+      .map(product => [product.id, product.qty || 0])
+  );
+
+  pb_fillLayerGaps(remainingProducts, placements, placedCounts, remainingMap, palL, palW, maxH - y, supportRects);
+
+  let appended = 0;
+  const newPlacements = placements.slice(levelBoxes.length);
+  for (const box of newPlacements) {
+    const idx = uidCounters[box.id] || 0;
+    uidCounters[box.id] = idx + 1;
+    packed.push({
+      ...box,
+      y,
+      uid: `${box.id}::${idx}`,
+    });
+    appended += 1;
+  }
+
+  for (const product of remainingProducts) {
+    product.qty -= placedCounts[product.id] || 0;
+  }
+
+  return appended;
+}
+
 function pb_buildDenseGridSeed(option, supportRects, palL, palW) {
   const cols = Math.floor((palL + PB_HEIGHT_EPS) / option.ori.dX);
   const rows = Math.floor((palW + PB_HEIGHT_EPS) / option.ori.dZ);
@@ -1813,6 +1871,9 @@ function pb_topOffRemainingProducts(remaining, packed, uidCounters, palL, palW, 
             .filter(box => Math.abs((box.y + box.dY) - y) <= PB_HEIGHT_EPS)
             .map(box => ({ x: box.x, z: box.z, dX: box.dX, dZ: box.dZ }));
       if (!supportRects.length) continue;
+      if (y > PB_HEIGHT_EPS && pb_supportCoverage(supportRects, palL, palW) < PB_MIN_LAYER_SUPPORT_COVERAGE) {
+        continue;
+      }
 
       const layerPlacements = packed.filter(box => Math.abs(box.y - y) <= PB_HEIGHT_EPS);
       for (const product of remaining) {
@@ -2046,6 +2107,8 @@ function pb_runPackingLayered(products, palL, palW, maxH) {
       for (const product of remaining) {
         product.qty -= layer.placedCounts[product.id] || 0;
       }
+
+      pb_extendPackedLevel(remaining, packed, uidCounters, y, supportRects, palL, palW, maxH);
 
       placedThisPass = true;
       break;
