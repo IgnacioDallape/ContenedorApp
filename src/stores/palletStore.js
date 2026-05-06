@@ -931,7 +931,11 @@ function pb_mergeRepackPallets(pallets, products, palL, palW, maxH) {
 
   return working
     .filter(pallet => pallet.boxes.length > 0)
-    .map((pallet, idx) => pb_finalizeResultMeta({ ...pallet, idx }, products));
+    .map((pallet, idx) => pb_finalizeResultMeta({
+      ...pallet,
+      idx,
+      boxes: pb_centerPackedLayout(pallet.boxes, palL, palW, maxH),
+    }, products));
 }
 
 function pb_polishPallets(pallets, products, palL, palW, maxH) {
@@ -1265,6 +1269,133 @@ function pb_supportForRect(rect, supportRects) {
   };
 }
 
+function pb_rectBounds(rects, fallback = { x: 0, z: 0, dX: 0, dZ: 0 }) {
+  if (!rects?.length) {
+    return {
+      minX: fallback.x,
+      minZ: fallback.z,
+      maxX: fallback.x + fallback.dX,
+      maxZ: fallback.z + fallback.dZ,
+    };
+  }
+
+  return rects.reduce((bounds, rect) => ({
+    minX: Math.min(bounds.minX, rect.x),
+    minZ: Math.min(bounds.minZ, rect.z),
+    maxX: Math.max(bounds.maxX, rect.x + rect.dX),
+    maxZ: Math.max(bounds.maxZ, rect.z + rect.dZ),
+  }), { minX: Infinity, minZ: Infinity, maxX: -Infinity, maxZ: -Infinity });
+}
+
+function pb_validatePackedLayout(packed, palL, palW, maxH) {
+  for (const box of packed) {
+    if (box.x < -PB_HEIGHT_EPS || box.z < -PB_HEIGHT_EPS) return false;
+    if (box.x + box.dX > palL + PB_HEIGHT_EPS || box.z + box.dZ > palW + PB_HEIGHT_EPS) return false;
+    if (box.y < -PB_HEIGHT_EPS || box.y + box.dY > maxH + PB_HEIGHT_EPS) return false;
+  }
+
+  for (let i = 0; i < packed.length; i++) {
+    const box = packed[i];
+    const others = packed.filter((_, idx) => idx !== i);
+    if (pb_collides3D(others, { x: box.x, z: box.z, dX: box.dX, dZ: box.dZ }, box.y, box.dY)) {
+      return false;
+    }
+    if (box.y <= PB_HEIGHT_EPS) continue;
+    const supportRects = others
+      .filter(candidate => Math.abs((candidate.y + candidate.dY) - box.y) <= PB_HEIGHT_EPS)
+      .map(candidate => ({ x: candidate.x, z: candidate.z, dX: candidate.dX, dZ: candidate.dZ }));
+    if (!pb_supportForRect({ x: box.x, z: box.z, dX: box.dX, dZ: box.dZ }, supportRects).supported) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function pb_shiftPacked(packed, uids, dx, dz) {
+  const moving = new Set(uids);
+  return packed.map(box => moving.has(box.uid)
+    ? { ...box, x: pb_roundToGrid(box.x + dx), z: pb_roundToGrid(box.z + dz) }
+    : { ...box });
+}
+
+function pb_canShiftLayer(packed, layerUids, dx, dz, palL, palW, maxH) {
+  const moving = new Set(layerUids);
+  const shifted = pb_shiftPacked(packed, layerUids, dx, dz);
+  const movedBoxes = shifted.filter(box => moving.has(box.uid));
+  const staticBoxes = shifted.filter(box => !moving.has(box.uid));
+
+  for (const box of movedBoxes) {
+    if (box.x < -PB_HEIGHT_EPS || box.z < -PB_HEIGHT_EPS) return false;
+    if (box.x + box.dX > palL + PB_HEIGHT_EPS || box.z + box.dZ > palW + PB_HEIGHT_EPS) return false;
+    if (box.y + box.dY > maxH + PB_HEIGHT_EPS) return false;
+    if (pb_collides3D(staticBoxes, { x: box.x, z: box.z, dX: box.dX, dZ: box.dZ }, box.y, box.dY)) {
+      return false;
+    }
+
+    if (box.y <= PB_HEIGHT_EPS) continue;
+    const supportRects = staticBoxes
+      .filter(candidate => Math.abs((candidate.y + candidate.dY) - box.y) <= PB_HEIGHT_EPS)
+      .map(candidate => ({ x: candidate.x, z: candidate.z, dX: candidate.dX, dZ: candidate.dZ }));
+    if (!pb_supportForRect({ x: box.x, z: box.z, dX: box.dX, dZ: box.dZ }, supportRects).supported) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function pb_centerPackedLayout(packed, palL, palW, maxH) {
+  if (!packed?.length) return packed || [];
+  let working = packed.map(box => ({ ...box }));
+  const allBounds = pb_rectBounds(working.map(box => ({ x: box.x, z: box.z, dX: box.dX, dZ: box.dZ })));
+  const allDx = pb_roundToGrid((palL - (allBounds.maxX - allBounds.minX)) / 2 - allBounds.minX);
+  const allDz = pb_roundToGrid((palW - (allBounds.maxZ - allBounds.minZ)) / 2 - allBounds.minZ);
+  if (Math.abs(allDx) > PB_HEIGHT_EPS || Math.abs(allDz) > PB_HEIGHT_EPS) {
+    const shifted = pb_shiftPacked(working, working.map(box => box.uid), allDx, allDz);
+    if (pb_validatePackedLayout(shifted, palL, palW, maxH)) working = shifted;
+  }
+
+  const levels = [...new Set(working.map(box => Math.round(box.y * 10) / 10))].sort((a, b) => b - a);
+  for (const y of levels) {
+    const layer = working.filter(box => Math.abs(box.y - y) <= PB_HEIGHT_EPS);
+    if (!layer.length) continue;
+    const hasUpperDependency = working.some(upper =>
+      upper.y > y + PB_HEIGHT_EPS &&
+      layer.some(lower => pb_directlySupports(lower, upper))
+    );
+    if (hasUpperDependency) continue;
+
+    const supportRects = y <= PB_HEIGHT_EPS
+      ? [{ x: 0, z: 0, dX: palL, dZ: palW }]
+      : working
+          .filter(box => Math.abs((box.y + box.dY) - y) <= PB_HEIGHT_EPS)
+          .map(box => ({ x: box.x, z: box.z, dX: box.dX, dZ: box.dZ }));
+    const supportBounds = pb_rectBounds(supportRects, { x: 0, z: 0, dX: palL, dZ: palW });
+    const layerBounds = pb_rectBounds(layer.map(box => ({ x: box.x, z: box.z, dX: box.dX, dZ: box.dZ })));
+    const targetX = supportBounds.minX + ((supportBounds.maxX - supportBounds.minX) - (layerBounds.maxX - layerBounds.minX)) / 2;
+    const targetZ = supportBounds.minZ + ((supportBounds.maxZ - supportBounds.minZ) - (layerBounds.maxZ - layerBounds.minZ)) / 2;
+    const dx = pb_roundToGrid(targetX - layerBounds.minX);
+    const dz = pb_roundToGrid(targetZ - layerBounds.minZ);
+    const candidates = [
+      [dx, dz],
+      [dx, 0],
+      [0, dz],
+    ];
+
+    for (const [tryDx, tryDz] of candidates) {
+      if (Math.abs(tryDx) <= PB_HEIGHT_EPS && Math.abs(tryDz) <= PB_HEIGHT_EPS) continue;
+      const layerUids = layer.map(box => box.uid);
+      if (pb_canShiftLayer(working, layerUids, tryDx, tryDz, palL, palW, maxH)) {
+        working = pb_shiftPacked(working, layerUids, tryDx, tryDz);
+        break;
+      }
+    }
+  }
+
+  return working;
+}
+
 function pb_collectLayerAnchors(placements, palL, palW, ori) {
   const maxX = Math.max(0, pb_roundToGrid(palL - ori.dX));
   const maxZ = Math.max(0, pb_roundToGrid(palW - ori.dZ));
@@ -1411,39 +1542,81 @@ function pb_buildDenseGridSeed(option, supportRects, palL, palW) {
   const maxQty = Math.min(option.product.qty || 0, cols * rows);
   if (cols <= 0 || rows <= 0 || maxQty <= 0) return null;
 
-  const placements = [];
-  const placedCounts = { [option.product.id]: 0 };
+  const supportBounds = pb_rectBounds(supportRects, { x: 0, z: 0, dX: palL, dZ: palW });
+  const patterns = [];
 
-  for (let row = 0; row < rows && placements.length < maxQty; row++) {
-    for (let col = 0; col < cols && placements.length < maxQty; col++) {
-      const rect = {
-        x: pb_roundToGrid(col * option.ori.dX),
-        z: pb_roundToGrid(row * option.ori.dZ),
-        dX: option.ori.dX,
-        dZ: option.ori.dZ,
-      };
-      const support = pb_supportForRect(rect, supportRects);
-      if (!support.supported) continue;
-
-      const idx = placedCounts[option.product.id] || 0;
-      placedCounts[option.product.id] = idx + 1;
-      placements.push({
-        x: rect.x,
-        z: rect.z,
-        dX: option.ori.dX,
-        dY: option.ori.dY,
-        dZ: option.ori.dZ,
-        color: option.product.color,
-        name: option.product.name,
-        id: option.product.id,
-        uid: `${option.product.id}::grid::${idx}`,
-        score: 0,
-        weight: option.weight,
-        mustBeBase: !!option.product.mustBeBase,
-        noRotate: !!option.product.noRotate,
-        sourceDims: { ...option.product.dims },
+  for (let useCols = 1; useCols <= cols; useCols++) {
+    for (let useRows = 1; useRows <= rows; useRows++) {
+      if (useCols * useRows < maxQty) continue;
+      const bboxArea = useCols * option.ori.dX * useRows * option.ori.dZ;
+      const spareSlots = useCols * useRows - maxQty;
+      const widthSlack = Math.abs((supportBounds.maxX - supportBounds.minX) - useCols * option.ori.dX);
+      const depthSlack = Math.abs((supportBounds.maxZ - supportBounds.minZ) - useRows * option.ori.dZ);
+      patterns.push({
+        useCols,
+        useRows,
+        score: spareSlots * 9000 + bboxArea + Math.abs(widthSlack - depthSlack) * 20 + (widthSlack + depthSlack) * 6,
       });
     }
+  }
+
+  patterns.sort((a, b) => a.score - b.score);
+  const fallbackPattern = { useCols: cols, useRows: rows };
+  const candidatePatterns = [...patterns.slice(0, 6), fallbackPattern];
+  let placements = [];
+  let placedCounts = {};
+
+  for (const pattern of candidatePatterns) {
+    const nextPlacements = [];
+    const nextCounts = { [option.product.id]: 0 };
+    const gridW = pattern.useCols * option.ori.dX;
+    const gridD = pattern.useRows * option.ori.dZ;
+    const baseX = Math.max(0, Math.min(palL - gridW, pb_roundToGrid(supportBounds.minX + ((supportBounds.maxX - supportBounds.minX) - gridW) / 2)));
+    const baseZ = Math.max(0, Math.min(palW - gridD, pb_roundToGrid(supportBounds.minZ + ((supportBounds.maxZ - supportBounds.minZ) - gridD) / 2)));
+    let remainingQty = maxQty;
+
+    for (let row = 0; row < pattern.useRows && remainingQty > 0; row++) {
+      const rowCount = Math.min(pattern.useCols, remainingQty);
+      const rowX = Math.max(0, Math.min(palL - rowCount * option.ori.dX, pb_roundToGrid(baseX + (gridW - rowCount * option.ori.dX) / 2)));
+      const rowZ = pb_roundToGrid(baseZ + row * option.ori.dZ);
+
+      for (let col = 0; col < rowCount; col++) {
+        const rect = {
+          x: pb_roundToGrid(rowX + col * option.ori.dX),
+          z: rowZ,
+          dX: option.ori.dX,
+          dZ: option.ori.dZ,
+        };
+        const support = pb_supportForRect(rect, supportRects);
+        if (!support.supported) continue;
+
+        const idx = nextCounts[option.product.id] || 0;
+        nextCounts[option.product.id] = idx + 1;
+        nextPlacements.push({
+          x: rect.x,
+          z: rect.z,
+          dX: option.ori.dX,
+          dY: option.ori.dY,
+          dZ: option.ori.dZ,
+          color: option.product.color,
+          name: option.product.name,
+          id: option.product.id,
+          uid: `${option.product.id}::grid::${idx}`,
+          score: 0,
+          weight: option.weight,
+          mustBeBase: !!option.product.mustBeBase,
+          noRotate: !!option.product.noRotate,
+          sourceDims: { ...option.product.dims },
+        });
+        remainingQty--;
+      }
+    }
+
+    if (nextPlacements.length > placements.length) {
+      placements = nextPlacements;
+      placedCounts = nextCounts;
+    }
+    if (nextPlacements.length === maxQty) break;
   }
 
   if (!placements.length) return null;
@@ -1909,7 +2082,7 @@ export function pb_runPacking(products, palL, palW, maxH) {
       }
     }
 
-    return bestPacked;
+    return pb_centerPackedLayout(bestPacked, palL, palW, maxH);
   };
 
   if (totalUnits > PB_PRECISE_MAX_UNITS) {
