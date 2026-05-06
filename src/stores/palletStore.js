@@ -12,7 +12,10 @@ const PB_REBALANCE_MAX_SOURCE_UNITS = 24;
 const PB_REPACK_MERGE_MAX_UNITS = 120;
 const PB_REPACK_MERGE_MAX_SOURCE_UNITS = 18;
 const PB_MULTI_STRATEGY_MAX_UNITS = 72;
-const PB_MIN_LAYER_SUPPORT_COVERAGE = 0.45;
+const PB_MIN_LAYER_SUPPORT_COVERAGE = 0.62;
+const PB_MIN_SUPPORT_PERCENT = 0.8;
+const PB_MIN_SUPPORT_AXIS_COVERAGE = 0.68;
+const PB_MAX_SUPPORT_GAP_RATIO = 0.38;
 
 function pb_makeHM(palW, palL) {
   const cols = Math.ceil((palL + PB_GRID_RES) / PB_GRID_RES);
@@ -567,7 +570,12 @@ function pb_optimizePackedLayout(packed, unitsByUid, palL, palW, maxH) {
 
   for (let pass = 0; pass < maxPasses; pass++) {
     let movedInPass = false;
-    const order = [...optimized].sort((a, b) => (b.y + b.dY) - (a.y + a.dY) || b.y - a.y);
+    let currentScore = pb_scorePackedLayout(optimized, palL, palW, maxH);
+    const order = [...optimized].sort((a, b) =>
+      (b.y + b.dY) - (a.y + a.dY) ||
+      pb_boxGravityPriority(b) - pb_boxGravityPriority(a) ||
+      b.y - a.y
+    );
 
     for (const placement of order) {
       const unit = unitsByUid.get(placement.uid);
@@ -582,8 +590,6 @@ function pb_optimizePackedLayout(packed, unitsByUid, palL, palW, maxH) {
       const lowersBase = candidate.y < placement.y - PB_HEIGHT_EPS;
       const lowersTop = candidate.y + candidate.ori.dY < placement.y + placement.dY - PB_HEIGHT_EPS;
       const improvesSameLevel = Math.abs(candidate.y - placement.y) <= PB_HEIGHT_EPS && candidate.score + 120 < placement.score;
-      if (!lowersBase && !lowersTop && !improvesSameLevel) continue;
-
       const nextPlacement = {
         ...placement,
         x: candidate.px,
@@ -594,7 +600,14 @@ function pb_optimizePackedLayout(packed, unitsByUid, palL, palW, maxH) {
         dZ: candidate.ori.dZ,
         score: candidate.score,
       };
-      optimized = [...remaining, nextPlacement];
+      const nextLayout = [...remaining, nextPlacement];
+      const nextScore = pb_scorePackedLayout(nextLayout, palL, palW, maxH);
+      const improvesPhysics = nextScore + 180 < currentScore;
+
+      if (!lowersBase && !lowersTop && !improvesSameLevel && !improvesPhysics) continue;
+
+      optimized = nextLayout;
+      currentScore = nextScore;
       movedInPass = true;
     }
 
@@ -1028,6 +1041,7 @@ function pb_scorePackedLayout(packed, palL, palW, maxH) {
   let isolatedPenalty = 0;
   let gravityPenalty = 0;
   let volume = 0;
+  let floatingPenalty = 0;
 
   for (const y of layerYs) {
     const layer = packed.filter(box => Math.abs(box.y - y) <= PB_HEIGHT_EPS);
@@ -1049,6 +1063,8 @@ function pb_scorePackedLayout(packed, palL, palW, maxH) {
     gravityPenalty += pb_boxGravityPriority(box) * Math.max(0, box.y) * 0.42;
     if (box.y > PB_HEIGHT_EPS) {
       const supportBoxes = packed.filter(candidate => Math.abs((candidate.y + candidate.dY) - box.y) <= PB_HEIGHT_EPS);
+      const supportRects = supportBoxes.map(candidate => ({ x: candidate.x, z: candidate.z, dX: candidate.dX, dZ: candidate.dZ }));
+      const support = pb_supportForRect({ x: box.x, z: box.z, dX: box.dX, dZ: box.dZ }, supportRects);
       const supportPriority = supportBoxes.reduce((sum, support) => {
         const overlapArea = pb_boxSupportOverlap(support, box);
         if (overlapArea <= PB_HEIGHT_EPS) return sum;
@@ -1056,9 +1072,13 @@ function pb_scorePackedLayout(packed, palL, palW, maxH) {
         return sum + pb_boxGravityPriority(support) * coverage;
       }, 0);
       const boxPriority = pb_boxGravityPriority(box);
-      if (boxPriority > supportPriority * 1.12) {
-        gravityPenalty += (boxPriority - supportPriority) * 14;
+      if (boxPriority > supportPriority * 1.02) {
+        gravityPenalty += (boxPriority - supportPriority) * 52;
       }
+      floatingPenalty +=
+        Math.max(0, 0.92 - support.supportPercent) * 240000 +
+        Math.max(0, 0.8 - Math.min(support.axisCoverageX || 0, support.axisCoverageZ || 0)) * 220000 +
+        Math.max(0, Math.max(support.maxGapRatioX || 0, support.maxGapRatioZ || 0) - 0.26) * 260000;
     }
   }
 
@@ -1069,15 +1089,15 @@ function pb_scorePackedLayout(packed, palL, palW, maxH) {
       const firstPriority = pb_boxGravityPriority(first);
       const secondPriority = pb_boxGravityPriority(second);
       if (firstPriority > secondPriority && first.y > second.y + PB_HEIGHT_EPS) {
-        gravityPenalty += (firstPriority - secondPriority) * (first.y - second.y) * 0.18;
+        gravityPenalty += (firstPriority - secondPriority) * (first.y - second.y) * 0.42;
       } else if (secondPriority > firstPriority && second.y > first.y + PB_HEIGHT_EPS) {
-        gravityPenalty += (secondPriority - firstPriority) * (second.y - first.y) * 0.18;
+        gravityPenalty += (secondPriority - firstPriority) * (second.y - first.y) * 0.42;
       }
     }
   }
 
   const usedVolumeRatio = volume / Math.max(1, palL * palW * maxH);
-  return top * 1500 + shapePenalty + isolatedPenalty + gravityPenalty - packed.length * 1200 - usedVolumeRatio * 18000;
+  return top * 1500 + shapePenalty + isolatedPenalty + gravityPenalty + floatingPenalty - packed.length * 1200 - usedVolumeRatio * 18000;
 }
 
 function pb_runPackingFast(products, palL, palW, maxH) {
@@ -1239,18 +1259,85 @@ function pb_rectsOverlap(a, b) {
   );
 }
 
+function pb_mergeIntervals(intervals) {
+  if (!intervals.length) return [];
+  const sorted = [...intervals].sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  const merged = [sorted[0].slice()];
+
+  for (let i = 1; i < sorted.length; i++) {
+    const current = sorted[i];
+    const last = merged[merged.length - 1];
+    if (current[0] <= last[1] + PB_HEIGHT_EPS) {
+      last[1] = Math.max(last[1], current[1]);
+    } else {
+      merged.push(current.slice());
+    }
+  }
+
+  return merged;
+}
+
+function pb_intervalCoverageMetrics(intervals, start, end) {
+  const merged = pb_mergeIntervals(intervals)
+    .map(([from, to]) => [Math.max(start, from), Math.min(end, to)])
+    .filter(([from, to]) => to - from > PB_HEIGHT_EPS);
+
+  if (!merged.length) {
+    return { covered: 0, maxGap: Math.max(0, end - start) };
+  }
+
+  let covered = 0;
+  let maxGap = Math.max(0, merged[0][0] - start);
+  let cursor = merged[0][1];
+
+  covered += merged[0][1] - merged[0][0];
+
+  for (let i = 1; i < merged.length; i++) {
+    const [from, to] = merged[i];
+    maxGap = Math.max(maxGap, Math.max(0, from - cursor));
+    covered += to - from;
+    cursor = Math.max(cursor, to);
+  }
+
+  maxGap = Math.max(maxGap, Math.max(0, end - cursor));
+  return { covered, maxGap };
+}
+
 function pb_supportForRect(rect, supportRects) {
-  if (!supportRects?.length) return { supported: false, supportPercent: 0, centerSupported: false };
+  if (!supportRects?.length) {
+    return {
+      supported: false,
+      supportPercent: 0,
+      centerSupported: false,
+      axisCoverageX: 0,
+      axisCoverageZ: 0,
+      maxGapRatioX: 1,
+      maxGapRatioZ: 1,
+    };
+  }
   const centerX = rect.x + rect.dX / 2;
   const centerZ = rect.z + rect.dZ / 2;
   const baseArea = Math.max(1, rect.dX * rect.dZ);
   let supportArea = 0;
   let centerSupported = false;
+  const supportBandsX = [];
+  const supportBandsZ = [];
 
   for (const support of supportRects) {
     const overlapX = Math.max(0, Math.min(rect.x + rect.dX, support.x + support.dX) - Math.max(rect.x, support.x));
     const overlapZ = Math.max(0, Math.min(rect.z + rect.dZ, support.z + support.dZ) - Math.max(rect.z, support.z));
-    supportArea += overlapX * overlapZ;
+    const overlapArea = overlapX * overlapZ;
+    supportArea += overlapArea;
+    if (overlapArea > PB_HEIGHT_EPS) {
+      supportBandsX.push([
+        Math.max(rect.x, support.x),
+        Math.min(rect.x + rect.dX, support.x + support.dX),
+      ]);
+      supportBandsZ.push([
+        Math.max(rect.z, support.z),
+        Math.min(rect.z + rect.dZ, support.z + support.dZ),
+      ]);
+    }
     if (
       centerX >= support.x - PB_HEIGHT_EPS &&
       centerX <= support.x + support.dX + PB_HEIGHT_EPS &&
@@ -1262,10 +1349,27 @@ function pb_supportForRect(rect, supportRects) {
   }
 
   const supportPercent = Math.min(1, supportArea / baseArea);
+  const coverageX = pb_intervalCoverageMetrics(supportBandsX, rect.x, rect.x + rect.dX);
+  const coverageZ = pb_intervalCoverageMetrics(supportBandsZ, rect.z, rect.z + rect.dZ);
+  const axisCoverageX = Math.min(1, coverageX.covered / Math.max(1, rect.dX));
+  const axisCoverageZ = Math.min(1, coverageZ.covered / Math.max(1, rect.dZ));
+  const maxGapRatioX = coverageX.maxGap / Math.max(1, rect.dX);
+  const maxGapRatioZ = coverageZ.maxGap / Math.max(1, rect.dZ);
+  const axisCoverage = Math.min(axisCoverageX, axisCoverageZ);
+  const maxGapRatio = Math.max(maxGapRatioX, maxGapRatioZ);
+
   return {
-    supported: supportPercent >= 0.8 && centerSupported,
+    supported:
+      supportPercent >= PB_MIN_SUPPORT_PERCENT &&
+      centerSupported &&
+      axisCoverage >= PB_MIN_SUPPORT_AXIS_COVERAGE &&
+      maxGapRatio <= PB_MAX_SUPPORT_GAP_RATIO,
     supportPercent,
     centerSupported,
+    axisCoverageX,
+    axisCoverageZ,
+    maxGapRatioX,
+    maxGapRatioZ,
   };
 }
 
