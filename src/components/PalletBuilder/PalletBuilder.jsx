@@ -9,13 +9,20 @@ const PRODUCT_DEFAULTS = {
   name: '', L: '', W: '', H: '', qty: '', weight: '', mustBeBase: false, noRotate: false, imgUrl: null,
 };
 
+const REORDER_OPTIONS = [
+  { id: 'auto', label: 'Auto compacto' },
+  { id: 'layers', label: 'Capas parejas' },
+  { id: 'low-height', label: 'Baja altura' },
+  { id: 'grid', label: 'Grilla densa' },
+];
+
 export default function PalletBuilder() {
   const {
     palletType, maxHeight, products, results, activeResult,
     setPalletType, setMaxHeight, addOrUpdateProduct, removeProduct,
     setEditingId, editingId, build, setActiveResult, clearResults,
     selectedBoxUid, setSelectedBoxUid, updateActiveResultBoxes, removeBoxFromActiveResult,
-    restoreReserveBoxToActiveResult,
+    restoreReserveBoxToActiveResult, reorderActiveResult,
   } = usePalletStore();
   const { setPendingProduct, catalog, setActiveSection: containerNav } = useContainerStore();
   const { setActiveSection, showToast } = useAppStore();
@@ -250,6 +257,15 @@ export default function PalletBuilder() {
     }
     showToast('Caja reinsertada en el pallet', 'success');
     return true;
+  }
+
+  function reorderPallet(variant, label) {
+    const result = reorderActiveResult(variant);
+    if (!result?.ok) {
+      showToast('No pude generar un reordenamiento estable para este pallet', 'error');
+      return;
+    }
+    showToast(`Pallet reordenado: ${label}`, 'success');
   }
 
   return (
@@ -508,6 +524,30 @@ export default function PalletBuilder() {
                           <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>{s.val}</div>
                           <div style={{ fontSize: 10, color: 'var(--text-3)' }}>{s.sub}</div>
                         </div>
+                      ))}
+                    </div>
+
+                    <div style={{ fontSize: 10, fontFamily: "'DM Mono', monospace", letterSpacing: 1, color: 'var(--text-3)', marginBottom: 6 }}>REORDENAR</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 14 }}>
+                      {REORDER_OPTIONS.map(option => (
+                        <button
+                          key={option.id}
+                          type="button"
+                          onClick={() => reorderPallet(option.id, option.label)}
+                          style={{
+                            padding: '8px 8px',
+                            borderRadius: 8,
+                            border: '1.5px solid rgba(141,121,102,0.24)',
+                            background: 'rgba(255,255,255,0.58)',
+                            color: 'var(--accent)',
+                            cursor: 'pointer',
+                            fontSize: 11,
+                            fontWeight: 700,
+                            lineHeight: 1.2,
+                          }}
+                        >
+                          {option.label}
+                        </button>
                       ))}
                     </div>
 
@@ -785,15 +825,16 @@ export default function PalletBuilder() {
                         </div>
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingLeft: 26 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', border: '1.5px solid var(--border)', borderRadius: 6, overflow: 'hidden', flexShrink: 0 }}>
+                        <div className="pb-catalog-qty-stepper" style={{ display: 'flex', alignItems: 'center', border: '1.5px solid var(--border)', borderRadius: 6, overflow: 'hidden', flexShrink: 0 }}>
                           <button
                             onClick={() => setCatalogSel(prev => ({ ...prev, [p.id]: Math.max(1, (prev[p.id] || 1) - 1) }))}
                             style={{ width: 28, height: 28, background: 'transparent', border: 'none', fontSize: 16, cursor: 'pointer', color: 'var(--text)' }}
                           >−</button>
                           <input
+                            className="pb-catalog-qty-input"
                             type="number" value={qty} min="1" max="500"
                             onChange={e => setCatalogSel(prev => ({ ...prev, [p.id]: Math.max(1, parseInt(e.target.value) || 1) }))}
-                            style={{ width: 50, height: 28, border: 'none', borderLeft: '1.5px solid var(--border)', borderRight: '1.5px solid var(--border)', textAlign: 'center', fontSize: 13, background: 'var(--bg-2)', color: 'var(--text)' }}
+                            style={{ width: 58, height: 28, border: 'none', borderLeft: '1.5px solid var(--border)', borderRight: '1.5px solid var(--border)', textAlign: 'center', fontSize: 13, background: 'var(--bg-2)', color: 'var(--text)' }}
                           />
                           <button
                             onClick={() => setCatalogSel(prev => ({ ...prev, [p.id]: Math.min(500, (prev[p.id] || 1) + 1) }))}

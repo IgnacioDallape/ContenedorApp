@@ -2749,6 +2749,43 @@ export function pb_runPacking(products, palL, palW, maxH) {
   return pb_pickBestPackedLayout(candidates, palL, palW, maxH);
 }
 
+function pb_unitsByUidFromProducts(products) {
+  const unitsByUid = new Map();
+  for (const product of products.filter(item => (item.qty || 0) > 0)) {
+    for (let i = 0; i < product.qty; i++) {
+      unitsByUid.set(`${product.id}::${i}`, { ...product, uid: `${product.id}::${i}` });
+    }
+  }
+  return unitsByUid;
+}
+
+function pb_runReorderVariant(products, palL, palW, maxH, variant = 'auto') {
+  const expectedCount = products.reduce((sum, product) => sum + Math.max(0, product.qty || 0), 0);
+  const unitsByUid = pb_unitsByUidFromProducts(products);
+  let boxes = [];
+
+  if (variant === 'layers') {
+    boxes = pb_centerPackedLayout(
+      pb_optimizePackedLayout(pb_runPackingLayered(products, palL, palW, maxH), unitsByUid, palL, palW, maxH),
+      palL,
+      palW,
+      maxH
+    );
+  } else if (variant === 'low-height') {
+    boxes = pb_centerPackedLayout(pb_runPackingCore(products, palL, palW, maxH, 'low-height'), palL, palW, maxH);
+  } else if (variant === 'grid') {
+    boxes = pb_centerPackedLayout(pb_runPackingFast(products, palL, palW, maxH), palL, palW, maxH);
+  } else {
+    boxes = pb_runPacking(products, palL, palW, maxH);
+  }
+
+  if (!boxes.length || boxes.length !== expectedCount || !pb_validatePackedLayout(boxes, palL, palW, maxH)) {
+    return null;
+  }
+
+  return boxes;
+}
+
 const usePalletStore = create((set, get) => ({
   palletType:   'eua',
   maxHeight:    180,
@@ -2891,6 +2928,29 @@ const usePalletStore = create((set, get) => ({
     );
     set({ results: updated, selectedBoxUid: selectedBoxUid || placed.uid });
     return { ok: true, box: placed };
+  },
+
+  reorderActiveResult(variant = 'auto') {
+    const { results, activeResult } = get();
+    const current = results[activeResult];
+    if (!current?.boxes?.length) return { ok: false, reason: 'empty' };
+
+    const sourceById = new Map((current.products || []).map(product => [product.id, product]));
+    const sourceProducts = pb_productsFromBoxes(current.boxes, sourceById);
+    const boxes = pb_runReorderVariant(sourceProducts, current.palL, current.palW, current.maxHeight, variant);
+    if (!boxes) return { ok: false, reason: 'no-layout' };
+
+    const updated = [...results];
+    updated[activeResult] = pb_finalizeResultMeta(
+      {
+        ...current,
+        boxes,
+        reserveBoxes: (current.reserveBoxes || []).map(box => ({ ...box })),
+      },
+      current.products || []
+    );
+    set({ results: updated, selectedBoxUid: null });
+    return { ok: true, boxes };
   },
 
   clearResults() { set({ results: [], activeResult: 0, selectedBoxUid: null }); },
