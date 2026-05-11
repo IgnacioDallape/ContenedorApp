@@ -854,11 +854,7 @@ function pb_validateMovedBoxes(staticBoxes, moved, palL, palW, maxH) {
     const supportRects = [...staticBoxes, ...moved]
       .filter(candidate => candidate.uid !== box.uid && Math.abs((candidate.y + candidate.dY) - box.y) <= PB_HEIGHT_EPS)
       .map(candidate => ({ x: candidate.x, z: candidate.z, dX: candidate.dX, dZ: candidate.dZ }));
-    const support = pb_assessPhysicalSupport(
-      { x: box.x, z: box.z, dX: box.dX, dZ: box.dZ },
-      supportRects,
-      Number(box.weight || 0)
-    );
+    const support = pb_supportForRect({ x: box.x, z: box.z, dX: box.dX, dZ: box.dZ }, supportRects);
     if (!support.supported) {
       return { valid: false, reason: 'unsupported', placements: moved };
     }
@@ -1245,28 +1241,8 @@ function pb_polishPallets(pallets, products, palL, palW, maxH) {
   });
 }
 
-function pb_finalizePallets(pallets, products, palL, palW, maxH) {
-  let working = pallets;
-  const totalUnits = products.reduce((sum, product) => sum + (product.qty || 0), 0);
-  const hasSmallTail = working.some((pallet, idx) => idx > 0 && (pallet.boxes?.length || 0) <= PB_REBALANCE_MAX_SOURCE_UNITS);
-
-  if (totalUnits > PB_REBALANCE_MAX_UNITS && !hasSmallTail) {
-    return working
-      .filter(pallet => pallet.boxes.length > 0)
-      .map((pallet, idx) => pb_finalizeResultMeta({ ...pallet, idx }, products));
-  }
-
-  const maxPasses = hasSmallTail && totalUnits <= PB_REPACK_MERGE_MAX_UNITS ? 2 : totalUnits > 10 ? 1 : 2;
-  for (let pass = 0; pass < maxPasses; pass++) {
-    if (totalUnits <= PB_REPACK_MERGE_MAX_UNITS) {
-      working = pb_mergeRepackPallets(working, products, palL, palW, maxH);
-    }
-    working = pb_rebalancePallets(working, products, palL, palW, maxH);
-    if (totalUnits <= PB_POLISH_MAX_UNITS) {
-      working = pb_polishPallets(working, products, palL, palW, maxH);
-    }
-  }
-  return working
+function pb_finalizePallets(pallets, products) {
+  return pallets
     .filter(pallet => pallet.boxes.length > 0)
     .map((pallet, idx) => pb_finalizeResultMeta({ ...pallet, idx }, products));
 }
@@ -1702,7 +1678,7 @@ function pb_validatePackedLayout(packed, palL, palW, maxH) {
     const supportRects = others
       .filter(candidate => Math.abs((candidate.y + candidate.dY) - box.y) <= PB_HEIGHT_EPS)
       .map(candidate => ({ x: candidate.x, z: candidate.z, dX: candidate.dX, dZ: candidate.dZ }));
-    if (!pb_assessPhysicalSupport({ x: box.x, z: box.z, dX: box.dX, dZ: box.dZ }, supportRects, Number(box.weight || 0)).supported) {
+    if (!pb_supportForRect({ x: box.x, z: box.z, dX: box.dX, dZ: box.dZ }, supportRects).supported) {
       return false;
     }
   }
@@ -2715,38 +2691,7 @@ function pb_pickBestPackedLayout(layouts, palL, palW, maxH) {
 }
 
 export function pb_runPacking(products, palL, palW, maxH) {
-  const totalUnits = products.reduce((sum, product) => sum + Math.max(0, product.qty || 0), 0);
-  const candidates = [];
-  const unitsByUid = new Map();
-  for (const product of products.filter(item => (item.qty || 0) > 0)) {
-    for (let i = 0; i < product.qty; i++) {
-      unitsByUid.set(`${product.id}::${i}`, { ...product, uid: `${product.id}::${i}` });
-    }
-  }
-
-  const layeredPacked = pb_runPackingLayered(products, palL, palW, maxH);
-  const layered = pb_centerPackedLayout(
-    pb_optimizePackedLayout(layeredPacked, unitsByUid, palL, palW, maxH),
-    palL,
-    palW,
-    maxH
-  );
-  candidates.push({ name: 'layered', boxes: layered });
-
-  if (totalUnits <= PB_MULTI_STRATEGY_MAX_UNITS) {
-    const strategies = ['count-fill', 'balanced', 'footprint', 'low-height'];
-    for (const strategy of strategies) {
-      const packed = pb_centerPackedLayout(pb_runPackingCore(products, palL, palW, maxH, strategy), palL, palW, maxH);
-      candidates.push({ name: `core-${strategy}`, boxes: packed });
-    }
-  }
-
-  if (totalUnits <= 160) {
-    const fastPacked = pb_centerPackedLayout(pb_runPackingFast(products, palL, palW, maxH), palL, palW, maxH);
-    candidates.push({ name: 'fast-grid', boxes: fastPacked });
-  }
-
-  return pb_pickBestPackedLayout(candidates, palL, palW, maxH);
+  return pb_runPackingContainerLike(products, palL, palW, maxH, 'auto');
 }
 
 function pb_unitsByUidFromProducts(products) {
@@ -2759,25 +2704,188 @@ function pb_unitsByUidFromProducts(products) {
   return unitsByUid;
 }
 
-function pb_runReorderVariant(products, palL, palW, maxH, variant = 'auto') {
-  const expectedCount = products.reduce((sum, product) => sum + Math.max(0, product.qty || 0), 0);
-  const unitsByUid = pb_unitsByUidFromProducts(products);
-  let boxes = [];
+function pb_expandUnits(products) {
+  const units = [];
+  for (const product of products.filter(item => (item.qty || 0) > 0)) {
+    for (let i = 0; i < product.qty; i++) {
+      units.push({
+        ...product,
+        _idx: i,
+        _sourceId: product.id,
+        uid: `${product.id}::${i}`,
+      });
+    }
+  }
+  return units;
+}
+
+function pb_sortContainerLikeUnits(units, variant = 'auto') {
+  const minOriHeight = unit => {
+    const orientations = pb_getOrientations(unit, Infinity, Infinity);
+    return orientations.length ? Math.min(...orientations.map(ori => ori.dY)) : unit.dims.H;
+  };
+
+  units.sort((a, b) => {
+    const aBase = a.mustBeBase ? 1 : 0;
+    const bBase = b.mustBeBase ? 1 : 0;
+    if (aBase !== bBase) return bBase - aBase;
+
+    const aVolume = a.dims.L * a.dims.W * a.dims.H;
+    const bVolume = b.dims.L * b.dims.W * b.dims.H;
+    const aFoot = Math.max(a.dims.L * a.dims.W, a.dims.L * a.dims.H, a.dims.W * a.dims.H);
+    const bFoot = Math.max(b.dims.L * b.dims.W, b.dims.L * b.dims.H, b.dims.W * b.dims.H);
+    const aH = minOriHeight(a);
+    const bH = minOriHeight(b);
+    const aWeight = Number(a.weight || 0);
+    const bWeight = Number(b.weight || 0);
+
+    if (variant === 'low-height') {
+      if (Math.abs(aH - bH) > 0.01) return aH - bH;
+      if (Math.abs(bFoot - aFoot) > 0.01) return bFoot - aFoot;
+      return bVolume - aVolume;
+    }
+
+    if (variant === 'grid') {
+      if (Math.abs(bFoot - aFoot) > 0.01) return bFoot - aFoot;
+      if (Math.abs(aH - bH) > 0.01) return aH - bH;
+      return bVolume - aVolume;
+    }
+
+    if (variant === 'layers') {
+      if (Math.abs(aH - bH) > 0.01) return aH - bH;
+      if (Math.abs(bVolume - aVolume) > 0.01) return bVolume - aVolume;
+      return bFoot - aFoot;
+    }
+
+    if (Math.abs(bWeight - aWeight) > 0.01) return bWeight - aWeight;
+    if (Math.abs(bVolume - aVolume) > 0.01) return bVolume - aVolume;
+    if (Math.abs(bFoot - aFoot) > 0.01) return bFoot - aFoot;
+    return aH - bH;
+  });
+}
+
+function pb_containerLikeCandidateScore(candidate, unit, packed, palL, palW, variant = 'auto') {
+  const { px, pz, ori, y, support } = candidate;
+  const top = y + ori.dY;
+  const footprint = ori.dX * ori.dZ;
+  const centerX = px + ori.dX / 2;
+  const centerZ = pz + ori.dZ / 2;
+  const distToCenter = Math.hypot(centerX - palL / 2, centerZ - palW / 2);
+  const layerCount = packed.filter(box => Math.abs(box.y - y) <= PB_HEIGHT_EPS).length;
+  const supportPenalty = support ? (1 - Math.min(1, support.supportPercent || 0)) * 120000 : 0;
+  const edgeBias = pz * 10000 + px * 100;
+
+  if (variant === 'low-height') {
+    return top * 12000000 + y * 600000 + ori.dY * 9000 + distToCenter * 90 - footprint * 14 + supportPenalty;
+  }
+
+  if (variant === 'grid') {
+    return top * 9000000 + edgeBias - footprint * 42 - layerCount * 3200 + supportPenalty;
+  }
 
   if (variant === 'layers') {
-    boxes = pb_centerPackedLayout(
-      pb_optimizePackedLayout(pb_runPackingLayered(products, palL, palW, maxH), unitsByUid, palL, palW, maxH),
-      palL,
-      palW,
-      maxH
-    );
-  } else if (variant === 'low-height') {
-    boxes = pb_centerPackedLayout(pb_runPackingCore(products, palL, palW, maxH, 'low-height'), palL, palW, maxH);
-  } else if (variant === 'grid') {
-    boxes = pb_centerPackedLayout(pb_runPackingFast(products, palL, palW, maxH), palL, palW, maxH);
-  } else {
-    boxes = pb_runPacking(products, palL, palW, maxH);
+    return y * 9000000 + top * 900000 + Math.abs(ori.dY - (unit.dims.H || ori.dY)) * 3500 + edgeBias - footprint * 20 + supportPenalty;
   }
+
+  return top * 10000000 + y * 900000 + edgeBias + distToCenter * 110 - footprint * 24 + supportPenalty;
+}
+
+function pb_tryFindContainerLikePlacement(unit, packed, hm, palL, palW, maxH, variant = 'auto', deadline = 0) {
+  const totalUnits = packed.length;
+  const scanStep = totalUnits > 140 ? 5 : totalUnits > 70 ? 4 : PB_GRID_RES;
+  const orientations = pb_getOrientations(unit, palL, palW);
+  let best = null;
+
+  for (const ori of orientations) {
+    const maxX = Math.max(0, palL - ori.dX);
+    const maxZ = Math.max(0, palW - ori.dZ);
+    for (let pz = 0; pz <= maxZ + PB_HEIGHT_EPS; pz += scanStep) {
+      if (deadline && Date.now() >= deadline) return best;
+      for (let px = 0; px <= maxX + PB_HEIGHT_EPS; px += scanStep) {
+        const x = pb_roundToGrid(Math.min(px, maxX));
+        const z = pb_roundToGrid(Math.min(pz, maxZ));
+        const plateau = pb_getPlateauStats(hm, x, z, ori.dX, ori.dZ);
+        const y = plateau.y;
+        if (unit.mustBeBase && y > PB_HEIGHT_EPS) continue;
+        if (y + ori.dY > maxH + PB_HEIGHT_EPS) continue;
+        if (pb_collides3D(packed, { x, z, dX: ori.dX, dZ: ori.dZ }, y, ori.dY)) continue;
+
+        let support = null;
+        if (y > PB_HEIGHT_EPS) {
+          const supportRects = pb_getLevelSupportRects(packed, y, palL, palW);
+          support = pb_supportForRect({ x, z, dX: ori.dX, dZ: ori.dZ }, supportRects);
+          if (!support.supported) continue;
+        }
+
+        const candidate = { unit, px: x, pz: z, ori, y, support };
+        const score = pb_containerLikeCandidateScore(candidate, unit, packed, palL, palW, variant);
+        if (!best || score < best.score) best = { ...candidate, score };
+      }
+    }
+  }
+
+  return best;
+}
+
+function pb_runPackingContainerLike(products, palL, palW, maxH, variant = 'auto') {
+  let queue = pb_expandUnits(products);
+  pb_sortContainerLikeUnits(queue, variant);
+
+  const packed = [];
+  const hm = pb_makeHM(palW, palL);
+  const totalUnits = queue.length;
+  const deadline = Date.now() + (totalUnits > 140 ? 1400 : totalUnits > 70 ? 1800 : 2400);
+  let round = 0;
+
+  while (queue.length && round < 8 && Date.now() < deadline) {
+    round++;
+    const failed = [];
+    let placedThisRound = 0;
+
+    for (const unit of queue) {
+      if (Date.now() >= deadline) {
+        failed.push(unit);
+        continue;
+      }
+
+      const best = pb_tryFindContainerLikePlacement(unit, packed, hm, palL, palW, maxH, variant, deadline);
+      if (!best) {
+        failed.push(unit);
+        continue;
+      }
+
+      pb_hmSet(hm, best.px, best.pz, best.ori.dX, best.ori.dZ, best.y + best.ori.dY);
+      packed.push({
+        x: best.px,
+        y: best.y,
+        z: best.pz,
+        dX: best.ori.dX,
+        dY: best.ori.dY,
+        dZ: best.ori.dZ,
+        color: unit.color,
+        name: unit.name,
+        id: unit.id,
+        uid: unit.uid,
+        score: best.score,
+        weight: Number(unit.weight || 0),
+        mustBeBase: !!unit.mustBeBase,
+        noRotate: !!unit.noRotate,
+        sourceDims: { ...unit.dims },
+      });
+      placedThisRound++;
+    }
+
+    if (!placedThisRound || failed.length === queue.length) break;
+    queue = failed;
+    pb_sortContainerLikeUnits(queue, variant);
+  }
+
+  return packed;
+}
+
+function pb_runReorderVariant(products, palL, palW, maxH, variant = 'auto') {
+  const expectedCount = products.reduce((sum, product) => sum + Math.max(0, product.qty || 0), 0);
+  const boxes = pb_runPackingContainerLike(products, palL, palW, maxH, variant);
 
   if (!boxes.length || boxes.length !== expectedCount || !pb_validatePackedLayout(boxes, palL, palW, maxH)) {
     return null;
