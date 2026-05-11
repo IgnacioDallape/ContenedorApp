@@ -46,6 +46,14 @@ export default function Calculator() {
   const [distGan,   setDistGan]   = useState(40);
 
   const c = useMemo(() => calcCostos(inputs), [inputs]);
+  const logisticsUnitLabel = inputs.tipoUnidad === 'pallet' ? 'pallet logístico' : 'caja logística';
+  const logisticsUnitShortLabel = inputs.tipoUnidad === 'pallet' ? 'pallet' : 'caja';
+  const purchaseContextCopy = inputs.tipoUnidad === 'pallet'
+    ? 'Acá cargás el valor de 1 unidad del producto, no el valor del pallet completo. Más abajo definís el pallet logístico.'
+    : 'Acá cargás el valor de 1 unidad del producto, no el valor de la caja completa. Si una caja trae varias unidades, arriba ingresá el precio de una sola y abajo definí la caja logística.';
+  const logisticsContextCopy = inputs.tipoUnidad === 'pallet'
+    ? 'Acá describís el pallet completo que transporta el producto: peso total y medidas logísticas del pallet.'
+    : 'Acá describís la caja logística que transporta el producto: peso y medidas de esa caja, no de una unidad individual.';
 
   // Sync FOB when currency mode changes
   function syncFob(patch) {
@@ -74,7 +82,7 @@ export default function Calculator() {
 
   async function handleSaveProduct() {
     if (!inputs.nombre) { showToast('Ingresá el nombre del producto', 'error'); return; }
-    if (!(parseFloat(inputs.pesoUnit) > 0)) { showToast('Ingresá el peso por unidad (debe ser mayor a 0)', 'error'); return; }
+    if (!(parseFloat(inputs.pesoUnit) > 0)) { showToast(`Ingresá el peso por ${logisticsUnitShortLabel} (debe ser mayor a 0)`, 'error'); return; }
     const prod = {
       id:        Date.now(),
       nombre:    inputs.nombre,
@@ -255,29 +263,34 @@ export default function Calculator() {
                       ))}
                     </div>
                   </div>
+                  <div className="field full">
+                    <div className="hint" style={{ marginTop: -2, fontSize: 12.5, lineHeight: 1.6 }}>
+                      <strong style={{ color: 'var(--text-2)' }}>Importante:</strong> {purchaseContextCopy}
+                    </div>
+                  </div>
                   {inputs.currencyMode === 'cny' && (
                     <div className="field">
-                      <label>Precio 1688 <span className="unit">CNY / {inputs.tipoUnidad === 'pallet' ? 'pallet' : 'caja'}</span></label>
+                      <label>Precio 1688 por producto <span className="unit">CNY / unidad de producto</span></label>
                       <input type="number" id="p-fob-cny" value={inputs.fobCny} step="0.1" min="0"
                         onChange={e => syncFob({ fobCny: parseFloat(e.target.value)||0 })} />
                     </div>
                   )}
                   {inputs.currencyMode === 'ars' && (
                     <div className="field">
-                      <label>Precio de compra <span className="unit">ARS / {inputs.tipoUnidad === 'pallet' ? 'pallet' : 'caja'}</span></label>
+                      <label>Precio de compra por producto <span className="unit">ARS / unidad de producto</span></label>
                       <input type="number" id="p-fob-ars" value={inputs.fobArs} step="100" min="0"
                         onChange={e => syncFob({ fobArs: parseFloat(e.target.value)||0 })} />
                     </div>
                   )}
                   <div className="field">
-                    <label>Equivalente <span className="unit">USD / unidad</span></label>
+                    <label>Equivalente por producto <span className="unit">USD / unidad de producto</span></label>
                     <input type="number" id="p-fob" value={inputs.fob} step="0.01" min="0"
                       readOnly={inputs.currencyMode !== 'usd'}
                       style={{ color: inputs.currencyMode === 'usd' ? 'var(--text)' : 'var(--text-3)' }}
                       onChange={inputs.currencyMode === 'usd' ? e => setInputs({ fob: parseFloat(e.target.value)||0 }) : undefined} />
                   </div>
                   <div className="field">
-                    <label>Cantidad <span className="unit">unidades</span></label>
+                    <label>Cantidad de producto <span className="unit">unidades finales</span></label>
                     <input type="number" id="p-qty" value={inputs.qty} min="1"
                       onChange={e => setInputs({ qty: parseInt(e.target.value)||1 })} />
                   </div>
@@ -305,7 +318,7 @@ export default function Calculator() {
               </div>
               <div className="form-grid-2">
                 <div className="field">
-                  <label>Tipo de unidad</label>
+                  <label>Tipo de unidad logística</label>
                   <div style={{ display:'flex', gap:8 }}>
                     {[['box','📦 Caja'],['pallet','🟫 Pallet']].map(([t, lbl]) => (
                       <button key={t} type="button"
@@ -320,10 +333,13 @@ export default function Calculator() {
                       ? 'Cargá precio, cantidad, peso y medidas por pallet completo.'
                       : 'Cargá precio, cantidad, peso y medidas por caja. Si tu producto viaja suelto, tomá cada pieza como una caja/unidad logística.'}
                   </div>
+                  <div className="hint" style={{ marginTop: 8, lineHeight: 1.55 }}>
+                    <strong style={{ color: 'var(--text-2)' }}>Resumen:</strong> {logisticsContextCopy}
+                  </div>
                   <input type="hidden" id="p-tipo-unidad" value={inputs.tipoUnidad} />
                 </div>
                 <div className="field">
-                  <label>Peso por {inputs.tipoUnidad === 'pallet' ? 'pallet' : 'caja'} <span className="unit">kg</span></label>
+                  <label>Peso por {logisticsUnitLabel} <span className="unit">kg</span></label>
                   <input type="number" id="p-peso-unit" value={inputs.pesoUnit || ''} placeholder="0.0" min="0" step="0.1"
                     onChange={e => setInputs({ pesoUnit: parseFloat(e.target.value)||0 })} />
                 </div>
@@ -358,14 +374,14 @@ export default function Calculator() {
 
               <div id="dims-section">
                 <div className={inputs.tipoUnidad === 'pallet' ? 'form-grid-2' : 'form-grid-3'}>
-                  <div className="field"><label>Largo por {inputs.tipoUnidad === 'pallet' ? 'pallet' : 'caja'} <span className="unit">cm</span></label>
+                  <div className="field"><label>Largo por {logisticsUnitLabel} <span className="unit">cm</span></label>
                     <input type="number" id="p-dim-l" value={inputs.dimL||''} placeholder="60" min="1" step="0.5"
                       onChange={e => setInputs({ dimL: e.target.value })} /></div>
-                  <div className="field"><label>Ancho por {inputs.tipoUnidad === 'pallet' ? 'pallet' : 'caja'} <span className="unit">cm</span></label>
+                  <div className="field"><label>Ancho por {logisticsUnitLabel} <span className="unit">cm</span></label>
                     <input type="number" id="p-dim-w" value={inputs.dimW||''} placeholder="40" min="1" step="0.5"
                       onChange={e => setInputs({ dimW: e.target.value })} /></div>
                   {inputs.tipoUnidad !== 'pallet' && (
-                    <div className="field"><label>Alto por caja <span className="unit">cm</span></label>
+                    <div className="field"><label>Alto por {logisticsUnitLabel} <span className="unit">cm</span></label>
                       <input type="number" id="p-dim-h" value={inputs.dimH||''} placeholder="30" min="1" step="0.5"
                         onChange={e => setInputs({ dimH: e.target.value })} /></div>
                   )}
@@ -989,10 +1005,10 @@ function exportCSV(c, canales, nombre) {
     ['Tasa estadística',rd(c.teUnit,2),Math.round(c.teUnit*c.tc)],
     ['Aduana + transporte',rd(c.aduanaUnit,2),Math.round(c.aduanaUnit*c.tc)],
     ['COSTO UNITARIO',rd(c.costoUSD,2),Math.round(c.costoARS)],[],
-    ['Canal','Precio ARS','Comisión %','Ganancia/u ARS','Margen %'],
+    ['Canal','Precio ARS','Comisión %','Cuotas ARS','Ganancia/u ARS','Margen %'],
     ...canales.map(ch => {
-      const gan = ch.precio - ch.precio*(ch.comision||0)/100 - c.costoARS;
-      return [ch.nombre, ch.precio, ch.comision, Math.round(gan), c.costoARS>0?Math.round(gan/c.costoARS*100):0];
+      const gan = ch.precio - ch.precio*(ch.comision||0)/100 - (ch.cuotas||0) - c.costoARS;
+      return [ch.nombre, ch.precio, ch.comision, ch.cuotas||0, Math.round(gan), c.costoARS>0?Math.round(gan/c.costoARS*100):0];
     })
   ];
   const blob = new Blob([rows.map(r=>r.join(',')).join('\n')], { type:'text/csv;charset=utf-8;' });
