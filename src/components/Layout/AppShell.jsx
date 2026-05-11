@@ -19,7 +19,7 @@ const ContainerLoader = lazy(() => import('../ContainerLoader/ContainerLoader.js
 const PalletBuilder = lazy(() => import('../PalletBuilder/PalletBuilder.jsx'));
 
 const Loader = () => (
-  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh', fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'var(--muted)', letterSpacing: 2 }}>
+  <div className="shell-loader">
     Cargando...
   </div>
 );
@@ -28,54 +28,20 @@ function WelcomePanel({ label, userPlan }) {
   const planLabel = userPlan === 'promax' ? 'Pro Max' : userPlan === 'pro' ? 'Pro' : userPlan === 'basic' ? 'Basic' : 'sin plan';
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '48px 40px' }}>
-      <div
-        style={{
-          maxWidth: 720,
-          width: '100%',
-          background: 'rgba(255,255,255,0.78)',
-          border: '1px solid rgba(141,121,102,0.18)',
-          borderRadius: 28,
-          boxShadow: '0 24px 80px rgba(58, 42, 30, 0.08)',
-          padding: '52px 56px',
-          textAlign: 'center',
-        }}
-      >
-        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 22 }}>
-          <div
-            style={{
-              width: 92,
-              height: 92,
-              borderRadius: 28,
-              background: 'rgba(141,121,102,0.12)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
+    <div className="welcome-shell">
+      <div className="welcome-card">
+        <div className="welcome-mark-wrap">
+          <div className="welcome-mark">
             <BrandMark size={64} />
           </div>
         </div>
-        <h1 style={{ margin: 0, fontFamily: "'Cormorant Garamond', serif", fontSize: 50, lineHeight: 1.05, color: 'var(--text)' }}>
+        <h1 className="welcome-title">
           Bienvenido {label}
         </h1>
-        <p style={{ margin: '16px auto 0', maxWidth: 560, fontSize: 18, lineHeight: 1.7, color: 'var(--text-2)' }}>
-          Listo para empezar a importar?
+        <p className="welcome-copy">
+          ¿Listo para empezar a importar?
         </p>
-        <div
-          style={{
-            marginTop: 26,
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 10,
-            padding: '10px 18px',
-            borderRadius: 999,
-            background: 'rgba(141,121,102,0.1)',
-            color: 'var(--accent2)',
-            fontSize: 13,
-            fontWeight: 600,
-          }}
-        >
+        <div className="welcome-pill">
           Plan actual: {planLabel}
         </div>
       </div>
@@ -89,9 +55,7 @@ export default function AppShell() {
   const [upgradeModal, setUpgradeModal] = useState(null);
 
   const [profileOpen, setProfileOpen] = useState(false);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(() => (
-    typeof window !== 'undefined' ? window.innerWidth <= 860 : false
-  ));
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const profileDesktopRef = useRef(null);
   const profileMobileRef = useRef(null);
 
@@ -104,7 +68,7 @@ export default function AppShell() {
     ncm: 'Buscar NCM',
     simulator: 'Simulador',
     prices: 'Precios confirmados',
-    settings: 'Configuracion',
+    settings: 'Configuración',
     container: 'Cargar contenedor',
     palletbuilder: 'Armador de pallets',
   };
@@ -192,10 +156,16 @@ export default function AppShell() {
         key={id}
         type="button"
         className={`mnav-btn${active ? ' active' : ''}`}
-        style={locked ? { opacity: 0.45 } : undefined}
+        style={locked ? { opacity: 0.42 } : undefined}
         onClick={() => navigate(id)}
+        title={locked ? 'Requiere plan superior' : itemLabel}
       >
-        <span className="mnav-icon">{icon}</span>
+        <span className="mnav-icon" style={{ position: 'relative', display: 'inline-block' }}>
+          {icon}
+          {locked && (
+            <span style={{ position: 'absolute', top: -4, right: -6, fontSize: 9, lineHeight: 1 }}>🔒</span>
+          )}
+        </span>
         <span>{itemLabel}</span>
       </button>
     );
@@ -263,7 +233,7 @@ export default function AppShell() {
         <div className="mobile-drawer-items">
           {navItem('container', '3D', 'Cargar contenedor')}
           {navItem('palletbuilder', 'PL', 'Armador de pallets')}
-          {navItem('settings', '⚙', 'Configuracion')}
+          {navItem('settings', '⚙', 'Configuración')}
         </div>
       </aside>
 

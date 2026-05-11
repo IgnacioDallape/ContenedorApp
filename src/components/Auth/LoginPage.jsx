@@ -266,19 +266,9 @@ export default function LoginPage({ initialMode = 'login', initialMessage = '' }
   const GoogleButton = ({ label }) => (
     <button
       type="button"
-      className="login-btn"
+      className="login-btn login-btn-secondary"
       disabled={loading || googleLoading}
       onClick={doGoogleAuth}
-      style={{
-        marginTop: 10,
-        background: '#fff',
-        color: 'var(--text)',
-        border: '1px solid var(--border)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 10,
-      }}
     >
       <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
         <path fill="#EA4335" d="M12 10.2v3.9h5.4c-.2 1.2-.9 2.2-1.9 3l3 2.3c1.8-1.7 2.8-4.1 2.8-6.9 0-.7-.1-1.5-.2-2.2H12Z" />

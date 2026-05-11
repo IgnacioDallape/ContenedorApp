@@ -64,13 +64,14 @@ export default function Products() {
           <p className="page-sub">Guardados desde la calculadora — hacé clic para editar</p>
         </div>
 
-        <div style={{ marginBottom: 16 }}>
+        <div style={{ marginBottom: 20 }}>
           <input
+            className="ui-search-input"
             type="text"
             placeholder="Buscar producto..."
             value={search}
             onChange={e => setSearch(e.target.value)}
-            style={{ width: '100%', maxWidth: 340, padding: '9px 14px', borderRadius: 'var(--radius)', border: '1px solid var(--border-2)', background: 'var(--bg-3)', color: 'var(--text)', fontFamily: 'var(--font)', fontSize: 13 }}
+            style={{ width: '100%', maxWidth: 380 }}
           />
         </div>
 
@@ -85,26 +86,26 @@ export default function Products() {
             const hasDims = p.dims && p.dims.L && p.dims.W && p.dims.H;
 
             const ChanRow = ({ label, data, color }) => data ? (
-              <div style={{ padding: '12px 14px', background: 'linear-gradient(135deg,rgba(26,79,138,0.08) 0%,rgba(26,79,138,0.04) 100%)', border: '1px solid rgba(26,79,138,0.08)', borderRadius: 8, display: 'grid', gridTemplateColumns: '1fr auto', gap: 12, alignItems: 'center' }}>
+              <div className="channel-price-card" style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 12, alignItems: 'center' }}>
                 <div>
-                  <div style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-3)', marginBottom: 5 }}>{label}</div>
-                  <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>{ars(data.precio)}</div>
+                  <div className="channel-price-label">{label}</div>
+                  <div className="channel-price-value">{ars(data.precio)}</div>
                 </div>
                 <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'flex-end' }}>
                   <span className={`badge badge-${data.margen >= 50 ? 'green' : data.margen >= 20 ? 'amber' : 'red'}`}>{data.margen}%</span>
-                  <div style={{ fontSize: 12.5, fontWeight: 700, color }}>{ars(data.gan)}</div>
+                  <div className="channel-price-gain" style={{ color }}>{ars(data.gan)}</div>
                 </div>
               </div>
             ) : (
-              <div style={{ padding: '11px 14px', background: 'rgba(26,79,138,0.04)', border: '1px solid rgba(26,79,138,0.08)', borderRadius: 8, fontSize: 12, color: 'var(--text-3)', fontWeight: 500 }}>{label} — sin precio</div>
+              <div className="channel-price-card channel-price-card-empty">{label} — sin precio</div>
             );
 
             return (
               <div key={p.id} className="product-card" onClick={() => handleLoadProduct(p)}>
                 <div style={{ textAlign: 'center', marginBottom: 18, position: 'relative' }}>
-                  <div className="product-name" style={{ fontSize: 22, marginBottom: 8 }}>{p.nombre}</div>
-                  <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--accent)', marginBottom: 6 }}>{ars(p.costoARS)}</div>
-                  <div className="product-date" style={{ fontSize: 12, color: 'var(--text-3)', fontWeight: 500 }}>{p.date} · {p.qty} unidades</div>
+                  <div className="product-name" style={{ marginBottom: 8 }}>{p.nombre}</div>
+                  <div className="product-summary-price">{ars(p.costoARS)}</div>
+                  <div className="product-date product-summary-date">{p.date} · {p.qty} unidades</div>
                   <span className={`badge badge-${topBadge}`} style={{ position: 'absolute', top: 0, right: 0 }}>{bestMargen}%</span>
                 </div>
 
@@ -114,13 +115,13 @@ export default function Products() {
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, paddingTop: 12, borderTop: '1px solid rgba(26,79,138,0.06)' }}>
-                  <div className="product-metric" style={{ textAlign: 'center' }}>
+                  <div className="product-metric product-metric-centered">
                     <div className="pm-label">FOB 1688</div>
-                    <div className="pm-value" style={{ fontSize: 16 }}>U$S {p.fob}</div>
+                    <div className="pm-value">U$S {p.fob}</div>
                   </div>
-                  <div className="product-metric" style={{ textAlign: 'center' }}>
+                  <div className="product-metric product-metric-centered">
                     <div className="pm-label">DI aplicado</div>
-                    <div className="pm-value" style={{ fontSize: 16 }}>{p.di}%</div>
+                    <div className="pm-value">{p.di}%</div>
                   </div>
                 </div>
 
@@ -151,7 +152,7 @@ export default function Products() {
             <div className="card">
               <div className="card-header"><span className="card-title">Comparativa de productos</span></div>
               <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                <table className="compare-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                   <thead>
                     <tr style={{ borderBottom: '1px solid var(--border)' }}>
                       {['Producto','Costo/u','Costo total','Mejor precio','Margen'].map(h => (
