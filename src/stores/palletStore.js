@@ -9,9 +9,9 @@ const PB_PRECISE_MAX_UNITS = 4;
 const PB_POLISH_MAX_UNITS = 10;
 const PB_REBALANCE_MAX_UNITS = 180;
 const PB_REBALANCE_MAX_SOURCE_UNITS = 24;
-const PB_REPACK_MERGE_MAX_UNITS = 120;
-const PB_REPACK_MERGE_MAX_SOURCE_UNITS = 18;
-const PB_MULTI_STRATEGY_MAX_UNITS = 72;
+const PB_REPACK_MERGE_MAX_UNITS = 180;
+const PB_REPACK_MERGE_MAX_SOURCE_UNITS = 28;
+const PB_MULTI_STRATEGY_MAX_UNITS = 120;
 const PB_CORE_BUDGET_SMALL_MS = 7000;
 const PB_CORE_BUDGET_MEDIUM_MS = 5500;
 const PB_CORE_BUDGET_LARGE_MS = 4000;
@@ -730,6 +730,7 @@ function pb_optimizePackedLayout(packed, unitsByUid, palL, palW, maxH) {
 
 function pb_finalizeResultMeta(result, sourceProducts = result.products || []) {
   const boxes = result.boxes || [];
+  const reserveBoxes = (result.reserveBoxes || []).map(box => ({ ...box }));
   const placedCounts = {};
   boxes.forEach(box => { placedCounts[box.id] = (placedCounts[box.id] || 0) + 1; });
   const totalHeight = boxes.reduce((maxY, box) => Math.max(maxY, box.y + box.dY), 0) + PB_PALLET_BASE_H;
@@ -745,6 +746,7 @@ function pb_finalizeResultMeta(result, sourceProducts = result.products || []) {
   return {
     ...result,
     boxes,
+    reserveBoxes,
     totalHeight,
     totalWeight,
     products,
@@ -804,34 +806,145 @@ function pb_productsFromBoxes(boxes, sourceById) {
   return [...byId.values()];
 }
 
-export function pb_validatePlacement(boxes, movingBox, palL, palW, maxH, nextX, nextZ, nextDims = null) {
-  const dX = nextDims?.dX ?? movingBox.dX;
-  const dY = nextDims?.dY ?? movingBox.dY;
-  const dZ = nextDims?.dZ ?? movingBox.dZ;
-  const x = pb_roundToGrid(nextX);
-  const z = pb_roundToGrid(nextZ);
+function pb_collectCandidateBaseLevels(staticBoxes, preferredBaseY = 0, mustBeBase = false) {
+  if (mustBeBase) return [0];
 
-  if (x < -PB_HEIGHT_EPS || z < -PB_HEIGHT_EPS) return { valid: false, reason: 'out-of-bounds' };
-  if (x + dX > palL + PB_HEIGHT_EPS || z + dZ > palW + PB_HEIGHT_EPS) return { valid: false, reason: 'out-of-bounds' };
+  const levels = [0];
+  for (const box of staticBoxes) {
+    const top = pb_roundToGrid(box.y + box.dY);
+    if (top >= -PB_HEIGHT_EPS) levels.push(top);
+  }
 
-  const others = boxes.filter(box => box.uid !== movingBox.uid);
-  const hm = pb_buildHMFromPacked(others, palL, palW);
-  const plateau = pb_getPlateauStats(hm, x, z, dX, dZ);
-  if (!plateau.flat) return { valid: false, reason: 'unsupported' };
-  if (movingBox.mustBeBase && plateau.y > PB_HEIGHT_EPS) return { valid: false, reason: 'must-be-base' };
-  if (plateau.y + dY > maxH + PB_HEIGHT_EPS) return { valid: false, reason: 'too-high' };
+  const unique = [...new Set(levels.map(level => pb_roundToGrid(level)))];
+  return unique.sort((a, b) => {
+    const da = Math.abs(a - preferredBaseY);
+    const db = Math.abs(b - preferredBaseY);
+    if (Math.abs(da - db) > PB_HEIGHT_EPS) return da - db;
+    const aAbove = a >= preferredBaseY ? 0 : 1;
+    const bAbove = b >= preferredBaseY ? 0 : 1;
+    if (aAbove !== bAbove) return aAbove - bAbove;
+    return a - b;
+  });
+}
 
-  const y = plateau.y;
-  for (const other of others) {
-    const overlapsX = x < other.x + other.dX - PB_HEIGHT_EPS && x + dX > other.x + PB_HEIGHT_EPS;
-    const overlapsZ = z < other.z + other.dZ - PB_HEIGHT_EPS && z + dZ > other.z + PB_HEIGHT_EPS;
-    const overlapsY = y < other.y + other.dY - PB_HEIGHT_EPS && y + dY > other.y + PB_HEIGHT_EPS;
-    if (overlapsX && overlapsZ && overlapsY) {
-      return { valid: false, reason: 'collision' };
+function pb_validateMovedBoxes(staticBoxes, moved, palL, palW, maxH) {
+  for (const box of moved) {
+    if (box.x < -PB_HEIGHT_EPS || box.z < -PB_HEIGHT_EPS) {
+      return { valid: false, reason: 'out-of-bounds', placements: moved };
+    }
+    if (box.x + box.dX > palL + PB_HEIGHT_EPS || box.z + box.dZ > palW + PB_HEIGHT_EPS) {
+      return { valid: false, reason: 'out-of-bounds', placements: moved };
+    }
+    if (box.y < -PB_HEIGHT_EPS || box.y + box.dY > maxH + PB_HEIGHT_EPS) {
+      return { valid: false, reason: box.y < 0 ? 'out-of-bounds' : 'too-high', placements: moved };
     }
   }
 
-  return { valid: true, x, y, z, dX, dY, dZ };
+  for (const box of moved) {
+    if (pb_collides3D(staticBoxes, { x: box.x, z: box.z, dX: box.dX, dZ: box.dZ }, box.y, box.dY)) {
+      return { valid: false, reason: 'collision', placements: moved };
+    }
+  }
+
+  for (const box of moved) {
+    if (box.mustBeBase && box.y > PB_HEIGHT_EPS) {
+      return { valid: false, reason: 'must-be-base', placements: moved };
+    }
+    if (box.y <= PB_HEIGHT_EPS) continue;
+    const supportRects = [...staticBoxes, ...moved]
+      .filter(candidate => candidate.uid !== box.uid && Math.abs((candidate.y + candidate.dY) - box.y) <= PB_HEIGHT_EPS)
+      .map(candidate => ({ x: candidate.x, z: candidate.z, dX: candidate.dX, dZ: candidate.dZ }));
+    const support = pb_assessPhysicalSupport(
+      { x: box.x, z: box.z, dX: box.dX, dZ: box.dZ },
+      supportRects,
+      Number(box.weight || 0)
+    );
+    if (!support.supported) {
+      return { valid: false, reason: 'unsupported', placements: moved };
+    }
+  }
+
+  return {
+    valid: true,
+    placements: moved.map(box => ({
+      uid: box.uid,
+      x: box.x,
+      y: box.y,
+      z: box.z,
+      dX: box.dX,
+      dY: box.dY,
+      dZ: box.dZ,
+    })),
+  };
+}
+
+function pb_findGroupPlacement(boxes, movingBoxes, rootUid, palL, palW, maxH, nextX, nextZ, preferredBaseY = null) {
+  const root = movingBoxes.find(box => box.uid === rootUid);
+  if (!root) return { valid: false, reason: 'missing-root', placements: [] };
+
+  const x = pb_roundToGrid(nextX);
+  const z = pb_roundToGrid(nextZ);
+  const dx = x - root.x;
+  const dz = z - root.z;
+  const staticBoxes = boxes.filter(box => !movingBoxes.some(item => item.uid === box.uid));
+  const translated = movingBoxes.map(box => ({
+    ...box,
+    x: pb_roundToGrid(box.x + dx),
+    z: pb_roundToGrid(box.z + dz),
+  }));
+  const targetRoot = translated.find(box => box.uid === rootUid);
+  const levels = pb_collectCandidateBaseLevels(staticBoxes, preferredBaseY ?? root.y, root.mustBeBase);
+  let bestFailure = null;
+
+  for (const baseY of levels) {
+    const dy = pb_roundToGrid(baseY - root.y);
+    const moved = translated.map(box => ({
+      ...box,
+      y: pb_roundToGrid(box.y + dy),
+    }));
+    const validation = pb_validateMovedBoxes(staticBoxes, moved, palL, palW, maxH);
+    if (validation.valid) {
+      return {
+        ...validation,
+        rootPlacement: validation.placements.find(box => box.uid === rootUid) || {
+          uid: rootUid,
+          x: targetRoot.x,
+          y: baseY,
+          z: targetRoot.z,
+          dX: targetRoot.dX,
+          dY: targetRoot.dY,
+          dZ: targetRoot.dZ,
+        },
+      };
+    }
+    if (!bestFailure || validation.reason === 'collision') bestFailure = validation;
+  }
+
+  return bestFailure || { valid: false, reason: 'unsupported', placements: translated };
+}
+
+export function pb_validatePlacement(boxes, movingBox, palL, palW, maxH, nextX, nextZ, nextDims = null) {
+  const placed = pb_findGroupPlacement(
+    boxes,
+    [{
+      ...movingBox,
+      dX: nextDims?.dX ?? movingBox.dX,
+      dY: nextDims?.dY ?? movingBox.dY,
+      dZ: nextDims?.dZ ?? movingBox.dZ,
+    }],
+    movingBox.uid,
+    palL,
+    palW,
+    maxH,
+    nextX,
+    nextZ,
+    movingBox.y
+  );
+
+  if (!placed.valid) return { valid: false, reason: placed.reason };
+  const root = placed.rootPlacement || placed.placements?.[0];
+  if (!root) return { valid: false, reason: 'unsupported' };
+  return { valid: true, ...root };
 }
 
 function pb_boxSupportOverlap(lower, upper) {
@@ -866,60 +979,12 @@ export function pb_validateGroupPlacement(boxes, rootUid, palL, palW, maxH, next
   const root = boxes.find(box => box.uid === rootUid);
   if (!root) return { valid: false, reason: 'missing-root', groupUids: [], placements: [] };
 
-  const x = pb_roundToGrid(nextX);
-  const z = pb_roundToGrid(nextZ);
-  const dx = x - root.x;
-  const dz = z - root.z;
   const groupUids = pb_getSupportedStack(boxes, rootUid);
   const group = boxes.filter(box => groupUids.includes(box.uid));
-  const staticBoxes = boxes.filter(box => !groupUids.includes(box.uid));
-  const moved = group.map(box => ({
-    ...box,
-    x: pb_roundToGrid(box.x + dx),
-    z: pb_roundToGrid(box.z + dz),
-  }));
-
-  for (const box of moved) {
-    if (box.x < -PB_HEIGHT_EPS || box.z < -PB_HEIGHT_EPS) {
-      return { valid: false, reason: 'out-of-bounds', groupUids, placements: moved };
-    }
-    if (box.x + box.dX > palL + PB_HEIGHT_EPS || box.z + box.dZ > palW + PB_HEIGHT_EPS) {
-      return { valid: false, reason: 'out-of-bounds', groupUids, placements: moved };
-    }
-    if (box.y + box.dY > maxH + PB_HEIGHT_EPS) {
-      return { valid: false, reason: 'too-high', groupUids, placements: moved };
-    }
-  }
-
-  for (const box of moved) {
-    if (pb_collides3D(staticBoxes, { x: box.x, z: box.z, dX: box.dX, dZ: box.dZ }, box.y, box.dY)) {
-      return { valid: false, reason: 'collision', groupUids, placements: moved };
-    }
-  }
-
-  for (const box of moved) {
-    if (box.y <= PB_HEIGHT_EPS) continue;
-    const supportRects = [...staticBoxes, ...moved]
-      .filter(candidate => candidate.uid !== box.uid && Math.abs((candidate.y + candidate.dY) - box.y) <= PB_HEIGHT_EPS)
-      .map(candidate => ({ x: candidate.x, z: candidate.z, dX: candidate.dX, dZ: candidate.dZ }));
-    const support = pb_supportForRect({ x: box.x, z: box.z, dX: box.dX, dZ: box.dZ }, supportRects);
-    if (!support.supported) {
-      return { valid: false, reason: 'unsupported', groupUids, placements: moved };
-    }
-  }
-
+  const placed = pb_findGroupPlacement(boxes, group, rootUid, palL, palW, maxH, nextX, nextZ, root.y);
   return {
-    valid: true,
+    ...placed,
     groupUids,
-    placements: moved.map(box => ({
-      uid: box.uid,
-      x: box.x,
-      y: box.y,
-      z: box.z,
-      dX: box.dX,
-      dY: box.dY,
-      dZ: box.dZ,
-    })),
   };
 }
 
@@ -958,6 +1023,44 @@ function pb_nextUidForBoxId(boxes, id) {
     uid = `${id}::${idx}`;
   }
   return uid;
+}
+
+function pb_prepareDetachedBox(box, boxes) {
+  return {
+    ...box,
+    uid: box.uid || pb_nextUidForBoxId(boxes, box.id),
+    x: 0,
+    y: 0,
+    z: 0,
+    sourceDims: box.sourceDims ? { ...box.sourceDims } : {
+      L: box.dX,
+      W: box.dZ,
+      H: box.dY,
+    },
+  };
+}
+
+function pb_tryPlaceDetachedBox(boxes, detachedBox, palL, palW, maxH, nextX = null, nextZ = null) {
+  const unit = pb_prepareDetachedBox(detachedBox, boxes);
+
+  if (typeof nextX === 'number' && typeof nextZ === 'number') {
+    const validation = pb_findGroupPlacement(
+      boxes,
+      [unit],
+      unit.uid,
+      palL,
+      palW,
+      maxH,
+      nextX,
+      nextZ,
+      0
+    );
+    if (!validation.valid) return null;
+    const finalPlacement = validation.rootPlacement || validation.placements?.[0];
+    return finalPlacement ? { ...unit, ...finalPlacement } : null;
+  }
+
+  return pb_tryAppendUnitToPacked(pb_makeUnitFromBox(unit, { weight: unit.weight || 0, dims: unit.sourceDims }), boxes, palL, palW, maxH);
 }
 
 function pb_rebalancePallets(pallets, products, palL, palW, maxH) {
@@ -2563,8 +2666,16 @@ export function pb_runPacking(products, palL, palW, maxH) {
   candidates.push({ name: 'layered', boxes: layered });
 
   if (totalUnits <= PB_MULTI_STRATEGY_MAX_UNITS) {
-    const coreCountFill = pb_centerPackedLayout(pb_runPackingCore(products, palL, palW, maxH, 'count-fill'), palL, palW, maxH);
-    candidates.push({ name: 'core-count-fill', boxes: coreCountFill });
+    const strategies = ['count-fill', 'balanced', 'footprint', 'low-height'];
+    for (const strategy of strategies) {
+      const packed = pb_centerPackedLayout(pb_runPackingCore(products, palL, palW, maxH, strategy), palL, palW, maxH);
+      candidates.push({ name: `core-${strategy}`, boxes: packed });
+    }
+  }
+
+  if (totalUnits <= 160) {
+    const fastPacked = pb_centerPackedLayout(pb_runPackingFast(products, palL, palW, maxH), palL, palW, maxH);
+    candidates.push({ name: 'fast-grid', boxes: fastPacked });
   }
 
   return pb_pickBestPackedLayout(candidates, palL, palW, maxH);
@@ -2627,6 +2738,7 @@ const usePalletStore = create((set, get) => ({
         type: palletType,
         palL, palW, maxHeight,
         boxes,
+        reserveBoxes: [],
         totalHeight: 0,
         totalWeight: 0,
         products: products.map(p => ({ ...p, placedQty: 0 })),
@@ -2655,7 +2767,11 @@ const usePalletStore = create((set, get) => ({
     if (!results[activeResult]) return;
     const updated = [...results];
     updated[activeResult] = pb_finalizeResultMeta(
-      { ...updated[activeResult], boxes: nextBoxes.map(box => ({ ...box })) },
+      {
+        ...updated[activeResult],
+        boxes: nextBoxes.map(box => ({ ...box })),
+        reserveBoxes: (updated[activeResult].reserveBoxes || []).map(box => ({ ...box })),
+      },
       updated[activeResult].products || []
     );
     set({ results: updated });
@@ -2665,12 +2781,48 @@ const usePalletStore = create((set, get) => ({
     const { results, activeResult, selectedBoxUid } = get();
     if (!results[activeResult]) return;
     const updated = [...results];
+    const removedBox = updated[activeResult].boxes.find(box => box.uid === uid);
+    if (!removedBox) return;
     const nextBoxes = updated[activeResult].boxes.filter(box => box.uid !== uid);
     updated[activeResult] = pb_finalizeResultMeta(
-      { ...updated[activeResult], boxes: nextBoxes },
+      {
+        ...updated[activeResult],
+        boxes: nextBoxes,
+        reserveBoxes: [
+          ...(updated[activeResult].reserveBoxes || []),
+          { ...removedBox, uid: `reserve::${removedBox.uid}` },
+        ],
+      },
       updated[activeResult].products || []
     );
     set({ results: updated, selectedBoxUid: selectedBoxUid === uid ? null : selectedBoxUid });
+  },
+
+  restoreReserveBoxToActiveResult(uid, nextX = null, nextZ = null) {
+    const { results, activeResult, selectedBoxUid } = get();
+    const current = results[activeResult];
+    if (!current) return { ok: false, reason: 'missing-result' };
+
+    const reserveBox = (current.reserveBoxes || []).find(box => box.uid === uid);
+    if (!reserveBox) return { ok: false, reason: 'missing-reserve' };
+
+    const placed = pb_tryPlaceDetachedBox(current.boxes, {
+      ...reserveBox,
+      uid: reserveBox.uid.replace(/^reserve::/, ''),
+    }, current.palL, current.palW, current.maxHeight, nextX, nextZ);
+    if (!placed) return { ok: false, reason: 'no-fit' };
+
+    const updated = [...results];
+    updated[activeResult] = pb_finalizeResultMeta(
+      {
+        ...current,
+        boxes: [...current.boxes, placed],
+        reserveBoxes: (current.reserveBoxes || []).filter(box => box.uid !== uid),
+      },
+      current.products || []
+    );
+    set({ results: updated, selectedBoxUid: selectedBoxUid || placed.uid });
+    return { ok: true, box: placed };
   },
 
   clearResults() { set({ results: [], activeResult: 0, selectedBoxUid: null }); },

@@ -85,7 +85,7 @@ function getPointerHit(renderer, camera, raycaster, boxGroup, clientX, clientY) 
   return hits.find(item => item.object.userData?.uid) || null;
 }
 
-export default function PalletThreeCanvas({ result, selectedBoxUid, onSelectBox, onUpdateBoxes }) {
+export default function PalletThreeCanvas({ result, selectedBoxUid, onSelectBox, onUpdateBoxes, onDropReserveBox }) {
   const mountRef = useRef(null);
   const threeRef = useRef(null);
   const selectedBoxUidRef = useRef(selectedBoxUid);
@@ -563,6 +563,26 @@ export default function PalletThreeCanvas({ result, selectedBoxUid, onSelectBox,
     }
   }, [onUpdateBoxes, result]);
 
+  const handleDragOver = useCallback((e) => {
+    if (!e.dataTransfer?.types?.includes('application/x-pallet-reserve-box')) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  }, []);
+
+  const handleDrop = useCallback((e) => {
+    if (!result || !onDropReserveBox) return;
+    const reserveUid = e.dataTransfer?.getData('application/x-pallet-reserve-box');
+    if (!reserveUid) return;
+    e.preventDefault();
+
+    const t = threeRef.current;
+    if (!t) return;
+    const point = getHorizontalPlaneIntersect(e, t.renderer, t.camera, PB_PALLET_BASE_H);
+    if (!point) return;
+
+    onDropReserveBox(reserveUid, point.x, point.z);
+  }, [onDropReserveBox, result]);
+
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%' }}>
       <div
@@ -572,6 +592,8 @@ export default function PalletThreeCanvas({ result, selectedBoxUid, onSelectBox,
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseLeave}
+        onDragOver={handleDragOver}
+        onDrop={handleDrop}
       />
       <div
         id="tooltip3d-pallet"

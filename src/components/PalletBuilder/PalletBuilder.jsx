@@ -15,6 +15,7 @@ export default function PalletBuilder() {
     setPalletType, setMaxHeight, addOrUpdateProduct, removeProduct,
     setEditingId, editingId, build, setActiveResult, clearResults,
     selectedBoxUid, setSelectedBoxUid, updateActiveResultBoxes, removeBoxFromActiveResult,
+    restoreReserveBoxToActiveResult,
   } = usePalletStore();
   const { setPendingProduct, catalog, setActiveSection: containerNav } = useContainerStore();
   const { setActiveSection, showToast } = useAppStore();
@@ -241,6 +242,16 @@ export default function PalletBuilder() {
     showToast('Orientación restaurada', 'success');
   }
 
+  function restoreReserveBox(uid, nextX = null, nextZ = null) {
+    const result = restoreReserveBoxToActiveResult(uid, nextX, nextZ);
+    if (!result?.ok) {
+      showToast('No encontré una posición estable para volver a subir esa caja', 'error');
+      return false;
+    }
+    showToast('Caja reinsertada en el pallet', 'success');
+    return true;
+  }
+
   return (
     <div className="pallet-builder-root" style={{ display: 'flex', height: '100%', overflow: 'hidden' }}>
 
@@ -424,6 +435,7 @@ export default function PalletBuilder() {
                     selectedBoxUid={selectedBoxUid}
                     onSelectBox={setSelectedBoxUid}
                     onUpdateBoxes={updateActiveResultBoxes}
+                    onDropReserveBox={restoreReserveBox}
                   />
                   {selectedBox && (
                     <div className="pallet-builder-inspector" style={{ position: 'absolute', right: 22, top: 22, zIndex: 30, width: 'min(272px, calc(100% - 44px))', maxHeight: 'calc(100% - 44px)', background: 'linear-gradient(180deg, rgba(251,247,241,0.98), rgba(243,236,227,0.98))', border: '1px solid rgba(141,121,102,0.22)', borderRadius: 18, boxShadow: '0 20px 44px rgba(97,78,60,0.18)', fontFamily: "'DM Mono', monospace", backdropFilter: 'blur(14px)', overflowX: 'hidden', overflowY: 'auto' }}>
@@ -469,12 +481,12 @@ export default function PalletBuilder() {
                           </button>
                         </div>
                         <div style={{ marginTop: 10, padding: '8px 10px', borderRadius: 10, background: 'rgba(141,121,102,0.08)', color: 'var(--muted)', fontSize: 10, lineHeight: 1.45 }}>
-                          Podés arrastrar la caja dentro del pallet. Si sostiene otras cajas, se mueve la pila completa y queda limitada por largo, ancho, altura máxima y apoyo real.
+                          Podés arrastrar la caja dentro del pallet. Si sostiene otras cajas, se mueve la pila completa y ahora intenta apoyarse también en otros niveles válidos para acomodarse arriba cuando corresponde.
                         </div>
                       </div>
 
                       <div style={{ padding: '12px 14px 14px', display: 'grid', gridTemplateColumns: '1fr', gap: 8 }}>
-                        <button onClick={() => removeBoxFromActiveResult(selectedBox.uid)} style={{ padding: '10px 8px', borderRadius: 12, border: '1px solid rgba(184,92,92,0.26)', background: 'rgba(184,92,92,0.06)', color: 'var(--danger)', cursor: 'pointer' }}>Eliminar unidad</button>
+                        <button onClick={() => removeBoxFromActiveResult(selectedBox.uid)} style={{ padding: '10px 8px', borderRadius: 12, border: '1px solid rgba(184,92,92,0.26)', background: 'rgba(184,92,92,0.06)', color: 'var(--danger)', cursor: 'pointer' }}>Mover a reserva</button>
                       </div>
                     </div>
                   )}
@@ -515,6 +527,46 @@ export default function PalletBuilder() {
                         );
                       });
                     })()}
+
+                    {!!activeRes.reserveBoxes?.length && (
+                      <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid var(--border)' }}>
+                        <div style={{ fontSize: 10, fontFamily: "'DM Mono', monospace", letterSpacing: 1, color: 'var(--text-3)', marginBottom: 8 }}>RESERVA MANUAL</div>
+                        <div style={{ display: 'grid', gap: 8 }}>
+                          {activeRes.reserveBoxes.map(box => (
+                            <div
+                              key={box.uid}
+                              draggable
+                              onDragStart={e => {
+                                e.dataTransfer.effectAllowed = 'move';
+                                e.dataTransfer.setData('application/x-pallet-reserve-box', box.uid);
+                              }}
+                              style={{
+                                padding: '10px 10px 9px',
+                                borderRadius: 10,
+                                border: '1px dashed rgba(141,121,102,0.35)',
+                                background: 'rgba(255,255,255,0.58)',
+                                cursor: 'grab',
+                              }}
+                            >
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: 2, background: box.color || '#999', flexShrink: 0 }} />
+                                <span style={{ flex: 1, fontSize: 12, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{box.name}</span>
+                                <button
+                                  type="button"
+                                  onClick={() => restoreReserveBox(box.uid)}
+                                  style={{ padding: '6px 8px', borderRadius: 8, border: '1px solid rgba(141,121,102,0.18)', background: 'var(--bg-2)', color: 'var(--accent)', cursor: 'pointer', fontSize: 10, fontWeight: 700 }}
+                                >
+                                  Reinsertar
+                                </button>
+                              </div>
+                              <div style={{ marginTop: 5, fontSize: 10, color: 'var(--text-3)' }}>
+                                {box.dX}×{box.dZ}×{box.dY} cm · Arrastrala al pallet para ubicarla manualmente
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
 
                     {/* Leftover check */}
                     {(() => {
