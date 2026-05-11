@@ -38,7 +38,7 @@ export function calcCostos(inp) {
 }
 
 export default function Calculator() {
-  const { inputs, setInputs, canales, addCanal, updateCanal, removeCanal, saveProduct, loadedProductName, tcUpdatedAt } = useImportaproStore();
+  const { inputs, setInputs, canales, saveProduct, loadedProductName, tcUpdatedAt } = useImportaproStore();
   const { showToast, setActiveSection } = useAppStore();
   const { addToCatalog } = useContainerStore();
 
@@ -174,9 +174,6 @@ export default function Calculator() {
   }
 
   const distLibre = Math.max(0, 100 - distReinv - distGan);
-  const mlCh  = canales.find(ch => ch.nombre.toLowerCase().includes('mercado')) || canales[0];
-  const tpCh  = canales.find(ch => ch.nombre.toLowerCase().includes('tienda'))  || canales[1];
-
   function chanGan(ch) {
     if (!ch || !ch.precio) return 0;
     const com = ch.precio * (ch.comision || 0) / 100;
@@ -455,8 +452,8 @@ export default function Calculator() {
           </div>
         </div>
 
-        {/* ── Logística + Canales (lado a lado) ── */}
-        <div className="calc-split-grid" style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'1.5rem', marginTop:'1.5rem', alignItems:'start' }}>
+        {/* ── Logística e importación ── */}
+        <div className="calc-split-grid" style={{ display:'grid', gridTemplateColumns:'minmax(0, 1fr)', gap:'1.5rem', marginTop:'1.5rem', alignItems:'start' }}>
 
           {/* ── Logística ── */}
           <div className="card">
@@ -576,73 +573,6 @@ export default function Calculator() {
             </CalcSection>
           </div>
 
-          {/* ── Canales ── */}
-          <div className="card">
-            <div className="card-header">
-              <span className="card-title">Canales de venta</span>
-              <button className="btn-outline" onClick={addCanal}>+ Agregar canal</button>
-            </div>
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: '1fr',
-                gridAutoRows: 'max-content',
-                alignContent: 'start',
-                gap: 10,
-                maxHeight: canales.length > 3 ? 336 : 'none',
-                overflowY: canales.length > 3 ? 'auto' : 'visible',
-                paddingRight: canales.length > 3 ? 6 : 0,
-                scrollbarGutter: canales.length > 3 ? 'stable' : 'auto',
-              }}
-            >
-              {canales.map((canal, i) => {
-                const precio   = canal.precio || 0;
-                const comision = precio * (canal.comision || 0) / 100;
-                const neto     = precio - comision - (canal.cuotas || 0);
-                const ganancia = neto - c.costoARS;
-                const margen   = c.costoARS > 0 ? Math.round(ganancia / c.costoARS * 100) : 0;
-                const badgeKey = margen >= 50 ? 'green' : margen >= 20 ? 'amber' : 'red';
-                const accentColor = margen >= 50 ? 'var(--green)' : margen >= 20 ? 'var(--amber, #e6a817)' : 'var(--red)';
-                return (
-                  <div key={i} style={{ borderRadius: 8, border: '1px solid var(--border)', overflow: 'hidden', background: 'var(--bg-2)' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', padding: '9px 14px', borderLeft: `4px solid ${accentColor}`, background: 'var(--bg-3)', borderBottom: '1px solid var(--border-2)', gap: 10 }}>
-                      <input
-                        value={canal.nombre}
-                        onChange={e => updateCanal(i, { nombre: e.target.value })}
-                        style={{ flex: 1, fontSize: 13, fontWeight: 700, color: 'var(--text)', background: 'transparent', border: 'none', outline: 'none', fontFamily: 'var(--font)', minWidth: 0 }}
-                      />
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-                        <div style={{ textAlign: 'right' }}>
-                          <div style={{ fontSize: 10, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.05em', lineHeight: 1, marginBottom: 2 }}>Ganancia/u</div>
-                          <div style={{ fontSize: 14, fontWeight: 700, color: ganancia >= 0 ? 'var(--green)' : 'var(--red)', lineHeight: 1 }}>
-                            {precio ? ars(ganancia) : <span style={{ color: 'var(--text-3)', fontWeight: 400, fontSize: 12 }}>—</span>}
-                          </div>
-                        </div>
-                        <span className={`badge badge-${badgeKey}`} style={{ fontSize: 11 }}>{precio ? `${margen}%` : '—'}</span>
-                        <button onClick={() => removeCanal(i)} style={{ background: 'none', border: 'none', fontSize: 18, color: 'var(--text-3)', cursor: 'pointer', lineHeight: 1, padding: '0 2px', opacity: 0.5 }} title="Eliminar canal">×</button>
-                      </div>
-                    </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', borderLeft: `4px solid ${accentColor}` }}>
-                      {[
-                        { label: 'Precio venta ARS', val: precio,           step: 100, onChange: v => updateCanal(i, { precio: v }) },
-                        { label: 'Comisión %',        val: canal.comision,  step: 0.5, onChange: v => updateCanal(i, { comision: v }) },
-                        { label: 'Cuotas ARS',        val: canal.cuotas||0, step: 100, onChange: v => updateCanal(i, { cuotas: v }) },
-                      ].map((f, fi) => (
-                        <div key={f.label} style={{ padding: '8px 12px', borderRight: fi < 2 ? '1px solid var(--border-2)' : 'none' }}>
-                          <div style={{ fontSize: 9, fontWeight: 600, color: 'var(--text-3)', letterSpacing: '0.07em', textTransform: 'uppercase', marginBottom: 5 }}>{f.label}</div>
-                          <input
-                            type="number" value={f.val} step={f.step}
-                            style={{ width: '100%', background: 'transparent', border: 'none', outline: 'none', fontFamily: 'var(--font)', fontSize: 14, fontWeight: 600, color: 'var(--text)', padding: 0 }}
-                            onChange={e => f.onChange(parseFloat(e.target.value) || 0)}
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
         </div>
 
         {/* ── Resultado + Distribución ── */}
