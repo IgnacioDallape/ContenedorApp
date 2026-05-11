@@ -24,6 +24,97 @@ const Loader = () => (
   </div>
 );
 
+function NavSvg({ children, strokeWidth = 1.8 }) {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <g stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round">
+        {children}
+      </g>
+    </svg>
+  );
+}
+
+const NAV_ICONS = {
+  home: (
+    <NavSvg>
+      <path d="M4 10.5 12 4l8 6.5" />
+      <path d="M6.5 9.5V20h11V9.5" />
+      <path d="M10 20v-5h4v5" />
+    </NavSvg>
+  ),
+  calc: (
+    <NavSvg>
+      <rect x="5" y="3.5" width="14" height="17" rx="2.5" />
+      <path d="M8.5 7.5h7" />
+      <path d="M8.5 11.5h2" />
+      <path d="M13.5 11.5h2" />
+      <path d="M8.5 15.5h2" />
+      <path d="M13.5 15.5h2" />
+    </NavSvg>
+  ),
+  products: (
+    <NavSvg>
+      <path d="M12 3.8 19 7.5v9L12 20.2 5 16.5v-9L12 3.8Z" />
+      <path d="M12 12.1 19 7.5" />
+      <path d="M12 12.1 5 7.5" />
+      <path d="M12 12.1v8.1" />
+    </NavSvg>
+  ),
+  comparator: (
+    <NavSvg>
+      <path d="M7 6h10" />
+      <path d="M7 12h7" />
+      <path d="M7 18h4" />
+      <path d="m15 10 2 2-2 2" />
+    </NavSvg>
+  ),
+  ncm: (
+    <NavSvg>
+      <circle cx="11" cy="11" r="5.5" />
+      <path d="m15.2 15.2 3.3 3.3" />
+    </NavSvg>
+  ),
+  simulator: (
+    <NavSvg>
+      <path d="M5 18h14" />
+      <path d="M8 18v-4" />
+      <path d="M12 18v-7" />
+      <path d="M16 18V8" />
+      <path d="m7 9 3-2.5 3 1.5 4-3" />
+    </NavSvg>
+  ),
+  prices: (
+    <NavSvg>
+      <path d="M12 4v16" />
+      <path d="M16 7.5c0-1.7-1.8-3-4-3s-4 1.3-4 3 1.6 2.6 4 3 4 1.3 4 3-1.8 3-4 3-4-1.3-4-3" />
+    </NavSvg>
+  ),
+  container: (
+    <NavSvg>
+      <rect x="3.5" y="7" width="17" height="10" rx="2" />
+      <path d="M7.5 7v10" />
+      <path d="M12 7v10" />
+      <path d="M16.5 7v10" />
+    </NavSvg>
+  ),
+  palletbuilder: (
+    <NavSvg>
+      <path d="M5 9.5h14" />
+      <path d="M6.5 9.5v4.5" />
+      <path d="M12 9.5v4.5" />
+      <path d="M17.5 9.5v4.5" />
+      <path d="M4.5 14h15" />
+      <path d="M7 18h10" />
+    </NavSvg>
+  ),
+  settings: (
+    <NavSvg strokeWidth={1.6}>
+      <path d="M12 15.2A3.2 3.2 0 1 0 12 8.8a3.2 3.2 0 0 0 0 6.4Z" />
+      <path d="M19.4 15a1 1 0 0 0 .2 1.1l.1.1a1.2 1.2 0 0 1 0 1.7l-1.2 1.2a1.2 1.2 0 0 1-1.7 0l-.1-.1a1 1 0 0 0-1.1-.2 1 1 0 0 0-.6.9v.2A1.2 1.2 0 0 1 13.8 22h-1.6A1.2 1.2 0 0 1 11 20.8v-.2a1 1 0 0 0-.6-.9 1 1 0 0 0-1.1.2l-.1.1a1.2 1.2 0 0 1-1.7 0l-1.2-1.2a1.2 1.2 0 0 1 0-1.7l.1-.1A1 1 0 0 0 6.2 15a1 1 0 0 0-.9-.6h-.2A1.2 1.2 0 0 1 4 13.2v-1.6A1.2 1.2 0 0 1 5.2 10h.2a1 1 0 0 0 .9-.6 1 1 0 0 0-.2-1.1l-.1-.1a1.2 1.2 0 0 1 0-1.7l1.2-1.2a1.2 1.2 0 0 1 1.7 0l.1.1a1 1 0 0 0 1.1.2h.1a1 1 0 0 0 .6-.9v-.2A1.2 1.2 0 0 1 12.2 3h1.6A1.2 1.2 0 0 1 15 4.2v.2a1 1 0 0 0 .6.9 1 1 0 0 0 1.1-.2l.1-.1a1.2 1.2 0 0 1 1.7 0l1.2 1.2a1.2 1.2 0 0 1 0 1.7l-.1.1a1 1 0 0 0-.2 1.1v.1a1 1 0 0 0 .9.6h.2A1.2 1.2 0 0 1 22 11.8v1.6a1.2 1.2 0 0 1-1.2 1.2h-.2a1 1 0 0 0-.9.4Z" />
+    </NavSvg>
+  ),
+};
+
 function WelcomePanel({ label, userPlan }) {
   const planLabel = userPlan === 'promax' ? 'Pro Max' : userPlan === 'pro' ? 'Pro' : userPlan === 'basic' ? 'Basic' : 'sin plan';
 
@@ -221,19 +312,19 @@ export default function AppShell() {
         </div>
         <div className="mobile-drawer-section">Importacion</div>
         <div className="mobile-drawer-items">
-          {navItem('home', '•', 'Inicio')}
-          {navItem('calc', '+', 'Calculadora')}
-          {navItem('products', '[]', 'Mis productos')}
-          {navItem('comparator', '<>', 'Comparar productos')}
-          {navItem('ncm', '?', 'Buscar NCM')}
-          {navItem('simulator', 'o', 'Simulador de precio')}
-          {navItem('prices', '$', 'Precios confirmados')}
+          {navItem('home', NAV_ICONS.home, 'Inicio')}
+          {navItem('calc', NAV_ICONS.calc, 'Calculadora')}
+          {navItem('products', NAV_ICONS.products, 'Mis productos')}
+          {navItem('comparator', NAV_ICONS.comparator, 'Comparar productos')}
+          {navItem('ncm', NAV_ICONS.ncm, 'Buscar NCM')}
+          {navItem('simulator', NAV_ICONS.simulator, 'Simulador de precio')}
+          {navItem('prices', NAV_ICONS.prices, 'Precios confirmados')}
         </div>
         <div className="mobile-drawer-section">Contenedor</div>
         <div className="mobile-drawer-items">
-          {navItem('container', '3D', 'Cargar contenedor')}
-          {navItem('palletbuilder', 'PL', 'Armador de pallets')}
-          {navItem('settings', '⚙', 'Configuración')}
+          {navItem('container', NAV_ICONS.container, 'Cargar contenedor')}
+          {navItem('palletbuilder', NAV_ICONS.palletbuilder, 'Armador de pallets')}
+          {navItem('settings', NAV_ICONS.settings, 'Configuración')}
         </div>
       </aside>
 
@@ -258,16 +349,16 @@ export default function AppShell() {
 
         <nav className="nav">
           <div className="nav-section">Importacion</div>
-          {navItem('calc', '+', 'Calculadora')}
-          {navItem('products', '[]', 'Mis productos')}
-          {navItem('comparator', '<>', 'Comparar productos')}
-          {navItem('ncm', '?', 'Buscar NCM')}
-          {navItem('simulator', 'o', 'Simulador de precio')}
-          {navItem('prices', '$', 'Precios confirmados')}
+          {navItem('calc', NAV_ICONS.calc, 'Calculadora')}
+          {navItem('products', NAV_ICONS.products, 'Mis productos')}
+          {navItem('comparator', NAV_ICONS.comparator, 'Comparar productos')}
+          {navItem('ncm', NAV_ICONS.ncm, 'Buscar NCM')}
+          {navItem('simulator', NAV_ICONS.simulator, 'Simulador de precio')}
+          {navItem('prices', NAV_ICONS.prices, 'Precios confirmados')}
 
           <div className="nav-section">Contenedor</div>
-          {navItem('container', '3D', 'Cargar contenedor')}
-          {navItem('palletbuilder', 'PL', 'Armador de pallets')}
+          {navItem('container', NAV_ICONS.container, 'Cargar contenedor')}
+          {navItem('palletbuilder', NAV_ICONS.palletbuilder, 'Armador de pallets')}
         </nav>
 
         <div className="sidebar-footer">
@@ -366,11 +457,11 @@ export default function AppShell() {
 
       <div className="mobile-nav">
         <div className="mobile-nav-inner">
-          {mobileNavButton('home', '•', 'Inicio')}
-          {mobileNavButton('calc', '+', 'Calc')}
-          {mobileNavButton('prices', '$', 'Precios')}
-          {mobileNavButton('container', '3D', 'Cont')}
-          {mobileNavButton('palletbuilder', 'PL', 'Pallet')}
+          {mobileNavButton('home', NAV_ICONS.home, 'Inicio')}
+          {mobileNavButton('calc', NAV_ICONS.calc, 'Calc')}
+          {mobileNavButton('prices', NAV_ICONS.prices, 'Precios')}
+          {mobileNavButton('container', NAV_ICONS.container, 'Cont')}
+          {mobileNavButton('palletbuilder', NAV_ICONS.palletbuilder, 'Pallet')}
         </div>
       </div>
 
