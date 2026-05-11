@@ -1,7 +1,7 @@
 import { useEffect, useRef, useCallback } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { pb_validateGroupPlacement, PB_PALLET_BASE_H } from '../../stores/palletStore.js';
+import { pb_validateGroupPlacement, pb_validateSingleBoxMove, PB_PALLET_BASE_H } from '../../stores/palletStore.js';
 
 function fitCameraToObject(camera, controls, size, center) {
   const maxSize = Math.max(size.x, size.y, size.z, 1);
@@ -83,6 +83,18 @@ function getPointerHit(renderer, camera, raycaster, boxGroup, clientX, clientY) 
   raycaster.setFromCamera(new THREE.Vector2(mx, my), camera);
   const hits = raycaster.intersectObjects(boxGroup.children, true);
   return hits.find(item => item.object.userData?.uid) || null;
+}
+
+function resetBoxMeshPositions(t, boxes = []) {
+  for (const box of boxes) {
+    const meshes = t.boxMeshMap.get(box.uid) || [];
+    const x = box.x + box.dX / 2;
+    const y = PB_PALLET_BASE_H + box.y + box.dY / 2;
+    const z = box.z + box.dZ / 2;
+    meshes.forEach(mesh => {
+      mesh.position.set(x, y, z);
+    });
+  }
 }
 
 export default function PalletThreeCanvas({ result, selectedBoxUid, onSelectBox, onUpdateBoxes, onDropReserveBox }) {
@@ -428,24 +440,47 @@ export default function PalletThreeCanvas({ result, selectedBoxUid, onSelectBox,
         const box = result.boxes.find(item => item.uid === t.dragBoxUid);
         if (!box) return;
 
-        const point = getHorizontalPlaneIntersect(e, t.renderer, t.camera, t.dragPlaneY ?? (PB_PALLET_BASE_H + box.y + box.dY / 2));
-        if (!point) return;
-
         const snap = 2;
-        let nextX = Math.round((point.x - (t.dragOffsets?.x ?? box.dX / 2)) / snap) * snap;
-        let nextZ = Math.round((point.z - (t.dragOffsets?.z ?? box.dZ / 2)) / snap) * snap;
-        nextX = Math.max(0, Math.min(result.palL - box.dX, nextX));
-        nextZ = Math.max(0, Math.min(result.palW - box.dZ, nextZ));
+        const stackMode = e.shiftKey;
+        const validateMove = (nextX, nextZ) => stackMode
+          ? pb_validateGroupPlacement(
+              result.boxes,
+              box.uid,
+              result.palL,
+              result.palW,
+              result.maxHeight,
+              nextX,
+              nextZ
+            )
+          : pb_validateSingleBoxMove(
+              result.boxes,
+              box.uid,
+              result.palL,
+              result.palW,
+              result.maxHeight,
+              nextX,
+              nextZ
+            );
 
-        const placement = pb_validateGroupPlacement(
-          result.boxes,
-          box.uid,
-          result.palL,
-          result.palW,
-          result.maxHeight,
-          nextX,
-          nextZ
-        );
+        const readCandidate = (planeY) => {
+          const point = getHorizontalPlaneIntersect(e, t.renderer, t.camera, planeY);
+          if (!point) return null;
+          let nextX = Math.round((point.x - box.dX / 2) / snap) * snap;
+          let nextZ = Math.round((point.z - box.dZ / 2) / snap) * snap;
+          nextX = Math.max(0, Math.min(result.palL - box.dX, nextX));
+          nextZ = Math.max(0, Math.min(result.palW - box.dZ, nextZ));
+          return { nextX, nextZ, placement: validateMove(nextX, nextZ) };
+        };
+
+        let candidate = readCandidate(t.dragPlaneY ?? (PB_PALLET_BASE_H + box.y + box.dY / 2));
+        if (!candidate) return;
+        let placement = candidate.placement;
+        const rootPlacement = placement.rootPlacement || placement.placements?.find(item => item.uid === box.uid);
+        if (rootPlacement) {
+          const actualPlaneY = PB_PALLET_BASE_H + rootPlacement.y + rootPlacement.dY / 2;
+          const refined = readCandidate(actualPlaneY);
+          if (refined) placement = refined.placement;
+        }
 
         t.dragPreviewPlacement = null;
         t.dragPreviewPlacements = placement.valid ? placement.placements : null;
@@ -453,13 +488,14 @@ export default function PalletThreeCanvas({ result, selectedBoxUid, onSelectBox,
 
         const fallbackPlacement = {
           uid: box.uid,
-          x: nextX,
+          x: candidate.nextX,
           y: box.y,
-          z: nextZ,
+          z: candidate.nextZ,
           dX: box.dX,
           dY: box.dY,
           dZ: box.dZ,
         };
+        resetBoxMeshPositions(t, result.boxes);
         const previewPlacements = placement.placements?.length ? placement.placements : [fallbackPlacement];
         previewPlacements.forEach(previewPlacement => {
           const previewY = PB_PALLET_BASE_H + previewPlacement.y + previewPlacement.dY / 2;

@@ -947,6 +947,74 @@ export function pb_validatePlacement(boxes, movingBox, palL, palW, maxH, nextX, 
   return { valid: true, ...root };
 }
 
+export function pb_validateSingleBoxMove(boxes, rootUid, palL, palW, maxH, nextX, nextZ) {
+  const root = boxes.find(box => box.uid === rootUid);
+  if (!root) return { valid: false, reason: 'missing-root', groupUids: [], placements: [] };
+
+  const placement = pb_validatePlacement(boxes, root, palL, palW, maxH, nextX, nextZ);
+  if (!placement.valid) {
+    return {
+      valid: false,
+      reason: placement.reason,
+      groupUids: [rootUid],
+      placements: [{
+        uid: rootUid,
+        x: pb_roundToGrid(nextX),
+        y: root.y,
+        z: pb_roundToGrid(nextZ),
+        dX: root.dX,
+        dY: root.dY,
+        dZ: root.dZ,
+      }],
+    };
+  }
+
+  const nextBoxes = boxes.map(box =>
+    box.uid === rootUid
+      ? { ...box, ...placement }
+      : box
+  );
+  if (!pb_validatePackedLayout(nextBoxes, palL, palW, maxH)) {
+    return {
+      valid: false,
+      reason: 'dependent-support',
+      groupUids: [rootUid],
+      placements: [{
+        uid: rootUid,
+        x: placement.x,
+        y: placement.y,
+        z: placement.z,
+        dX: placement.dX,
+        dY: placement.dY,
+        dZ: placement.dZ,
+      }],
+    };
+  }
+
+  return {
+    valid: true,
+    groupUids: [rootUid],
+    rootPlacement: {
+      uid: rootUid,
+      x: placement.x,
+      y: placement.y,
+      z: placement.z,
+      dX: placement.dX,
+      dY: placement.dY,
+      dZ: placement.dZ,
+    },
+    placements: [{
+      uid: rootUid,
+      x: placement.x,
+      y: placement.y,
+      z: placement.z,
+      dX: placement.dX,
+      dY: placement.dY,
+      dZ: placement.dZ,
+    }],
+  };
+}
+
 function pb_boxSupportOverlap(lower, upper) {
   const overlapX = Math.max(0, Math.min(lower.x + lower.dX, upper.x + upper.dX) - Math.max(lower.x, upper.x));
   const overlapZ = Math.max(0, Math.min(lower.z + lower.dZ, upper.z + upper.dZ) - Math.max(lower.z, upper.z));
