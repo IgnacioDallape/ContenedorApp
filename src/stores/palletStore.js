@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { PB_COLORS, PB_PALLET_TYPES } from '../lib/constants.js';
+import { runPalletPacking } from '../lib/palletPacking.js';
 
 export const PB_GRID_RES = 2;
 const PB_HEIGHT_EPS = 0.1;
@@ -2691,7 +2692,7 @@ function pb_pickBestPackedLayout(layouts, palL, palW, maxH) {
 }
 
 export function pb_runPacking(products, palL, palW, maxH) {
-  return pb_runPackingContainerLike(products, palL, palW, maxH, 'auto');
+  return runPalletPacking(products, { palL, palW, maxH, variant: 'auto' });
 }
 
 function pb_unitsByUidFromProducts(products) {
@@ -2885,13 +2886,18 @@ function pb_runPackingContainerLike(products, palL, palW, maxH, variant = 'auto'
 
 function pb_runReorderVariant(products, palL, palW, maxH, variant = 'auto') {
   const expectedCount = products.reduce((sum, product) => sum + Math.max(0, product.qty || 0), 0);
-  const boxes = pb_runPackingContainerLike(products, palL, palW, maxH, variant);
+  const variants = variant === 'auto'
+    ? ['auto', 'grid']
+    : [...new Set([variant, 'auto', 'grid'])];
 
-  if (!boxes.length || boxes.length !== expectedCount || !pb_validatePackedLayout(boxes, palL, palW, maxH)) {
-    return null;
+  for (const currentVariant of variants) {
+    const boxes = runPalletPacking(products, { palL, palW, maxH, variant: currentVariant });
+    if (boxes.length === expectedCount && pb_validatePackedLayout(boxes, palL, palW, maxH)) {
+      return boxes;
+    }
   }
 
-  return boxes;
+  return null;
 }
 
 const usePalletStore = create((set, get) => ({
@@ -2968,7 +2974,10 @@ const usePalletStore = create((set, get) => ({
       if (pallets.length > 50) break; // safety
     }
 
-    const finalized = pb_finalizePallets(pallets, products, palL, palW, maxHeight);
+    let finalized = pb_finalizePallets(pallets, products, palL, palW, maxHeight);
+    if (finalized.length > 1) {
+      finalized = pb_mergeRepackPallets(finalized, products, palL, palW, maxHeight);
+    }
     set({ results: finalized, activeResult: 0, selectedBoxUid: null });
   },
 
