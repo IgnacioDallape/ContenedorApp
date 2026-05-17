@@ -31,10 +31,45 @@ const STATUS_ORDER = [
   'entregado',
 ];
 
+const SHIPMENT_SHARE_ORIGIN = 'https://fleetloader.vercel.app';
+
+function getShipmentShareUrl(id) {
+  return `${SHIPMENT_SHARE_ORIGIN}/share/${id}`;
+}
+
 function normalizeShipmentStatus(status) {
   if (status === 'en_transito') return 'en_transito_puerto';
   if (status === 'en_puerto') return 'en_puerto_destino';
   return STATUS_CONFIG[status] ? status : 'preparacion';
+}
+
+async function copyShareUrl(url) {
+  if (navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(url);
+      return true;
+    } catch {
+      // iOS webviews can expose clipboard but reject it; try the legacy path below.
+    }
+  }
+
+  const textarea = document.createElement('textarea');
+  textarea.value = url;
+  textarea.setAttribute('readonly', '');
+  textarea.style.position = 'fixed';
+  textarea.style.top = '-9999px';
+  textarea.style.opacity = '0';
+  document.body.appendChild(textarea);
+  textarea.select();
+  textarea.setSelectionRange(0, textarea.value.length);
+
+  try {
+    return document.execCommand('copy');
+  } catch {
+    return false;
+  } finally {
+    document.body.removeChild(textarea);
+  }
 }
 
 function StatsStrip({ totalVol, ct, pctVol, totalUnits, activeZoneCount, totalWeight, weightOver, weightLimit, totalValue }) {
@@ -157,6 +192,7 @@ export default function ContainerLoader() {
   const [openStatusId,   setOpenStatusId]  = useState(null);
   const [currentShipmentStatus, setCurrentShipmentStatus] = useState('preparacion');
   const [currentShipmentPublic, setCurrentShipmentPublic] = useState(false);
+  const [sharingShipmentId, setSharingShipmentId] = useState(null);
   const [showCurrentStatusPicker, setShowCurrentStatusPicker] = useState(false);
   const [dragTabIdx,    setDragTabIdx]    = useState(null);
   const [dragOverTabIdx, setDragOverTabIdx] = useState(null);
@@ -760,18 +796,73 @@ export default function ContainerLoader() {
     a.download = `${shipment.name || 'embarque'}.csv`; a.click();
   }
 
-  async function toggleShipmentPublic(id, currentPublic) {
-    const is_public = !currentPublic;
-    await _sb.from('shipments').update({ is_public }).eq('id', id);
-    setShipmentsList(prev => prev.map(s => s.id === id ? { ...s, is_public } : s));
+  function syncShipmentPublicState(id, is_public) {
+    setShipmentsList(prev => prev.map(s => String(s.id) === String(id) ? { ...s, is_public } : s));
     if (String(id) === String(currentShipmentId)) setCurrentShipmentPublic(is_public);
-    if (is_public) {
-      const url = `https://fleetloader.vercel.app/share/${id}`;
-      navigator.clipboard.writeText(url).catch(() => {});
-      showToast('Link copiado al portapapeles', 'success');
-    } else {
-      showToast('Link desactivado', 'success');
+  }
+
+  async function shareShipmentLink(shipment) {
+    const url = getShipmentShareUrl(shipment.id);
+    const shareData = {
+      title: shipment.name ? `Embarque ${shipment.name}` : 'Embarque ImportaPro',
+      text: shipment.name ? `Te comparto el embarque "${shipment.name}".` : 'Te comparto este embarque.',
+      url,
+    };
+    const canNativeShare =
+      typeof navigator.share === 'function' &&
+      (!navigator.canShare || navigator.canShare(shareData));
+
+    if (canNativeShare) {
+      try {
+        await navigator.share(shareData);
+        return 'shared';
+      } catch (error) {
+        if (error?.name === 'AbortError') return 'cancelled';
+      }
     }
+
+    return (await copyShareUrl(url)) ? 'copied' : 'failed';
+  }
+
+  async function handleShareShipment(shipment) {
+    if (!shipment?.id || sharingShipmentId) return;
+
+    const wasPublic = !!shipment.is_public;
+    const publishPromise = wasPublic
+      ? Promise.resolve({ error: null })
+      : _sb.from('shipments').update({ is_public: true }).eq('id', shipment.id);
+
+    if (!wasPublic) syncShipmentPublicState(shipment.id, true);
+    setSharingShipmentId(shipment.id);
+
+    // iOS requires the share sheet to open inside the original tap gesture.
+    const shareResult = await shareShipmentLink(shipment);
+
+    try {
+      const { error } = await publishPromise.catch(error => ({ error }));
+      if (error) {
+        if (!wasPublic) syncShipmentPublicState(shipment.id, false);
+        showToast('No pude activar el link público: ' + error.message, 'error');
+        return;
+      }
+
+      if (shareResult === 'shared') {
+        showToast('Link listo para compartir', 'success');
+      } else if (shareResult === 'copied') {
+        showToast('Link copiado al portapapeles', 'success');
+      } else if (shareResult === 'failed') {
+        showToast('No pude abrir compartir. Copiá el link manualmente.', 'error');
+      }
+    } finally {
+      setSharingShipmentId(null);
+    }
+  }
+
+  async function disableShipmentPublic(id) {
+    const { error } = await _sb.from('shipments').update({ is_public: false }).eq('id', id);
+    if (error) return showToast('No pude desactivar el link: ' + error.message, 'error');
+    syncShipmentPublicState(id, false);
+    showToast('Link desactivado', 'success');
   }
 
   async function deleteShipment() {
@@ -932,8 +1023,17 @@ export default function ContainerLoader() {
 
         <div style={{ borderTop: '1px solid #F0EBE3', padding: '8px 14px', display: 'flex', alignItems: 'center', gap: 6, background: '#FAFAF8', flexWrap: 'wrap' }}>
           {!isFinalizedSection && (
-            <button onClick={() => toggleShipmentPublic(s.id, s.is_public)} style={{ padding: '4px 10px', fontSize: 10, fontFamily: "'DM Mono', monospace", borderRadius: 6, cursor: 'pointer', border: `1px solid ${s.is_public ? '#3A8C52' : '#D8CFC6'}`, color: s.is_public ? '#3A8C52' : '#9a8778', background: s.is_public ? '#EDF7F1' : 'transparent' }}>
-              {s.is_public ? '🔗 Link activo' : '🔗 Compartir'}
+            <button
+              onClick={() => handleShareShipment(s)}
+              disabled={sharingShipmentId === s.id}
+              style={{ padding: '4px 10px', fontSize: 10, fontFamily: "'DM Mono', monospace", borderRadius: 6, cursor: sharingShipmentId === s.id ? 'wait' : 'pointer', border: `1px solid ${s.is_public ? '#3A8C52' : '#D8CFC6'}`, color: s.is_public ? '#3A8C52' : '#9a8778', background: s.is_public ? '#EDF7F1' : 'transparent', opacity: sharingShipmentId === s.id ? 0.7 : 1 }}
+            >
+              {sharingShipmentId === s.id ? '🔗 Abriendo...' : s.is_public ? '🔗 Compartir link' : '🔗 Compartir'}
+            </button>
+          )}
+          {!isFinalizedSection && s.is_public && (
+            <button onClick={() => disableShipmentPublic(s.id)} style={{ padding: '4px 10px', fontSize: 10, fontFamily: "'DM Mono', monospace", borderRadius: 6, cursor: 'pointer', border: '1px solid #E8D6CF', color: '#B85C5C', background: '#FFF8F6' }}>
+              Desactivar link
             </button>
           )}
           <button onClick={() => handleExportShipmentCSV(s)} title="Exportar CSV" style={{ padding: '4px 10px', fontSize: 10, fontFamily: "'DM Mono', monospace", borderRadius: 6, cursor: 'pointer', border: '1px solid #D8CFC6', color: '#9a8778', background: 'transparent' }}>
@@ -1264,18 +1364,20 @@ export default function ContainerLoader() {
                 )}
                 {currentShipmentId && (
                   <button
-                    onClick={() => toggleShipmentPublic(currentShipmentId, currentShipmentPublic)}
-                    title={currentShipmentPublic ? 'Desactivar link compartido' : 'Activar link compartido'}
+                    onClick={() => handleShareShipment({ id: currentShipmentId, name: currentShipmentName, is_public: currentShipmentPublic })}
+                    disabled={sharingShipmentId === currentShipmentId}
+                    title={currentShipmentPublic ? 'Compartir link del embarque' : 'Activar y compartir link'}
                     style={{
                       padding: '6px 12px',
                       fontSize: 10,
                       fontFamily: "'DM Mono', monospace",
                       letterSpacing: '0.4px',
                       borderRadius: 8,
-                      cursor: 'pointer',
+                      cursor: sharingShipmentId === currentShipmentId ? 'wait' : 'pointer',
                       border: `1px solid ${currentShipmentPublic ? '#3A8C52' : 'var(--border)'}`,
                       color: currentShipmentPublic ? '#3A8C52' : 'var(--muted)',
                       background: currentShipmentPublic ? '#EDF7F1' : 'transparent',
+                      opacity: sharingShipmentId === currentShipmentId ? 0.7 : 1,
                       display: 'flex',
                       alignItems: 'center',
                       gap: 6,
@@ -1283,7 +1385,27 @@ export default function ContainerLoader() {
                     }}
                   >
                     <span style={{ fontSize: 11 }}>{currentShipmentPublic ? '🔗' : '⛓'}</span>
-                    <span>{currentShipmentPublic ? 'Link activo' : 'Activar link'}</span>
+                    <span>{sharingShipmentId === currentShipmentId ? 'Abriendo...' : currentShipmentPublic ? 'Compartir link' : 'Activar link'}</span>
+                  </button>
+                )}
+                {currentShipmentId && currentShipmentPublic && (
+                  <button
+                    onClick={() => disableShipmentPublic(currentShipmentId)}
+                    title="Desactivar link público"
+                    style={{
+                      padding: '6px 10px',
+                      fontSize: 10,
+                      fontFamily: "'DM Mono', monospace",
+                      letterSpacing: '0.4px',
+                      borderRadius: 8,
+                      cursor: 'pointer',
+                      border: '1px solid #E8D6CF',
+                      color: '#B85C5C',
+                      background: '#FFF8F6',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    Desactivar link
                   </button>
                 )}
                 <button
