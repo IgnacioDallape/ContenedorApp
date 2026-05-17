@@ -385,8 +385,11 @@ export default function PalletBuilder() {
 
       const { data: existing } = await _sb.from('pallets')
         .select('id,name').eq('user_id', session.user.id).ilike('name', name);
-      if (existing?.length) {
-        setOverwriteId(existing[0].id);
+
+      // Si el nombre choca con OTRO pallet (no el actual), pedir confirmación.
+      const conflict = existing?.find(row => String(row.id) !== String(currentJobId));
+      if (conflict) {
+        setOverwriteId(conflict.id);
         setOverwriteName(name);
         setShowSave(false);
         setShowOverwrite(true);
@@ -394,6 +397,23 @@ export default function PalletBuilder() {
       }
 
       const payload = buildJobPayload();
+
+      // Si ya tenemos currentJobId (editando un pallet cargado), update directo.
+      if (currentJobId) {
+        const { error } = await _sb.from('pallets').update({
+          name,
+          payload,
+          status: currentJobStatus,
+          tracking_url: currentJobTracking || null,
+        }).eq('id', currentJobId);
+        if (error) { showToast('Error al guardar: ' + error.message, 'error'); return; }
+        setCurrentJobName(name);
+        setShowSave(false);
+        showToast(`Pallet actualizado: "${name}"`, 'success');
+        return;
+      }
+
+      // Caso nuevo: insert.
       const { data: inserted, error } = await _sb.from('pallets').insert({
         user_id: session.user.id,
         name,
