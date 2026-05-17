@@ -17,9 +17,12 @@ const PB_CORE_BUDGET_SMALL_MS = 7000;
 const PB_CORE_BUDGET_MEDIUM_MS = 5500;
 const PB_CORE_BUDGET_LARGE_MS = 4000;
 const PB_MIN_LAYER_SUPPORT_COVERAGE = 0.72;
-const PB_MIN_SUPPORT_PERCENT = 0.8;
-const PB_MIN_SUPPORT_AXIS_COVERAGE = 0.68;
-const PB_MAX_SUPPORT_GAP_RATIO = 0.38;
+// Support requirements — tight enough that boxes never appear to float.
+// Allow ~3% overhang (rounding tolerance) but require near-full coverage,
+// near-full axis coverage, and no significant unsupported gap underneath.
+const PB_MIN_SUPPORT_PERCENT = 0.97;
+const PB_MIN_SUPPORT_AXIS_COVERAGE = 0.92;
+const PB_MAX_SUPPORT_GAP_RATIO = 0.08;
 
 function pb_makeHM(palW, palL) {
   const cols = Math.ceil((palL + PB_GRID_RES) / PB_GRID_RES);
@@ -1625,9 +1628,9 @@ function pb_supportForRect(rect, supportRects) {
   const footprint = rect.dX * rect.dZ;
   const spanRatio = Math.max(rect.dX, rect.dZ) / Math.max(1, Math.min(rect.dX, rect.dZ));
   const strictSupport = footprint >= 2200 || spanRatio >= 1.7;
-  const requiredSupportPercent = strictSupport ? 0.9 : PB_MIN_SUPPORT_PERCENT;
-  const requiredAxisCoverage = strictSupport ? 0.82 : PB_MIN_SUPPORT_AXIS_COVERAGE;
-  const allowedGapRatio = strictSupport ? 0.24 : PB_MAX_SUPPORT_GAP_RATIO;
+  const requiredSupportPercent = strictSupport ? 0.99 : PB_MIN_SUPPORT_PERCENT;
+  const requiredAxisCoverage = strictSupport ? 0.96 : PB_MIN_SUPPORT_AXIS_COVERAGE;
+  const allowedGapRatio = strictSupport ? 0.05 : PB_MAX_SUPPORT_GAP_RATIO;
 
   return {
     supported:
@@ -2941,30 +2944,129 @@ function pb_runLayerPacking(products, palL, palW, maxH) {
   return packed;
 }
 
+// Gravity-settle pass: for every non-base box, scan all (x,z) and drop it
+// to the lowest y where it has full support (≥99% covered, center supported,
+// no significant gap) and no collision. Iterates until stable. This is the
+// final guard against any visual floating that escaped earlier passes.
+function pb_gravitySettle(packed, palL, palW, maxH) {
+  if (!packed.length) return packed;
+  let working = packed.map(b => ({ ...b }));
+  const maxPasses = 4;
+
+  for (let pass = 0; pass < maxPasses; pass++) {
+    let improved = false;
+    // Process bottom-up so a settled box becomes support for higher ones
+    const order = [...working].sort((a, b) => a.y - b.y);
+
+    for (const box of order) {
+      if (box.y <= PB_HEIGHT_EPS) continue;
+      const idx = working.findIndex(b => b.uid === box.uid);
+      if (idx === -1) continue;
+
+      const others = working.filter((_, i) => i !== idx);
+      // Try every (x,z) on the current grid; pick lowest valid y with full support.
+      const maxX = palL - box.dX;
+      const maxZ = palW - box.dZ;
+      let bestY = box.y;
+      let bestX = box.x;
+      let bestZ = box.z;
+
+      for (let z = 0; z <= maxZ + 0.1; z += PB_GRID_RES) {
+        for (let x = 0; x <= maxX + 0.1; x += PB_GRID_RES) {
+          const px = pb_roundToGrid(Math.min(x, maxX));
+          const pz = pb_roundToGrid(Math.min(z, maxZ));
+          // Find lowest valid y for this (px,pz)
+          // Candidate y values: 0 and top of every other box
+          const yCandidates = new Set([0]);
+          for (const o of others) yCandidates.add(o.y + o.dY);
+          const sortedY = [...yCandidates].sort((a, b) => a - b);
+          for (const y of sortedY) {
+            if (y >= bestY - PB_HEIGHT_EPS) break; // no improvement possible
+            if (y + box.dY > maxH + PB_HEIGHT_EPS) continue;
+            // 3D collision
+            let collide = false;
+            for (const o of others) {
+              if (px < o.x + o.dX - PB_HEIGHT_EPS && px + box.dX > o.x + PB_HEIGHT_EPS &&
+                  pz < o.z + o.dZ - PB_HEIGHT_EPS && pz + box.dZ > o.z + PB_HEIGHT_EPS &&
+                  y < o.y + o.dY - PB_HEIGHT_EPS && y + box.dY > o.y + PB_HEIGHT_EPS) {
+                collide = true; break;
+              }
+            }
+            if (collide) continue;
+            // Full support check at this y
+            if (y > PB_HEIGHT_EPS) {
+              const supportRects = pb_getLevelSupportRects(others, y, palL, palW);
+              const sup = pb_supportForRect({ x: px, z: pz, dX: box.dX, dZ: box.dZ }, supportRects);
+              if (!sup.supported) continue;
+            }
+            bestY = y; bestX = px; bestZ = pz;
+            break; // lowest y for this (px,pz)
+          }
+        }
+      }
+
+      if (bestY < box.y - PB_HEIGHT_EPS) {
+        working[idx] = { ...box, x: bestX, y: bestY, z: bestZ };
+        improved = true;
+      }
+    }
+
+    if (!improved) break;
+  }
+  return working;
+}
+
+// Drop any box that fails the strict support check (loops because removing
+// a supporting box can leave others floating). Guarantees a gravity-correct
+// output even when a candidate engine placed something with overhang.
+function pb_dropFloaters(packed, palL, palW) {
+  let result = packed;
+  for (let i = 0; i < 8; i++) {
+    const before = result.length;
+    result = result.filter(box => {
+      if (box.y <= PB_HEIGHT_EPS) return true;
+      const others = result.filter(b => b.uid !== box.uid);
+      const supportRects = pb_getLevelSupportRects(others, box.y, palL, palW);
+      const sup = pb_supportForRect({ x: box.x, z: box.z, dX: box.dX, dZ: box.dZ }, supportRects);
+      return sup.supported;
+    });
+    if (result.length === before) break;
+  }
+  return result;
+}
+
 export function pb_runPacking(products, palL, palW, maxH) {
   const totalUnits = products.reduce((s, p) => s + Math.max(0, p.qty || 0), 0);
   const budgetPerVariant = totalUnits > 140 ? 800 : totalUnits > 70 ? 1100 : 1600;
   const containerVariants = ['auto', 'grid', 'low-height', 'layers'];
 
+  // Each candidate is normalized (settle + drop floaters) BEFORE comparing.
+  // This way, an engine that "wins" by placing more boxes with overhangs
+  // loses to a clean engine once the overhanging boxes are stripped.
+  const normalize = (packed) => {
+    if (!packed?.length) return [];
+    let r = pb_compactPackedLayout(packed, palL, palW, maxH);
+    r = pb_gravitySettle(r, palL, palW, maxH);
+    r = pb_dropFloaters(r, palL, palW);
+    return r;
+  };
+
   let best = [];
 
   // Layer-based engine first — typically yields the most compact result
-  const layerResult = pb_runLayerPacking(products, palL, palW, maxH);
+  const layerResult = normalize(pb_runLayerPacking(products, palL, palW, maxH));
   if (pb_isBetterLayout(layerResult, best)) best = layerResult;
 
   for (const variant of containerVariants) {
     const variantDeadline = Date.now() + budgetPerVariant;
-    const result = pb_runPackingContainerLike(products, palL, palW, maxH, variant, variantDeadline);
+    const result = normalize(pb_runPackingContainerLike(products, palL, palW, maxH, variant, variantDeadline));
     if (pb_isBetterLayout(result, best)) best = result;
     if (best.length === totalUnits && pb_calcTop(best) <= pb_calcTop(layerResult || []) + 0.1) break;
   }
 
-  // Compare against old engine (runs its own 4-variant search internally)
-  const oldResult = runPalletPacking(products, { palL, palW, maxH, variant: 'auto' });
+  // Old engine fallback (runs its own 4-variant search internally)
+  const oldResult = normalize(runPalletPacking(products, { palL, palW, maxH, variant: 'auto' }));
   if (pb_isBetterLayout(oldResult, best)) best = oldResult;
-
-  // Compaction pass: drop boxes into any internal holes via systematic scan
-  best = pb_compactPackedLayout(best, palL, palW, maxH);
 
   return best;
 }
