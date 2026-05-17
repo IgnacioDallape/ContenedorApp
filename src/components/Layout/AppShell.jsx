@@ -320,10 +320,13 @@ export default function AppShell() {
           {navItem('simulator', NAV_ICONS.simulator, 'Simulador de precio')}
           {navItem('prices', NAV_ICONS.prices, 'Precios confirmados')}
         </div>
+        <div className="mobile-drawer-section">Pallet</div>
+        <div className="mobile-drawer-items">
+          {navItem('palletbuilder', NAV_ICONS.palletbuilder, 'Armador de pallets')}
+        </div>
         <div className="mobile-drawer-section">Contenedor</div>
         <div className="mobile-drawer-items">
           {navItem('container', NAV_ICONS.container, 'Cargar contenedor')}
-          {navItem('palletbuilder', NAV_ICONS.palletbuilder, 'Armador de pallets')}
           {navItem('settings', NAV_ICONS.settings, 'Configuración')}
         </div>
       </aside>
@@ -356,9 +359,11 @@ export default function AppShell() {
           {navItem('simulator', NAV_ICONS.simulator, 'Simulador de precio')}
           {navItem('prices', NAV_ICONS.prices, 'Precios confirmados')}
 
+          <div className="nav-section">Pallet</div>
+          {navItem('palletbuilder', NAV_ICONS.palletbuilder, 'Armador de pallets')}
+
           <div className="nav-section">Contenedor</div>
           {navItem('container', NAV_ICONS.container, 'Cargar contenedor')}
-          {navItem('palletbuilder', NAV_ICONS.palletbuilder, 'Armador de pallets')}
         </nav>
 
         <div className="sidebar-footer">

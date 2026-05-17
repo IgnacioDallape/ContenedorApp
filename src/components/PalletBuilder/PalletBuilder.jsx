@@ -1,13 +1,40 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import usePalletStore, { pb_validatePlacement } from '../../stores/palletStore.js';
 import useContainerStore from '../../stores/containerStore.js';
 import useAppStore from '../../stores/appStore.js';
 import { PB_PALLET_TYPES, PB_COLORS } from '../../lib/constants.js';
+import { _sb } from '../../lib/supabase.js';
 import PalletThreeCanvas from './PalletThreeCanvas.jsx';
 
 const PRODUCT_DEFAULTS = {
   name: '', L: '', W: '', H: '', qty: '', weight: '', mustBeBase: false, noRotate: false, imgUrl: null,
 };
+
+// Mismo flujo de estados que el Container Loader.
+const STATUS_CONFIG = {
+  preparacion:         { label: 'En preparación',              color: '#C0614A', bg: '#FDF0ED', icon: '🔴' },
+  en_transito_puerto:  { label: 'En tránsito al puerto',       color: '#7A5C8A', bg: '#F3EEF8', icon: '🚛' },
+  en_puerto_partida:   { label: 'En puerto de partida',        color: '#8C6B3C', bg: '#FBF3E6', icon: '⚓' },
+  embarcado:           { label: 'Embarcado',                   color: '#2E7DC0', bg: '#EBF4FD', icon: '🚢' },
+  en_puerto_destino:   { label: 'En puerto destino',           color: '#C08A1A', bg: '#FDF6E3', icon: '🟡' },
+  en_transito_destino: { label: 'En tránsito a destino final', color: '#4D7C8A', bg: '#EDF6F8', icon: '🚚' },
+  entregado:           { label: 'Entregado',                   color: '#3A8C52', bg: '#EDF7F1', icon: '✅' },
+};
+const STATUS_ORDER = ['preparacion','en_transito_puerto','en_puerto_partida','embarcado','en_puerto_destino','en_transito_destino','entregado'];
+const PALLET_SHARE_ORIGIN = 'https://fleetloader.vercel.app';
+function getPalletShareUrl(id) { return `${PALLET_SHARE_ORIGIN}/share/pallet/${id}`; }
+function normalizeJobStatus(status) { return STATUS_CONFIG[status] ? status : 'preparacion'; }
+
+async function copyToClipboard(text) {
+  if (navigator.clipboard?.writeText) {
+    try { await navigator.clipboard.writeText(text); return true; } catch { /* fallback */ }
+  }
+  const ta = document.createElement('textarea');
+  ta.value = text; ta.style.position = 'fixed'; ta.style.top = '-9999px';
+  document.body.appendChild(ta); ta.select();
+  try { return document.execCommand('copy'); } catch { return false; }
+  finally { document.body.removeChild(ta); }
+}
 
 const REORDER_OPTIONS = [
   { id: 'auto', label: 'Auto compacto' },
@@ -32,6 +59,37 @@ export default function PalletBuilder() {
   const [catalogModal, setCatalogModal] = useState(false);
   const [catalogSel, setCatalogSel] = useState({}); // { id: qty }
   const [isBuilding, setIsBuilding] = useState(false);
+
+  // ── Save / load / status state (mirror del Container Loader) ──
+  const [currentJobId, setCurrentJobId] = useState(null);
+  const [currentJobName, setCurrentJobName] = useState('');
+  const [currentJobStatus, setCurrentJobStatus] = useState('preparacion');
+  const [currentJobTracking, setCurrentJobTracking] = useState('');
+  const [showStatusPicker, setShowStatusPicker] = useState(false);
+  const [showSave, setShowSave] = useState(false);
+  const [showOverwrite, setShowOverwrite] = useState(false);
+  const [showLoad, setShowLoad] = useState(false);
+  const [showTrackingEditor, setShowTrackingEditor] = useState(false);
+  const [saveName, setSaveName] = useState('');
+  const [overwriteId, setOverwriteId] = useState(null);
+  const [overwriteName, setOverwriteName] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+  const [savedList, setSavedList] = useState([]);
+  const [savedLoading, setSavedLoading] = useState(false);
+  const [trackingDraft, setTrackingDraft] = useState('');
+
+  const currentJobStatusCfg = STATUS_CONFIG[currentJobStatus] || STATUS_CONFIG.preparacion;
+  const canEditJob = !currentJobId || currentJobStatus === 'preparacion';
+
+  // Close status picker on outside click.
+  useEffect(() => {
+    if (!showStatusPicker) return;
+    function close(e) {
+      if (!e.target.closest?.('.pb-status-wrap')) setShowStatusPicker(false);
+    }
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, [showStatusPicker]);
 
   const pt = PB_PALLET_TYPES[palletType];
 
@@ -268,6 +326,173 @@ export default function PalletBuilder() {
     showToast(`Pallet reordenado: ${label}`, 'success');
   }
 
+  // ── Persistence (Supabase `pallets` table) ──
+  function buildJobPayload() {
+    return {
+      v: 1,
+      palletType,
+      maxHeight,
+      products: products.map(p => ({ ...p })),
+      results: results.map(r => ({
+        idx: r.idx,
+        type: r.type,
+        palL: r.palL,
+        palW: r.palW,
+        maxHeight: r.maxHeight,
+        boxes: r.boxes.map(b => ({ ...b })),
+        reserveBoxes: (r.reserveBoxes || []).map(b => ({ ...b })),
+        products: (r.products || []).map(p => ({ ...p })),
+      })),
+    };
+  }
+
+  function applyJobPayload(payload) {
+    if (!payload || typeof payload !== 'object') return;
+    if (payload.palletType) setPalletType(payload.palletType);
+    if (payload.maxHeight)  setMaxHeight(payload.maxHeight);
+    // Replace products: clear then add
+    const { setProducts, setResults } = usePalletStore.getState();
+    if (typeof setProducts === 'function') {
+      setProducts(payload.products || []);
+    }
+    if (typeof setResults === 'function') {
+      setResults(payload.results || []);
+    }
+  }
+
+  function newJob() {
+    setCurrentJobId(null);
+    setCurrentJobName('');
+    setCurrentJobStatus('preparacion');
+    setCurrentJobTracking('');
+  }
+
+  function openSaveModal() {
+    if (!products.length) return showToast('Agregá productos antes de guardar', 'error');
+    setSaveName(currentJobName || '');
+    setShowSave(true);
+  }
+
+  async function confirmSave() {
+    const name = saveName.trim();
+    if (!name || isSaving) return;
+    setIsSaving(true);
+    try {
+      let session;
+      try { ({ data: { session } } = await _sb.auth.getSession()); }
+      catch { showToast('Error de conexión', 'error'); return; }
+      if (!session) { showToast('Necesitás estar logueado', 'error'); return; }
+
+      const { data: existing } = await _sb.from('pallets')
+        .select('id,name').eq('user_id', session.user.id).ilike('name', name);
+      if (existing?.length) {
+        setOverwriteId(existing[0].id);
+        setOverwriteName(name);
+        setShowSave(false);
+        setShowOverwrite(true);
+        return;
+      }
+
+      const payload = buildJobPayload();
+      const { data: inserted, error } = await _sb.from('pallets').insert({
+        user_id: session.user.id,
+        name,
+        payload,
+        status: currentJobStatus,
+        tracking_url: currentJobTracking || null,
+        is_public: false,
+      }).select('id').single();
+      if (error) { showToast('Error al guardar: ' + error.message, 'error'); return; }
+
+      setCurrentJobId(inserted.id);
+      setCurrentJobName(name);
+      setShowSave(false);
+      showToast(`Pallet guardado: "${name}"`, 'success');
+    } finally { setIsSaving(false); }
+  }
+
+  async function confirmOverwrite() {
+    if (isSaving) return;
+    setIsSaving(true);
+    try {
+      const payload = buildJobPayload();
+      const { error } = await _sb.from('pallets').update({
+        name: overwriteName,
+        payload,
+        status: currentJobStatus,
+        tracking_url: currentJobTracking || null,
+      }).eq('id', overwriteId);
+      if (error) { showToast('Error al guardar: ' + error.message, 'error'); return; }
+      setCurrentJobId(overwriteId);
+      setCurrentJobName(overwriteName);
+      setShowOverwrite(false);
+      showToast(`Pallet actualizado: "${overwriteName}"`, 'success');
+    } finally { setIsSaving(false); }
+  }
+
+  async function handleLoadList() {
+    setSavedLoading(true);
+    let session;
+    try { ({ data: { session } } = await _sb.auth.getSession()); }
+    catch { setSavedLoading(false); return showToast('Error de conexión', 'error'); }
+    if (!session) { setSavedLoading(false); return showToast('Necesitás estar logueado', 'error'); }
+
+    const { data, error } = await _sb.from('pallets')
+      .select('id,name,created_at,status,tracking_url')
+      .order('created_at', { ascending: false })
+      .limit(30);
+    setSavedLoading(false);
+    if (error) return showToast('Error al cargar pallets: ' + error.message, 'error');
+    setSavedList(data || []);
+    setShowLoad(true);
+  }
+
+  async function loadJob(id) {
+    const { data, error } = await _sb.from('pallets').select('*').eq('id', id).single();
+    if (error || !data) return showToast('Error al cargar pallet', 'error');
+    applyJobPayload(data.payload);
+    setCurrentJobId(data.id);
+    setCurrentJobName(data.name);
+    setCurrentJobStatus(normalizeJobStatus(data.status));
+    setCurrentJobTracking(data.tracking_url || '');
+    setShowLoad(false);
+    showToast(`✓ Pallet "${data.name}" cargado`, 'success');
+  }
+
+  async function deleteJob(id) {
+    if (!window.confirm('¿Borrar este pallet guardado?')) return;
+    const { error } = await _sb.from('pallets').delete().eq('id', id);
+    if (error) return showToast('Error al borrar: ' + error.message, 'error');
+    setSavedList(prev => prev.filter(s => s.id !== id));
+    if (String(id) === String(currentJobId)) newJob();
+    showToast('Pallet borrado', 'success');
+  }
+
+  async function updateJobStatus(nextStatus) {
+    const normalized = normalizeJobStatus(nextStatus);
+    setCurrentJobStatus(normalized);
+    setShowStatusPicker(false);
+    if (!currentJobId) return;
+    const { error } = await _sb.from('pallets').update({ status: normalized }).eq('id', currentJobId);
+    if (error) showToast('No pude actualizar el estado: ' + error.message, 'error');
+  }
+
+  async function saveTracking() {
+    const url = trackingDraft.trim();
+    setCurrentJobTracking(url);
+    setShowTrackingEditor(false);
+    if (!currentJobId) return; // se persistirá al guardar
+    const { error } = await _sb.from('pallets').update({ tracking_url: url || null }).eq('id', currentJobId);
+    if (error) showToast('No pude actualizar el link: ' + error.message, 'error');
+    else showToast('Link de seguimiento actualizado', 'success');
+  }
+
+  async function copyShareLink() {
+    if (!currentJobId) return showToast('Guardá el pallet primero', 'error');
+    const ok = await copyToClipboard(getPalletShareUrl(currentJobId));
+    showToast(ok ? 'Link copiado al portapapeles' : 'No pude copiar el link', ok ? 'success' : 'error');
+  }
+
   return (
     <div className="pallet-builder-root" style={{ display: 'flex', height: '100%', overflow: 'hidden' }}>
 
@@ -395,14 +620,110 @@ export default function PalletBuilder() {
       {/* ── MAIN AREA ── */}
       <div className="pallet-builder-main" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
+        {/* Top bar: nombre del job, estado, link de seguimiento, guardar/cargar */}
+        <div style={{ padding: '10px 16px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', flexShrink: 0, background: 'var(--bg-2)' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, flex: '1 1 220px' }}>
+            <div style={{ fontSize: 10, fontFamily: "'DM Mono', monospace", letterSpacing: 1, color: 'var(--text-3)' }}>
+              {currentJobId ? 'PALLET GUARDADO' : 'PALLET SIN GUARDAR'}
+            </div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {currentJobName || 'Nuevo pallet'}
+            </div>
+          </div>
+
+          {/* Status badge + picker */}
+          <div className="pb-status-wrap" style={{ position: 'relative' }}>
+            <button
+              type="button"
+              onClick={() => setShowStatusPicker(v => !v)}
+              title={currentJobStatusCfg.label}
+              style={{
+                padding: '6px 12px', fontSize: 10, fontFamily: "'DM Mono', monospace", letterSpacing: '0.4px',
+                borderRadius: 8, cursor: 'pointer',
+                border: `1.5px solid ${currentJobStatusCfg.color}55`,
+                background: currentJobStatusCfg.bg, color: currentJobStatusCfg.color,
+                display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap', fontWeight: 700,
+              }}
+            >
+              <span>{currentJobStatusCfg.icon}</span>
+              <span>{currentJobStatusCfg.label}</span>
+              <span style={{ opacity: 0.6 }}>▾</span>
+            </button>
+            {showStatusPicker && (
+              <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, zIndex: 50, background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 10, padding: 6, boxShadow: '0 8px 24px rgba(0,0,0,0.12)', display: 'grid', gap: 3, minWidth: 220 }}>
+                {STATUS_ORDER.map((key) => {
+                  const cfg = STATUS_CONFIG[key];
+                  return (
+                    <button
+                      key={key}
+                      onClick={() => updateJobStatus(key)}
+                      style={{
+                        background: currentJobStatus === key ? cfg.bg : 'transparent',
+                        border: `1.5px solid ${currentJobStatus === key ? cfg.color + '55' : 'transparent'}`,
+                        borderRadius: 7, padding: '6px 10px', cursor: 'pointer', textAlign: 'left',
+                        color: cfg.color, fontFamily: "'DM Mono', monospace", fontSize: 10, fontWeight: 600,
+                        display: 'flex', alignItems: 'center', gap: 7,
+                      }}
+                    >
+                      <span>{cfg.icon}</span>
+                      <span>{cfg.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Tracking link */}
+          <button
+            type="button"
+            onClick={() => { setTrackingDraft(currentJobTracking || ''); setShowTrackingEditor(true); }}
+            title={currentJobTracking || 'Sin link de seguimiento'}
+            style={{
+              padding: '6px 12px', fontSize: 11, fontFamily: "'DM Mono', monospace", letterSpacing: '0.3px',
+              borderRadius: 8, cursor: 'pointer',
+              border: `1.5px solid ${currentJobTracking ? 'var(--accent)' : 'var(--border)'}`,
+              background: currentJobTracking ? 'var(--accent-dim, rgba(0,0,0,0.06))' : 'transparent',
+              color: currentJobTracking ? 'var(--accent)' : 'var(--text-3)',
+              display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap', fontWeight: 600,
+            }}
+          >
+            🔗 {currentJobTracking ? 'Link seguimiento' : 'Sin link'}
+          </button>
+
+          <div style={{ display: 'flex', gap: 6, marginLeft: 'auto' }}>
+            {currentJobId && (
+              <button type="button" onClick={newJob} style={{ padding: '6px 12px', fontSize: 11, borderRadius: 6, border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-2)', cursor: 'pointer', fontFamily: "'DM Mono', monospace" }}>
+                + Nuevo
+              </button>
+            )}
+            <button type="button" onClick={handleLoadList} style={{ padding: '6px 12px', fontSize: 11, borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg-3)', color: 'var(--text)', cursor: 'pointer', fontFamily: "'DM Mono', monospace", fontWeight: 600 }}>
+              📂 Cargar
+            </button>
+            <button type="button" onClick={openSaveModal} disabled={!products.length} style={{ padding: '6px 14px', fontSize: 11, borderRadius: 6, border: '1.5px solid var(--accent)', background: 'var(--accent)', color: '#fff', cursor: products.length ? 'pointer' : 'default', fontFamily: "'DM Mono', monospace", fontWeight: 700, opacity: products.length ? 1 : 0.5 }}>
+              💾 Guardar
+            </button>
+          </div>
+        </div>
+
         {/* Results panel */}
         <div className="pallet-builder-results" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
           {!results.length ? (
-            <div className="pallet-builder-empty" style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--text-3)', padding: 40 }}>
-              <div style={{ fontSize: 64, marginBottom: 16 }}>🟫</div>
-              <p style={{ fontSize: 15, fontWeight: 500, marginBottom: 8 }}>Configurá los productos y presioná "Armar pallets"</p>
-              <p style={{ fontSize: 13 }}>El motor BFD calculará la distribución óptima de cajas.</p>
+            <div className="pallet-builder-empty" style={{ flex: 1, display: 'flex', flexDirection: 'column', position: 'relative', overflow: 'hidden' }}>
+              <div style={{ flex: 1, position: 'relative' }}>
+                <PalletThreeCanvas
+                  result={{ idx: 'empty', boxes: [], palL: pt.L, palW: pt.W, maxHeight }}
+                  selectedBoxUid={null}
+                  onSelectBox={() => {}}
+                  onUpdateBoxes={() => {}}
+                  onDropReserveBox={() => {}}
+                />
+              </div>
+              <div style={{ position: 'absolute', left: 0, right: 0, bottom: 22, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, pointerEvents: 'none', color: 'var(--text-3)' }}>
+                <p style={{ fontSize: 13, fontWeight: 500, margin: 0 }}>Agregá productos y presioná "Armar pallets"</p>
+                <p style={{ fontSize: 11, margin: 0, opacity: 0.8 }}>El motor BFD calculará la distribución óptima.</p>
+              </div>
             </div>
           ) : (
             <>
@@ -873,6 +1194,116 @@ export default function PalletBuilder() {
           </div>
         );
       })()}
+
+      {/* ── Save modal ── */}
+      {showSave && (
+        <div onClick={() => setShowSave(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: 'var(--bg-2)', borderRadius: 12, padding: 20, width: '100%', maxWidth: 440, border: '1px solid var(--border)' }}>
+            <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 14 }}>Guardar pallet</div>
+            <label style={{ fontSize: 10, fontFamily: "'DM Mono', monospace", letterSpacing: 1, color: 'var(--text-3)', display: 'block', marginBottom: 6 }}>NOMBRE</label>
+            <input
+              type="text" autoFocus value={saveName}
+              onChange={e => setSaveName(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') confirmSave(); }}
+              placeholder="Ej: Embarque cliente X"
+              style={{ width: '100%', padding: '10px 12px', fontSize: 13, border: '1px solid var(--border-2)', borderRadius: 6, background: 'var(--bg-3)', color: 'var(--text)', boxSizing: 'border-box' }}
+            />
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 }}>
+              <button onClick={() => setShowSave(false)} style={{ padding: '8px 16px', fontSize: 12, border: '1px solid var(--border)', background: 'transparent', borderRadius: 6, cursor: 'pointer', color: 'var(--text-2)' }}>Cancelar</button>
+              <button onClick={confirmSave} disabled={!saveName.trim() || isSaving} style={{ padding: '8px 22px', fontSize: 12, border: 'none', background: 'var(--accent)', color: '#fff', borderRadius: 6, cursor: saveName.trim() && !isSaving ? 'pointer' : 'default', fontWeight: 700, opacity: saveName.trim() && !isSaving ? 1 : 0.5 }}>
+                {isSaving ? 'Guardando...' : 'Guardar →'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Overwrite confirm modal ── */}
+      {showOverwrite && (
+        <div onClick={() => setShowOverwrite(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: 'var(--bg-2)', borderRadius: 12, padding: 20, width: '100%', maxWidth: 440, border: '1px solid var(--border)' }}>
+            <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 8 }}>Ya existe un pallet con ese nombre</div>
+            <div style={{ fontSize: 12, color: 'var(--text-2)', marginBottom: 18 }}>
+              "<b>{overwriteName}</b>" ya está guardado. ¿Lo sobrescribís con la versión actual?
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+              <button onClick={() => setShowOverwrite(false)} style={{ padding: '8px 16px', fontSize: 12, border: '1px solid var(--border)', background: 'transparent', borderRadius: 6, cursor: 'pointer', color: 'var(--text-2)' }}>Cancelar</button>
+              <button onClick={confirmOverwrite} disabled={isSaving} style={{ padding: '8px 22px', fontSize: 12, border: 'none', background: 'var(--accent)', color: '#fff', borderRadius: 6, cursor: !isSaving ? 'pointer' : 'default', fontWeight: 700, opacity: !isSaving ? 1 : 0.5 }}>
+                {isSaving ? 'Guardando...' : 'Sobrescribir →'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Load modal ── */}
+      {showLoad && (
+        <div onClick={() => setShowLoad(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: 'var(--bg-2)', borderRadius: 12, padding: 20, width: '100%', maxWidth: 600, maxHeight: '80vh', border: '1px solid var(--border)', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+              <div style={{ fontSize: 14, fontWeight: 700 }}>Pallets guardados</div>
+              <button onClick={() => setShowLoad(false)} style={{ background: 'none', border: 'none', fontSize: 18, cursor: 'pointer', color: 'var(--text-3)', lineHeight: 1 }}>×</button>
+            </div>
+            <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {savedLoading ? (
+                <div style={{ textAlign: 'center', color: 'var(--text-3)', padding: 24, fontSize: 12 }}>Cargando...</div>
+              ) : !savedList.length ? (
+                <div style={{ textAlign: 'center', color: 'var(--text-3)', padding: 24, fontSize: 12 }}>No tenés pallets guardados aún.</div>
+              ) : (
+                savedList.map(s => {
+                  const cfg = STATUS_CONFIG[normalizeJobStatus(s.status)] || STATUS_CONFIG.preparacion;
+                  return (
+                    <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', border: '1px solid var(--border)', borderRadius: 8, background: 'var(--bg-3)' }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.name}</div>
+                        <div style={{ fontSize: 10, color: 'var(--text-3)', fontFamily: "'DM Mono', monospace" }}>
+                          {new Date(s.created_at).toLocaleDateString()} · <span style={{ color: cfg.color }}>{cfg.icon} {cfg.label}</span>
+                        </div>
+                      </div>
+                      <button onClick={() => loadJob(s.id)} style={{ padding: '5px 14px', fontSize: 11, borderRadius: 6, border: 'none', background: 'var(--accent)', color: '#fff', cursor: 'pointer', fontWeight: 700, fontFamily: "'DM Mono', monospace" }}>Cargar →</button>
+                      <button onClick={() => deleteJob(s.id)} title="Borrar" style={{ padding: '5px 10px', fontSize: 11, borderRadius: 6, border: '1px solid rgba(192,57,43,0.3)', background: 'transparent', color: '#c0392b', cursor: 'pointer', fontFamily: "'DM Mono', monospace" }}>×</button>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Tracking link editor ── */}
+      {showTrackingEditor && (
+        <div onClick={() => setShowTrackingEditor(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: 'var(--bg-2)', borderRadius: 12, padding: 20, width: '100%', maxWidth: 480, border: '1px solid var(--border)' }}>
+            <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>Link de seguimiento</div>
+            <div style={{ fontSize: 11, color: 'var(--text-3)', marginBottom: 14 }}>Pegá la URL externa (transportista, courier, etc.) para tener un acceso rápido.</div>
+            <input
+              type="url" autoFocus value={trackingDraft}
+              onChange={e => setTrackingDraft(e.target.value)}
+              placeholder="https://..."
+              style={{ width: '100%', padding: '10px 12px', fontSize: 12, border: '1px solid var(--border-2)', borderRadius: 6, background: 'var(--bg-3)', color: 'var(--text)', boxSizing: 'border-box', fontFamily: "'DM Mono', monospace" }}
+            />
+            {currentJobTracking && (
+              <a href={currentJobTracking} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-block', marginTop: 10, fontSize: 11, color: 'var(--accent)', textDecoration: 'underline' }}>
+                Abrir link actual ↗
+              </a>
+            )}
+            {currentJobId && (
+              <div style={{ marginTop: 14, padding: '10px 12px', background: 'var(--bg-3)', border: '1px solid var(--border)', borderRadius: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 10, color: 'var(--text-3)', fontFamily: "'DM Mono', monospace", letterSpacing: 1 }}>LINK PÚBLICO INTERNO</div>
+                  <div style={{ fontSize: 11, color: 'var(--text-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{getPalletShareUrl(currentJobId)}</div>
+                </div>
+                <button onClick={copyShareLink} style={{ padding: '5px 12px', fontSize: 11, borderRadius: 6, border: '1px solid var(--border)', background: 'transparent', cursor: 'pointer', color: 'var(--text-2)' }}>Copiar</button>
+              </div>
+            )}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 }}>
+              <button onClick={() => setShowTrackingEditor(false)} style={{ padding: '8px 16px', fontSize: 12, border: '1px solid var(--border)', background: 'transparent', borderRadius: 6, cursor: 'pointer', color: 'var(--text-2)' }}>Cancelar</button>
+              <button onClick={saveTracking} style={{ padding: '8px 22px', fontSize: 12, border: 'none', background: 'var(--accent)', color: '#fff', borderRadius: 6, cursor: 'pointer', fontWeight: 700 }}>Guardar</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

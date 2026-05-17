@@ -3590,6 +3590,16 @@ const usePalletStore = create((set, get) => ({
   },
 
   clearResults() { set({ results: [], activeResult: 0, selectedBoxUid: null }); },
+
+  // Bulk replace — used by the save/load (cargar pallet guardado).
+  setProducts(list) {
+    const normalized = (list || []).map(p => ({ ...p }));
+    set({ products: normalized, editingId: null });
+  },
+  setResults(list) {
+    const normalized = (list || []).map(r => ({ ...r }));
+    set({ results: normalized, activeResult: 0, selectedBoxUid: null });
+  },
 }));
 
 export default usePalletStore;
