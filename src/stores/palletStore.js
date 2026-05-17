@@ -2857,18 +2857,41 @@ function pb_containerLikeCandidateScore(candidate, unit, packed, palL, palW, var
   const top = y + ori.dY;
   const footprint = ori.dX * ori.dZ;
   const isBase = y <= PB_HEIGHT_EPS;
-  const centerX = px + ori.dX / 2;
-  const centerZ = pz + ori.dZ / 2;
-  const distToCenter = Math.hypot(centerX - palL / 2, centerZ - palW / 2);
+  const myRight = px + ori.dX;
+  const myFront = pz + ori.dZ;
   const sameLayer = packed.filter(box => Math.abs(box.y - y) <= PB_HEIGHT_EPS);
   const layerCount = sameLayer.length;
   const supportPenalty = support ? (1 - Math.min(1, support.supportPercent || 0)) * 120000 : 0;
-  const edgeBias = pz * 10000 + px * 100;
 
-  // === Real-pallet heuristics ===
-  const myRight = px + ori.dX;
-  const myFront = pz + ori.dZ;
-  let contactPerim = 0;   // total cm of shared edge with same-layer neighbours
+  // === Compactness — the dominant shape signal ===
+  // Global XZ bounding box of every placed box INCLUDING this candidate.
+  // Pulls each new box toward the existing cluster instead of a fresh corner.
+  let bbMinX = px, bbMaxX = myRight, bbMinZ = pz, bbMaxZ = myFront;
+  for (const b of packed) {
+    if (b.x < bbMinX) bbMinX = b.x;
+    if (b.x + b.dX > bbMaxX) bbMaxX = b.x + b.dX;
+    if (b.z < bbMinZ) bbMinZ = b.z;
+    if (b.z + b.dZ > bbMaxZ) bbMaxZ = b.z + b.dZ;
+  }
+  const bboxPenalty = (bbMaxX - bbMinX) * (bbMaxZ - bbMinZ) * 20;
+
+  // Same-layer void: empty area inside the current layer's bbox.
+  // This is what catches "channels in the middle" — placing far from the
+  // existing layer cluster inflates the layer bbox more than it adds filled area.
+  let layerFilled = ori.dX * ori.dZ;
+  let lbMinX = px, lbMaxX = myRight, lbMinZ = pz, lbMaxZ = myFront;
+  for (const b of sameLayer) {
+    layerFilled += b.dX * b.dZ;
+    if (b.x < lbMinX) lbMinX = b.x;
+    if (b.x + b.dX > lbMaxX) lbMaxX = b.x + b.dX;
+    if (b.z < lbMinZ) lbMinZ = b.z;
+    if (b.z + b.dZ > lbMaxZ) lbMaxZ = b.z + b.dZ;
+  }
+  const layerBboxArea = (lbMaxX - lbMinX) * (lbMaxZ - lbMinZ);
+  const layerVoidPenalty = Math.max(0, layerBboxArea - layerFilled) * 60;
+
+  // === Adjacency to neighbours at same Y (cluster-formation reward) ===
+  let contactPerim = 0;
   let contactCount = 0;
   for (const b of sameLayer) {
     const overlapZ = Math.max(0, Math.min(b.z + b.dZ, myFront) - Math.max(b.z, pz));
@@ -2880,49 +2903,48 @@ function pb_containerLikeCandidateScore(candidate, unit, packed, palL, palW, var
       contactPerim += overlapX; contactCount++;
     }
   }
-  // Wall contact also anchors the box
+  const adjacencyBonus = contactPerim * 2500;
+
+  // Wall contact — weak; only useful to anchor the very first box on base.
   let wallContact = 0;
   if (px < 0.5) wallContact += ori.dZ;
   if (myRight > palL - 0.5) wallContact += ori.dZ;
   if (pz < 0.5) wallContact += ori.dX;
   if (myFront > palW - 0.5) wallContact += ori.dX;
-  const anchorPerim = contactPerim + wallContact;
+  const wallBonus = wallContact * (isBase && layerCount === 0 ? 600 : 120);
 
-  // Reward boxes that cluster against neighbours / walls (cm of touching perimeter)
-  const adjacencyBonus = anchorPerim * 1200;
-  // Penalise isolated boxes high up — real pallets don't have lonely towers
-  const isolationPenalty = !isBase && contactCount === 0 ? 350000 : 0;
-  // Reward flush-top with the dominant top of the same layer (flat upper surface)
+  // Lonely upper-layer stacking is forbidden in real pallets.
+  const isolationPenalty = !isBase && contactCount === 0 ? 500000 : 0;
+
+  // Flat upper surface within a layer.
   let topAlignPenalty = 0;
   if (sameLayer.length > 0) {
     const closestTop = sameLayer.reduce(
       (best, b) => Math.abs((b.y + b.dY) - top) < Math.abs(best - top) ? (b.y + b.dY) : best,
       sameLayer[0].y + sameLayer[0].dY
     );
-    topAlignPenalty = Math.abs(top - closestTop) * 1800;
+    topAlignPenalty = Math.abs(top - closestTop) * 900;
   }
-  // Prefer flat orientations (avoid skinny vertical towers); harmless when only one orientation fits
-  const aspectVertical = ori.dY / Math.max(1, Math.min(ori.dX, ori.dZ));
-  const tallPenalty = Math.max(0, aspectVertical - 1.0) * 7000;
-  // Upper-layer placements should cluster in the interior, not flee to empty corners
-  const effEdgeBias = isBase ? edgeBias : edgeBias * 0.15;
-  const effDistCenter = isBase ? distToCenter : Math.max(0, distToCenter - 30) * 0.4;
 
-  const palletShape = -adjacencyBonus + isolationPenalty + topAlignPenalty + tallPenalty;
+  // Prefer flat orientations over skinny vertical towers.
+  const aspectVertical = ori.dY / Math.max(1, Math.min(ori.dX, ori.dZ));
+  const tallPenalty = Math.max(0, aspectVertical - 1.0) * 5000;
+
+  const palletShape =
+    bboxPenalty + layerVoidPenalty
+    - adjacencyBonus - wallBonus
+    + isolationPenalty + topAlignPenalty + tallPenalty;
 
   if (variant === 'low-height') {
-    return top * 12000000 + y * 600000 + ori.dY * 9000 + effDistCenter * 90 - footprint * 14 + supportPenalty + palletShape;
+    return top * 12000000 + y * 600000 + ori.dY * 9000 - footprint * 14 + supportPenalty + palletShape;
   }
-
   if (variant === 'grid') {
-    return top * 9000000 + effEdgeBias - footprint * 42 - layerCount * 3200 + supportPenalty + palletShape;
+    return top * 9000000 - footprint * 42 - layerCount * 3200 + supportPenalty + palletShape;
   }
-
   if (variant === 'layers') {
-    return y * 9000000 + top * 900000 + Math.abs(ori.dY - (unit.dims.H || ori.dY)) * 3500 + effEdgeBias - footprint * 20 + supportPenalty + palletShape;
+    return y * 9000000 + top * 900000 + Math.abs(ori.dY - (unit.dims.H || ori.dY)) * 3500 - footprint * 20 + supportPenalty + palletShape;
   }
-
-  return top * 10000000 + y * 900000 + effEdgeBias + effDistCenter * 110 - footprint * 24 + supportPenalty + palletShape;
+  return top * 10000000 + y * 900000 - footprint * 24 + supportPenalty + palletShape;
 }
 
 function pb_tryFindContainerLikePlacement(unit, packed, hm, palL, palW, maxH, variant = 'auto', deadline = 0) {
