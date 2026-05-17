@@ -1233,6 +1233,65 @@ function pb_mergeRepackPallets(pallets, products, palL, palW, maxH) {
     }, products));
 }
 
+// For each box on a later pallet, try to slot it onto an earlier pallet
+// using the strict placement engine (full-support, no float). Eliminates
+// the "2 boxes on a half-empty extra pallet" case when there is still
+// room above the previous pallet's stack.
+function pb_stuffLeftovers(pallets, products, palL, palW, maxH) {
+  if (pallets.length < 2) return pallets;
+  const working = pallets.map(pallet => ({
+    ...pallet,
+    boxes: pallet.boxes.map(box => ({ ...box })),
+  }));
+  const sourceById = new Map(products.map(p => [p.id, p]));
+
+  let moved = true;
+  let safety = 0;
+  while (moved && safety < 6) {
+    moved = false;
+    safety++;
+    for (let srcIdx = working.length - 1; srcIdx >= 1; srcIdx--) {
+      const src = working[srcIdx];
+      if (!src.boxes.length) continue;
+      // Process largest source boxes first — they're harder to fit and
+      // anchoring them frees more room for the small ones.
+      const order = [...src.boxes].sort((a, b) => (b.dX * b.dY * b.dZ) - (a.dX * a.dY * a.dZ));
+      for (const box of order) {
+        for (let dstIdx = 0; dstIdx < srcIdx; dstIdx++) {
+          const dst = working[dstIdx];
+          const unit = pb_makeUnitFromBox(box, sourceById.get(box.id) || { weight: 0 });
+          const hm = pb_buildHMFromPacked(dst.boxes, palL, palW);
+          const placement = pb_tryFindContainerLikePlacement(
+            unit, dst.boxes, hm, palL, palW, maxH, 'auto', 0
+          );
+          if (!placement) continue;
+          dst.boxes.push({
+            ...box,
+            x: placement.px,
+            y: placement.y,
+            z: placement.pz,
+            dX: placement.ori.dX,
+            dY: placement.ori.dY,
+            dZ: placement.ori.dZ,
+          });
+          src.boxes = src.boxes.filter(b => b.uid !== box.uid);
+          moved = true;
+          break;
+        }
+        if (moved && !src.boxes.length) break;
+      }
+    }
+  }
+
+  return working
+    .filter(pallet => pallet.boxes.length > 0)
+    .map((pallet, idx) => pb_finalizeResultMeta({
+      ...pallet,
+      idx,
+      boxes: pb_centerPackedLayout(pallet.boxes, palL, palW, maxH),
+    }, products));
+}
+
 function pb_polishPallets(pallets, products, palL, palW, maxH) {
   const sourceById = new Map(products.map(product => [product.id, product]));
   return pallets.map((pallet, idx) => {
@@ -3432,6 +3491,11 @@ const usePalletStore = create((set, get) => ({
     finalized = pb_polishPallets(finalized, products, palL, palW, maxHeight);
     if (finalized.length > 1) {
       finalized = pb_mergeRepackPallets(finalized, products, palL, palW, maxHeight);
+    }
+    // Pack any remaining boxes from later pallets onto earlier ones if they
+    // still have room. Eliminates "trailing pallet with 1–2 boxes" cases.
+    if (finalized.length > 1) {
+      finalized = pb_stuffLeftovers(finalized, products, palL, palW, maxHeight);
     }
     set({ results: finalized, activeResult: 0, selectedBoxUid: null });
   },
