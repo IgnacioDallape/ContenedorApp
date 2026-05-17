@@ -2926,14 +2926,14 @@ function pb_containerLikeCandidateScore(candidate, unit, packed, palL, palW, var
     topAlignPenalty = Math.abs(top - closestTop) * 900;
   }
 
-  // Prefer flat orientations over skinny vertical towers.
-  const aspectVertical = ori.dY / Math.max(1, Math.min(ori.dX, ori.dZ));
-  const tallPenalty = Math.max(0, aspectVertical - 1.0) * 5000;
+  // No orientation bias — engine picks whichever rotation packs best.
+  // Top height (dominant scoring term) and compactness already naturally
+  // prefer the most efficient face-up choice; we don't second-guess it.
 
   const palletShape =
     bboxPenalty + layerVoidPenalty
     - adjacencyBonus - wallBonus
-    + isolationPenalty + topAlignPenalty + tallPenalty;
+    + isolationPenalty + topAlignPenalty;
 
   if (variant === 'low-height') {
     return top * 12000000 + y * 600000 + ori.dY * 9000 - footprint * 14 + supportPenalty + palletShape;
