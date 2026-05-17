@@ -830,7 +830,11 @@ export default function ContainerLoader() {
     const wasPublic = !!shipment.is_public;
     const publishPromise = wasPublic
       ? Promise.resolve({ error: null })
-      : _sb.from('shipments').update({ is_public: true }).eq('id', shipment.id);
+      : _sb
+          .from('shipments')
+          .update({ is_public: true })
+          .eq('id', shipment.id)
+          .then(({ error }) => ({ error }), error => ({ error }));
 
     if (!wasPublic) syncShipmentPublicState(shipment.id, true);
     setSharingShipmentId(shipment.id);
@@ -839,7 +843,7 @@ export default function ContainerLoader() {
     const shareResult = await shareShipmentLink(shipment);
 
     try {
-      const { error } = await publishPromise.catch(error => ({ error }));
+      const { error } = await publishPromise;
       if (error) {
         if (!wasPublic) syncShipmentPublicState(shipment.id, false);
         showToast('No pude activar el link público: ' + error.message, 'error');

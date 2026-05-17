@@ -25,6 +25,10 @@ function normalizeShipmentStatus(status) {
   return STATUS_CONFIG[status] ? status : 'preparacion';
 }
 
+function wait(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 export default function SharePage({ shipmentId }) {
   const [shipment, setShipment] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -35,12 +39,46 @@ export default function SharePage({ shipmentId }) {
   const { loadShipmentData, switchToContainer } = useContainerStore();
 
   useEffect(() => {
-    _sb.from('shipments').select('*').eq('id', shipmentId).eq('is_public', true).single()
-      .then(({ data, error }) => {
-        if (error || !data) setError('Este embarque no existe o no está disponible públicamente.');
-        else setShipment(data);
+    let cancelled = false;
+
+    async function loadPublicShipment() {
+      const maxAttempts = 6;
+
+      for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        const { data, error } = await _sb
+          .from('shipments')
+          .select('*')
+          .eq('id', shipmentId)
+          .eq('is_public', true)
+          .maybeSingle();
+
+        if (cancelled) return;
+
+        if (data) {
+          setShipment(data);
+          setLoading(false);
+          return;
+        }
+
+        if (error && attempt === maxAttempts - 1) {
+          setError('No pude cargar este embarque compartido. Intenta abrir el link nuevamente.');
+          setLoading(false);
+          return;
+        }
+
+        if (attempt < maxAttempts - 1) {
+          await wait(650);
+        }
+      }
+
+      if (!cancelled) {
+        setError('Este embarque no existe o no esta disponible publicamente.');
         setLoading(false);
-      });
+      }
+    }
+
+    loadPublicShipment();
+    return () => { cancelled = true; };
   }, [shipmentId]);
 
   function handle3d(conts) {
