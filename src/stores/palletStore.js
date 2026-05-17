@@ -2702,6 +2702,62 @@ function pb_isBetterLayout(candidate, current) {
   return false;
 }
 
+// Iteratively lower boxes into any internal holes using a full systematic
+// grid scan (anchor-based search misses holes that aren't at a box corner).
+function pb_compactPackedLayout(packed, palL, palW, maxH) {
+  if (!packed.length || packed.length > 80) return packed;
+  let working = packed.map(box => ({ ...box }));
+  const maxPasses = working.length > 30 ? 2 : 4;
+
+  for (let pass = 0; pass < maxPasses; pass++) {
+    let improved = false;
+    // Try highest boxes first — they have the most room to drop
+    const order = [...working].sort((a, b) => (b.y + b.dY) - (a.y + a.dY));
+
+    for (const box of order) {
+      if (box.y <= PB_HEIGHT_EPS) continue; // already on floor, can't drop
+      const idx = working.findIndex(item => item.uid === box.uid);
+      if (idx === -1) continue;
+
+      const remaining = working.filter((_, i) => i !== idx);
+      const hm = pb_buildHMFromPacked(remaining, palL, palW);
+      const unit = {
+        ...box,
+        dims: box.sourceDims || { L: box.dX, W: box.dZ, H: box.dY },
+        mustBeBase: !!box.mustBeBase,
+        noRotate: !!box.noRotate,
+        weight: Number(box.weight || 0),
+      };
+      // Systematic grid scan finds any valid position, not just anchors
+      const placement = pb_tryFindContainerLikePlacement(unit, remaining, hm, palL, palW, maxH, 'auto', 0);
+      if (!placement) continue;
+
+      const newTop = placement.y + placement.ori.dY;
+      const oldTop = box.y + box.dY;
+      // Only move if strictly lower top (no lateral churn)
+      if (newTop < oldTop - PB_HEIGHT_EPS) {
+        working = [
+          ...remaining,
+          {
+            ...box,
+            x: placement.px,
+            y: placement.y,
+            z: placement.pz,
+            dX: placement.ori.dX,
+            dY: placement.ori.dY,
+            dZ: placement.ori.dZ,
+          },
+        ];
+        improved = true;
+      }
+    }
+
+    if (!improved) break;
+  }
+
+  return working;
+}
+
 export function pb_runPacking(products, palL, palW, maxH) {
   const totalUnits = products.reduce((s, p) => s + Math.max(0, p.qty || 0), 0);
   // Per-variant budget so total stays reasonable
@@ -2719,6 +2775,9 @@ export function pb_runPacking(products, palL, palW, maxH) {
   // Compare against old engine (runs its own 4-variant search internally)
   const oldResult = runPalletPacking(products, { palL, palW, maxH, variant: 'auto' });
   if (pb_isBetterLayout(oldResult, best)) best = oldResult;
+
+  // Compaction pass: drop boxes into any internal holes via systematic scan
+  best = pb_compactPackedLayout(best, palL, palW, maxH);
 
   return best;
 }
