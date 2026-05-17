@@ -2695,11 +2695,25 @@ function pb_calcTop(boxes) {
   return boxes.reduce((m, b) => Math.max(m, b.y + b.dY), 0);
 }
 
+function pb_layerCount(boxes) {
+  const ys = new Set();
+  for (const b of boxes) ys.add(Math.round(b.y));
+  return ys.size;
+}
+
 function pb_isBetterLayout(candidate, current) {
   if (candidate.length > current.length) return true;
-  if (candidate.length === current.length && candidate.length > 0 &&
-      pb_calcTop(candidate) < pb_calcTop(current) - 0.1) return true;
-  return false;
+  if (candidate.length < current.length) return false;
+  if (candidate.length === 0) return false;
+  // Same box count — pick the cleaner layout. Each extra distinct Y level
+  // is worth 25cm of top height: 5 clean layers @ 172cm (score 297) beats
+  // 6 fragmented layers @ 150cm (score 300). Chosen so layer engine wins
+  // over 'auto' greedy when pack counts are tied.
+  const cTop = pb_calcTop(candidate);
+  const curTop = pb_calcTop(current);
+  const cLayers = pb_layerCount(candidate);
+  const curLayers = pb_layerCount(current);
+  return (cTop + cLayers * 25) < (curTop + curLayers * 25) - 0.1;
 }
 
 // Iteratively lower boxes into any internal holes using a full systematic
@@ -2758,18 +2772,191 @@ function pb_compactPackedLayout(packed, palL, palW, maxH) {
   return working;
 }
 
+// ---- Layer-based engine: builds uniform-height layers from base up ----
+// This is the closest analogue to real pallet packing. Each layer has a
+// single target height; only orientations matching it are placed at that
+// Y. Greatly reduces layer-Y fragmentation that creates internal voids.
+
+function pb_packOneLayer(units, existingPacked, palL, palW, layerY, targetH, maxH) {
+  if (layerY + targetH > maxH + PB_HEIGHT_EPS) {
+    return { placed: [], remaining: units.map(u => ({ ...u })) };
+  }
+  const placed = [];
+  const remaining = units.map(u => ({ ...u }));
+  const supportRects = layerY > PB_HEIGHT_EPS
+    ? pb_getLevelSupportRects(existingPacked, layerY, palL, palW)
+    : null;
+
+  while (remaining.length > 0) {
+    let bestChoice = null;
+
+    for (let i = 0; i < remaining.length; i++) {
+      const u = remaining[i];
+      if (u.mustBeBase && layerY > PB_HEIGHT_EPS) continue;
+      const oris = pb_getOrientations(u, palL, palW).filter(o => Math.abs(o.dY - targetH) <= 0.5);
+      if (!oris.length) continue;
+
+      for (const ori of oris) {
+        const maxX = palL - ori.dX;
+        const maxZ = palW - ori.dZ;
+        for (let z = 0; z <= maxZ + 0.1; z += PB_GRID_RES) {
+          for (let x = 0; x <= maxX + 0.1; x += PB_GRID_RES) {
+            const px = pb_roundToGrid(Math.min(x, maxX));
+            const pz = pb_roundToGrid(Math.min(z, maxZ));
+
+            // 2D collision within this layer
+            let collision = false;
+            for (const p of placed) {
+              if (p.x + p.dX > px + PB_HEIGHT_EPS && px + ori.dX > p.x + PB_HEIGHT_EPS &&
+                  p.z + p.dZ > pz + PB_HEIGHT_EPS && pz + ori.dZ > p.z + PB_HEIGHT_EPS) {
+                collision = true; break;
+              }
+            }
+            if (collision) continue;
+            // Support for non-base layers
+            if (supportRects) {
+              const sup = pb_supportForRect({ x: px, z: pz, dX: ori.dX, dZ: ori.dZ }, supportRects);
+              if (!sup.supported) continue;
+            }
+
+            // BLF scoring: low z, low x; reward big footprints (so the largest
+            // tile-able boxes claim the base) and edges touching neighbours.
+            let score = pz * 1000 + px;
+            score -= ori.dX * ori.dZ * 0.15; // big-footprint preference
+            for (const p of placed) {
+              const overlapZ = Math.max(0, Math.min(p.z + p.dZ, pz + ori.dZ) - Math.max(p.z, pz));
+              const overlapX = Math.max(0, Math.min(p.x + p.dX, px + ori.dX) - Math.max(p.x, px));
+              if (overlapZ > 0.5 && (Math.abs(p.x + p.dX - px) < 0.5 || Math.abs(px + ori.dX - p.x) < 0.5)) {
+                score -= overlapZ * 40;
+              }
+              if (overlapX > 0.5 && (Math.abs(p.z + p.dZ - pz) < 0.5 || Math.abs(pz + ori.dZ - p.z) < 0.5)) {
+                score -= overlapX * 40;
+              }
+            }
+            if (!bestChoice || score < bestChoice.score) {
+              bestChoice = { unit: u, ori, x: px, z: pz, score, idx: i };
+            }
+          }
+        }
+      }
+    }
+    if (!bestChoice) break;
+
+    placed.push({
+      uid: bestChoice.unit.uid,
+      id: bestChoice.unit.id,
+      name: bestChoice.unit.name,
+      color: bestChoice.unit.color,
+      x: bestChoice.x,
+      y: layerY,
+      z: bestChoice.z,
+      dX: bestChoice.ori.dX,
+      dY: bestChoice.ori.dY,
+      dZ: bestChoice.ori.dZ,
+      weight: Number(bestChoice.unit.weight || 0),
+      sourceDims: { ...bestChoice.unit.dims },
+      mustBeBase: !!bestChoice.unit.mustBeBase,
+      noRotate: !!bestChoice.unit.noRotate,
+    });
+    remaining.splice(bestChoice.idx, 1);
+  }
+
+  return { placed, remaining };
+}
+
+function pb_runLayerPacking(products, palL, palW, maxH) {
+  let units = pb_expandUnits(products);
+  if (!units.length) return [];
+
+  const packed = [];
+  let layerY = 0;
+  let safety = 0;
+  const deadline = Date.now() + 3000;
+  const palletArea = palL * palW;
+
+  while (units.length > 0 && layerY < maxH - PB_HEIGHT_EPS && safety < 30 && Date.now() < deadline) {
+    safety++;
+    // Candidate heights from remaining units' orientations
+    const heightSet = new Set();
+    for (const u of units) {
+      for (const o of pb_getOrientations(u, palL, palW)) {
+        if (layerY + o.dY <= maxH + PB_HEIGHT_EPS) heightSet.add(Math.round(o.dY * 10) / 10);
+      }
+    }
+    if (heightSet.size === 0) break;
+
+    let bestLayer = null;
+    for (const targetH of heightSet) {
+      if (Date.now() >= deadline) break;
+      const result = pb_packOneLayer(units, packed, palL, palW, layerY, targetH, maxH);
+      if (result.placed.length === 0) continue;
+      const area = result.placed.reduce((s, p) => s + p.dX * p.dZ, 0);
+      // Prefer layers that are well-filled — area × fill_ratio favours complete tilings
+      const fillRatio = area / palletArea;
+      const layerScore = area * fillRatio;
+      if (!bestLayer || layerScore > bestLayer.layerScore) {
+        bestLayer = { ...result, targetH, layerScore };
+      }
+    }
+    if (!bestLayer || bestLayer.placed.length === 0) break;
+
+    packed.push(...bestLayer.placed);
+    units = bestLayer.remaining;
+    layerY += bestLayer.targetH;
+  }
+
+  // Any leftover units that didn't match any layer height — place each one
+  // at the lowest valid position via systematic scan over the existing pack.
+  if (units.length > 0) {
+    const hm = pb_buildHMFromPacked(packed, palL, palW);
+    // Heaviest leftover first (placement order matters for upper-layer support)
+    units.sort((a, b) => {
+      const av = a.dims.L * a.dims.W * a.dims.H;
+      const bv = b.dims.L * b.dims.W * b.dims.H;
+      return bv - av;
+    });
+    for (const u of units) {
+      const placement = pb_tryFindContainerLikePlacement(u, packed, hm, palL, palW, maxH, 'auto', 0);
+      if (!placement) continue;
+      pb_hmSet(hm, placement.px, placement.pz, placement.ori.dX, placement.ori.dZ, placement.y + placement.ori.dY);
+      packed.push({
+        uid: u.uid,
+        id: u.id,
+        name: u.name,
+        color: u.color,
+        x: placement.px,
+        y: placement.y,
+        z: placement.pz,
+        dX: placement.ori.dX,
+        dY: placement.ori.dY,
+        dZ: placement.ori.dZ,
+        weight: Number(u.weight || 0),
+        sourceDims: { ...u.dims },
+        mustBeBase: !!u.mustBeBase,
+        noRotate: !!u.noRotate,
+      });
+    }
+  }
+
+  return packed;
+}
+
 export function pb_runPacking(products, palL, palW, maxH) {
   const totalUnits = products.reduce((s, p) => s + Math.max(0, p.qty || 0), 0);
-  // Per-variant budget so total stays reasonable
   const budgetPerVariant = totalUnits > 140 ? 800 : totalUnits > 70 ? 1100 : 1600;
   const containerVariants = ['auto', 'grid', 'low-height', 'layers'];
 
   let best = [];
+
+  // Layer-based engine first — typically yields the most compact result
+  const layerResult = pb_runLayerPacking(products, palL, palW, maxH);
+  if (pb_isBetterLayout(layerResult, best)) best = layerResult;
+
   for (const variant of containerVariants) {
     const variantDeadline = Date.now() + budgetPerVariant;
     const result = pb_runPackingContainerLike(products, palL, palW, maxH, variant, variantDeadline);
     if (pb_isBetterLayout(result, best)) best = result;
-    if (best.length === totalUnits) break; // all placed — no need to try more variants
+    if (best.length === totalUnits && pb_calcTop(best) <= pb_calcTop(layerResult || []) + 0.1) break;
   }
 
   // Compare against old engine (runs its own 4-variant search internally)

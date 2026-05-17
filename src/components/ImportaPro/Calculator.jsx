@@ -49,11 +49,11 @@ export default function Calculator() {
   const logisticsUnitLabel = inputs.tipoUnidad === 'pallet' ? 'pallet logístico' : 'caja logística';
   const logisticsUnitShortLabel = inputs.tipoUnidad === 'pallet' ? 'pallet' : 'caja';
   const purchaseContextCopy = inputs.tipoUnidad === 'pallet'
-    ? 'Acá cargás el valor de 1 unidad del producto, no el valor del pallet completo. Más abajo definís el pallet logístico.'
-    : 'Acá cargás el valor de 1 unidad del producto, no el valor de la caja completa. Si una caja trae varias unidades, arriba ingresá el precio de una sola y abajo definí la caja logística.';
+    ? 'Acá cargás el valor de 1 unidad del producto. El pallet completo se define abajo.'
+    : 'Acá cargás el valor de 1 unidad del producto. Si una caja trae varias unidades, ese embalaje se define abajo.';
   const logisticsContextCopy = inputs.tipoUnidad === 'pallet'
-    ? 'Acá describís el pallet completo que transporta el producto: peso total y medidas logísticas del pallet.'
-    : 'Acá describís la caja logística que transporta el producto: peso y medidas de esa caja, no de una unidad individual.';
+    ? 'Acá definís el pallet logístico completo: peso total y medidas del pallet.'
+    : 'Acá definís la caja logística: peso y medidas de la caja, no de la unidad individual.';
 
   // Sync FOB when currency mode changes
   function syncFob(patch) {
