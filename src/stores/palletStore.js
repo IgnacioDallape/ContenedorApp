@@ -2797,26 +2797,73 @@ function pb_containerLikeCandidateScore(candidate, unit, packed, palL, palW, var
   const { px, pz, ori, y, support } = candidate;
   const top = y + ori.dY;
   const footprint = ori.dX * ori.dZ;
+  const isBase = y <= PB_HEIGHT_EPS;
   const centerX = px + ori.dX / 2;
   const centerZ = pz + ori.dZ / 2;
   const distToCenter = Math.hypot(centerX - palL / 2, centerZ - palW / 2);
-  const layerCount = packed.filter(box => Math.abs(box.y - y) <= PB_HEIGHT_EPS).length;
+  const sameLayer = packed.filter(box => Math.abs(box.y - y) <= PB_HEIGHT_EPS);
+  const layerCount = sameLayer.length;
   const supportPenalty = support ? (1 - Math.min(1, support.supportPercent || 0)) * 120000 : 0;
   const edgeBias = pz * 10000 + px * 100;
 
+  // === Real-pallet heuristics ===
+  const myRight = px + ori.dX;
+  const myFront = pz + ori.dZ;
+  let contactPerim = 0;   // total cm of shared edge with same-layer neighbours
+  let contactCount = 0;
+  for (const b of sameLayer) {
+    const overlapZ = Math.max(0, Math.min(b.z + b.dZ, myFront) - Math.max(b.z, pz));
+    const overlapX = Math.max(0, Math.min(b.x + b.dX, myRight) - Math.max(b.x, px));
+    if (overlapZ > 0.5 && (Math.abs(b.x + b.dX - px) < 0.5 || Math.abs(myRight - b.x) < 0.5)) {
+      contactPerim += overlapZ; contactCount++;
+    }
+    if (overlapX > 0.5 && (Math.abs(b.z + b.dZ - pz) < 0.5 || Math.abs(myFront - b.z) < 0.5)) {
+      contactPerim += overlapX; contactCount++;
+    }
+  }
+  // Wall contact also anchors the box
+  let wallContact = 0;
+  if (px < 0.5) wallContact += ori.dZ;
+  if (myRight > palL - 0.5) wallContact += ori.dZ;
+  if (pz < 0.5) wallContact += ori.dX;
+  if (myFront > palW - 0.5) wallContact += ori.dX;
+  const anchorPerim = contactPerim + wallContact;
+
+  // Reward boxes that cluster against neighbours / walls (cm of touching perimeter)
+  const adjacencyBonus = anchorPerim * 1200;
+  // Penalise isolated boxes high up — real pallets don't have lonely towers
+  const isolationPenalty = !isBase && contactCount === 0 ? 350000 : 0;
+  // Reward flush-top with the dominant top of the same layer (flat upper surface)
+  let topAlignPenalty = 0;
+  if (sameLayer.length > 0) {
+    const closestTop = sameLayer.reduce(
+      (best, b) => Math.abs((b.y + b.dY) - top) < Math.abs(best - top) ? (b.y + b.dY) : best,
+      sameLayer[0].y + sameLayer[0].dY
+    );
+    topAlignPenalty = Math.abs(top - closestTop) * 1800;
+  }
+  // Prefer flat orientations (avoid skinny vertical towers); harmless when only one orientation fits
+  const aspectVertical = ori.dY / Math.max(1, Math.min(ori.dX, ori.dZ));
+  const tallPenalty = Math.max(0, aspectVertical - 1.0) * 7000;
+  // Upper-layer placements should cluster in the interior, not flee to empty corners
+  const effEdgeBias = isBase ? edgeBias : edgeBias * 0.15;
+  const effDistCenter = isBase ? distToCenter : Math.max(0, distToCenter - 30) * 0.4;
+
+  const palletShape = -adjacencyBonus + isolationPenalty + topAlignPenalty + tallPenalty;
+
   if (variant === 'low-height') {
-    return top * 12000000 + y * 600000 + ori.dY * 9000 + distToCenter * 90 - footprint * 14 + supportPenalty;
+    return top * 12000000 + y * 600000 + ori.dY * 9000 + effDistCenter * 90 - footprint * 14 + supportPenalty + palletShape;
   }
 
   if (variant === 'grid') {
-    return top * 9000000 + edgeBias - footprint * 42 - layerCount * 3200 + supportPenalty;
+    return top * 9000000 + effEdgeBias - footprint * 42 - layerCount * 3200 + supportPenalty + palletShape;
   }
 
   if (variant === 'layers') {
-    return y * 9000000 + top * 900000 + Math.abs(ori.dY - (unit.dims.H || ori.dY)) * 3500 + edgeBias - footprint * 20 + supportPenalty;
+    return y * 9000000 + top * 900000 + Math.abs(ori.dY - (unit.dims.H || ori.dY)) * 3500 + effEdgeBias - footprint * 20 + supportPenalty + palletShape;
   }
 
-  return top * 10000000 + y * 900000 + edgeBias + distToCenter * 110 - footprint * 24 + supportPenalty;
+  return top * 10000000 + y * 900000 + effEdgeBias + effDistCenter * 110 - footprint * 24 + supportPenalty + palletShape;
 }
 
 function pb_tryFindContainerLikePlacement(unit, packed, hm, palL, palW, maxH, variant = 'auto', deadline = 0) {
