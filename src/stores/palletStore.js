@@ -2691,8 +2691,36 @@ function pb_pickBestPackedLayout(layouts, palL, palW, maxH) {
   return valid[0].boxes;
 }
 
+function pb_calcTop(boxes) {
+  return boxes.reduce((m, b) => Math.max(m, b.y + b.dY), 0);
+}
+
+function pb_isBetterLayout(candidate, current) {
+  if (candidate.length > current.length) return true;
+  if (candidate.length === current.length && candidate.length > 0 &&
+      pb_calcTop(candidate) < pb_calcTop(current) - 0.1) return true;
+  return false;
+}
+
 export function pb_runPacking(products, palL, palW, maxH) {
-  return runPalletPacking(products, { palL, palW, maxH, variant: 'auto' });
+  const totalUnits = products.reduce((s, p) => s + Math.max(0, p.qty || 0), 0);
+  // Per-variant budget so total stays reasonable
+  const budgetPerVariant = totalUnits > 140 ? 800 : totalUnits > 70 ? 1100 : 1600;
+  const containerVariants = ['auto', 'grid', 'low-height', 'layers'];
+
+  let best = [];
+  for (const variant of containerVariants) {
+    const variantDeadline = Date.now() + budgetPerVariant;
+    const result = pb_runPackingContainerLike(products, palL, palW, maxH, variant, variantDeadline);
+    if (pb_isBetterLayout(result, best)) best = result;
+    if (best.length === totalUnits) break; // all placed — no need to try more variants
+  }
+
+  // Compare against old engine (runs its own 4-variant search internally)
+  const oldResult = runPalletPacking(products, { palL, palW, maxH, variant: 'auto' });
+  if (pb_isBetterLayout(oldResult, best)) best = oldResult;
+
+  return best;
 }
 
 function pb_unitsByUidFromProducts(products) {
@@ -2828,14 +2856,15 @@ function pb_tryFindContainerLikePlacement(unit, packed, hm, palL, palW, maxH, va
   return best;
 }
 
-function pb_runPackingContainerLike(products, palL, palW, maxH, variant = 'auto') {
+function pb_runPackingContainerLike(products, palL, palW, maxH, variant = 'auto', externalDeadline = 0) {
   let queue = pb_expandUnits(products);
   pb_sortContainerLikeUnits(queue, variant);
 
   const packed = [];
   const hm = pb_makeHM(palW, palL);
   const totalUnits = queue.length;
-  const deadline = Date.now() + (totalUnits > 140 ? 1400 : totalUnits > 70 ? 1800 : 2400);
+  const defaultBudget = totalUnits > 140 ? 1400 : totalUnits > 70 ? 1600 : 2200;
+  const deadline = externalDeadline > 0 ? externalDeadline : Date.now() + defaultBudget;
   let round = 0;
 
   while (queue.length && round < 8 && Date.now() < deadline) {
@@ -2887,17 +2916,24 @@ function pb_runPackingContainerLike(products, palL, palW, maxH, variant = 'auto'
 function pb_runReorderVariant(products, palL, palW, maxH, variant = 'auto') {
   const expectedCount = products.reduce((sum, product) => sum + Math.max(0, product.qty || 0), 0);
   const variants = variant === 'auto'
-    ? ['auto', 'grid']
-    : [...new Set([variant, 'auto', 'grid'])];
+    ? ['auto', 'grid', 'low-height', 'layers']
+    : [...new Set([variant, 'auto', 'grid', 'low-height'])];
 
+  let best = null;
   for (const currentVariant of variants) {
-    const boxes = runPalletPacking(products, { palL, palW, maxH, variant: currentVariant });
-    if (boxes.length === expectedCount && pb_validatePackedLayout(boxes, palL, palW, maxH)) {
-      return boxes;
+    // Container-like (systematic grid scan)
+    const clResult = pb_runPackingContainerLike(products, palL, palW, maxH, currentVariant);
+    if (clResult.length === expectedCount && pb_validatePackedLayout(clResult, palL, palW, maxH)) {
+      if (!best || pb_isBetterLayout(clResult, best)) best = clResult;
+    }
+    // Old engine as additional candidate
+    const oldResult = runPalletPacking(products, { palL, palW, maxH, variant: currentVariant });
+    if (oldResult.length === expectedCount && pb_validatePackedLayout(oldResult, palL, palW, maxH)) {
+      if (!best || pb_isBetterLayout(oldResult, best)) best = oldResult;
     }
   }
 
-  return null;
+  return best;
 }
 
 const usePalletStore = create((set, get) => ({
@@ -2975,6 +3011,8 @@ const usePalletStore = create((set, get) => ({
     }
 
     let finalized = pb_finalizePallets(pallets, products, palL, palW, maxHeight);
+    // Optimization pass: try to lower individual boxes to better positions
+    finalized = pb_polishPallets(finalized, products, palL, palW, maxHeight);
     if (finalized.length > 1) {
       finalized = pb_mergeRepackPallets(finalized, products, palL, palW, maxHeight);
     }
