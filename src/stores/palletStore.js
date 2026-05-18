@@ -6,6 +6,10 @@ export const PB_GRID_RES = 2;
 const PB_HEIGHT_EPS = 0.1;
 const PB_CELL_AREA = PB_GRID_RES * PB_GRID_RES;
 export const PB_PALLET_BASE_H = 14;
+// Overhang permitido en los bordes del pallet (práctica logística real:
+// cajas pueden sobresalir 2-5cm sin riesgo). Sólo se permite en +X/+Z
+// (lados positivos); el centrado posterior re-equilibra el conjunto.
+export const PB_EDGE_OVERHANG = 5;
 const PB_PRECISE_MAX_UNITS = 4;
 const PB_POLISH_MAX_UNITS = 10;
 const PB_REBALANCE_MAX_UNITS = 180;
@@ -71,9 +75,13 @@ function pb_getPlateauStats(hm, px, pz, dX, dZ) {
 }
 
 function pb_getOrientations(unit, palL, palW) {
+  // Permitir overhang: una caja puede ser hasta `palL + PB_EDGE_OVERHANG` de
+  // largo si su base está apoyada sobre el pallet (práctica logística real).
+  const maxL = palL + PB_EDGE_OVERHANG + 0.1;
+  const maxW = palW + PB_EDGE_OVERHANG + 0.1;
   if (unit.noRotate) {
     const locked = { dX: unit.dims.L, dZ: unit.dims.W, dY: unit.dims.H };
-    return locked.dX <= palL + 0.1 && locked.dZ <= palW + 0.1 ? [locked] : [];
+    return locked.dX <= maxL && locked.dZ <= maxW ? [locked] : [];
   }
 
   const options = [
@@ -88,7 +96,7 @@ function pb_getOrientations(unit, palL, palW) {
   const unique = new Map();
   for (const option of options) {
     if (option.dX <= 0 || option.dZ <= 0 || option.dY <= 0) continue;
-    if (option.dX > palL + 0.1 || option.dZ > palW + 0.1) continue;
+    if (option.dX > maxL || option.dZ > maxW) continue;
     const key = `${option.dX}|${option.dZ}|${option.dY}`;
     if (!unique.has(key)) unique.set(key, option);
   }
@@ -833,10 +841,10 @@ function pb_collectCandidateBaseLevels(staticBoxes, preferredBaseY = 0, mustBeBa
 
 function pb_validateMovedBoxes(staticBoxes, moved, palL, palW, maxH) {
   for (const box of moved) {
-    if (box.x < -PB_HEIGHT_EPS || box.z < -PB_HEIGHT_EPS) {
+    if (box.x < -PB_EDGE_OVERHANG - PB_HEIGHT_EPS || box.z < -PB_EDGE_OVERHANG - PB_HEIGHT_EPS) {
       return { valid: false, reason: 'out-of-bounds', placements: moved };
     }
-    if (box.x + box.dX > palL + PB_HEIGHT_EPS || box.z + box.dZ > palW + PB_HEIGHT_EPS) {
+    if (box.x + box.dX > palL + PB_EDGE_OVERHANG + PB_HEIGHT_EPS || box.z + box.dZ > palW + PB_EDGE_OVERHANG + PB_HEIGHT_EPS) {
       return { valid: false, reason: 'out-of-bounds', placements: moved };
     }
     if (box.y < -PB_HEIGHT_EPS || box.y + box.dY > maxH + PB_HEIGHT_EPS) {
@@ -1744,8 +1752,8 @@ function pb_rectBounds(rects, fallback = { x: 0, z: 0, dX: 0, dZ: 0 }) {
 
 function pb_validatePackedLayout(packed, palL, palW, maxH) {
   for (const box of packed) {
-    if (box.x < -PB_HEIGHT_EPS || box.z < -PB_HEIGHT_EPS) return false;
-    if (box.x + box.dX > palL + PB_HEIGHT_EPS || box.z + box.dZ > palW + PB_HEIGHT_EPS) return false;
+    if (box.x < -PB_EDGE_OVERHANG - PB_HEIGHT_EPS || box.z < -PB_EDGE_OVERHANG - PB_HEIGHT_EPS) return false;
+    if (box.x + box.dX > palL + PB_EDGE_OVERHANG + PB_HEIGHT_EPS || box.z + box.dZ > palW + PB_EDGE_OVERHANG + PB_HEIGHT_EPS) return false;
     if (box.y < -PB_HEIGHT_EPS || box.y + box.dY > maxH + PB_HEIGHT_EPS) return false;
   }
 
@@ -1781,8 +1789,8 @@ function pb_canShiftLayer(packed, layerUids, dx, dz, palL, palW, maxH) {
   const staticBoxes = shifted.filter(box => !moving.has(box.uid));
 
   for (const box of movedBoxes) {
-    if (box.x < -PB_HEIGHT_EPS || box.z < -PB_HEIGHT_EPS) return false;
-    if (box.x + box.dX > palL + PB_HEIGHT_EPS || box.z + box.dZ > palW + PB_HEIGHT_EPS) return false;
+    if (box.x < -PB_EDGE_OVERHANG - PB_HEIGHT_EPS || box.z < -PB_EDGE_OVERHANG - PB_HEIGHT_EPS) return false;
+    if (box.x + box.dX > palL + PB_EDGE_OVERHANG + PB_HEIGHT_EPS || box.z + box.dZ > palW + PB_EDGE_OVERHANG + PB_HEIGHT_EPS) return false;
     if (box.y + box.dY > maxH + PB_HEIGHT_EPS) return false;
     if (pb_collides3D(staticBoxes, { x: box.x, z: box.z, dX: box.dX, dZ: box.dZ }, box.y, box.dY)) {
       return false;
@@ -1948,7 +1956,16 @@ function pb_shouldAcceptLayer(layer, supportRects, palL, palW, y) {
 
 function pb_getLevelSupportRects(packed, y, palL, palW) {
   if (y <= PB_HEIGHT_EPS) {
-    return [{ x: 0, z: 0, dX: palL, dZ: palW }];
+    // Base del pallet expandida por PB_EDGE_OVERHANG en los 4 lados.
+    // Permite que cajas sobresalgan hasta 5cm sin fallar el chequeo de
+    // soporte (práctica logística real). El centrado posterior asegura
+    // que el overhang quede repartido razonablemente.
+    return [{
+      x: -PB_EDGE_OVERHANG,
+      z: -PB_EDGE_OVERHANG,
+      dX: palL + 2 * PB_EDGE_OVERHANG,
+      dZ: palW + 2 * PB_EDGE_OVERHANG,
+    }];
   }
 
   return packed
@@ -2877,8 +2894,10 @@ function pb_packOneLayer(units, existingPacked, palL, palW, layerY, targetH, max
       if (!oris.length) continue;
 
       for (const ori of oris) {
-        const maxX = palL - ori.dX;
-        const maxZ = palW - ori.dZ;
+        // Permitir overhang en el lado +X/+Z (el centrado posterior
+        // re-equilibra a ambos lados).
+        const maxX = palL + PB_EDGE_OVERHANG - ori.dX;
+        const maxZ = palW + PB_EDGE_OVERHANG - ori.dZ;
         for (let z = 0; z <= maxZ + 0.1; z += PB_GRID_RES) {
           for (let x = 0; x <= maxX + 0.1; x += PB_GRID_RES) {
             const px = pb_roundToGrid(Math.min(x, maxX));
@@ -3391,8 +3410,9 @@ function pb_tryFindContainerLikePlacement(unit, packed, hm, palL, palW, maxH, va
   let best = null;
 
   for (const ori of orientations) {
-    const maxX = Math.max(0, palL - ori.dX);
-    const maxZ = Math.max(0, palW - ori.dZ);
+    // Overhang permitido en +X/+Z (5cm). Centrado posterior re-equilibra.
+    const maxX = Math.max(0, palL + PB_EDGE_OVERHANG - ori.dX);
+    const maxZ = Math.max(0, palW + PB_EDGE_OVERHANG - ori.dZ);
     for (let pz = 0; pz <= maxZ + PB_HEIGHT_EPS; pz += scanStep) {
       if (deadline && Date.now() >= deadline) return best;
       for (let px = 0; px <= maxX + PB_HEIGHT_EPS; px += scanStep) {

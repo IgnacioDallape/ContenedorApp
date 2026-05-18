@@ -14,6 +14,7 @@ import Settings from '../ImportaPro/Settings.jsx';
 import Comparator from '../ImportaPro/Comparator.jsx';
 import BrandMark from '../Brand/BrandMark.jsx';
 import UpgradeModal from './UpgradeModal.jsx';
+import ErrorBoundary from './ErrorBoundary.jsx';
 
 const ContainerLoader = lazy(() => import('../ContainerLoader/ContainerLoader.jsx'));
 const PalletBuilder = lazy(() => import('../PalletBuilder/PalletBuilder.jsx'));
@@ -445,19 +446,21 @@ export default function AppShell() {
       </aside>
 
       <div className="main">
-        {activeSection === 'home' && <WelcomePanel label={label} userPlan={userPlan} />}
-        {activeSection === 'calc' && <Calculator />}
-        {activeSection === 'products' && <Products />}
-        {activeSection === 'comparator' && <Comparator />}
-        {activeSection === 'ncm' && <NcmSearch />}
-        {activeSection === 'simulator' && <Simulator />}
-        {activeSection === 'prices' && <Prices />}
-        {activeSection === 'settings' && <Settings onCheckout={plan => setUpgradeModal(plan)} />}
+        <ErrorBoundary resetKey={activeSection}>
+          {activeSection === 'home' && <WelcomePanel label={label} userPlan={userPlan} />}
+          {activeSection === 'calc' && <Calculator />}
+          {activeSection === 'products' && <Products />}
+          {activeSection === 'comparator' && <Comparator />}
+          {activeSection === 'ncm' && <NcmSearch />}
+          {activeSection === 'simulator' && <Simulator />}
+          {activeSection === 'prices' && <Prices />}
+          {activeSection === 'settings' && <Settings onCheckout={plan => setUpgradeModal(plan)} />}
 
-        <Suspense fallback={<Loader />}>
-          {activeSection === 'container' && <ContainerLoader />}
-          {activeSection === 'palletbuilder' && <PalletBuilder />}
-        </Suspense>
+          <Suspense fallback={<Loader />}>
+            {activeSection === 'container' && <ContainerLoader />}
+            {activeSection === 'palletbuilder' && <PalletBuilder />}
+          </Suspense>
+        </ErrorBoundary>
       </div>
 
       <div className="mobile-nav">

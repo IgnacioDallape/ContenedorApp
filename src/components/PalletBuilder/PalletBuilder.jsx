@@ -327,8 +327,26 @@ export default function PalletBuilder() {
   }
 
   // ── Persistence (Supabase `pallets` table) ──
+  // Limpia un objeto para garantizar JSON.stringify safe: solo primitives,
+  // arrays planos y objetos planos. Quita functions, undefined, símbolos.
+  function jsonSafe(v) {
+    if (v === null || v === undefined) return null;
+    const t = typeof v;
+    if (t === 'string' || t === 'number' || t === 'boolean') return v;
+    if (Array.isArray(v)) return v.map(jsonSafe);
+    if (t === 'object') {
+      const out = {};
+      for (const k of Object.keys(v)) {
+        if (typeof v[k] === 'function' || typeof v[k] === 'symbol') continue;
+        out[k] = jsonSafe(v[k]);
+      }
+      return out;
+    }
+    return null;
+  }
+
   function buildJobPayload() {
-    return {
+    return jsonSafe({
       v: 1,
       palletType,
       maxHeight,
@@ -343,20 +361,20 @@ export default function PalletBuilder() {
         reserveBoxes: (r.reserveBoxes || []).map(b => ({ ...b })),
         products: (r.products || []).map(p => ({ ...p })),
       })),
-    };
+    });
   }
 
   function applyJobPayload(payload) {
     if (!payload || typeof payload !== 'object') return;
-    if (payload.palletType) setPalletType(payload.palletType);
-    if (payload.maxHeight)  setMaxHeight(payload.maxHeight);
-    // Replace products: clear then add
-    const { setProducts, setResults } = usePalletStore.getState();
-    if (typeof setProducts === 'function') {
-      setProducts(payload.products || []);
-    }
-    if (typeof setResults === 'function') {
-      setResults(payload.results || []);
+    try {
+      if (payload.palletType) setPalletType(payload.palletType);
+      if (payload.maxHeight)  setMaxHeight(payload.maxHeight);
+      const { setProducts, setResults } = usePalletStore.getState();
+      if (typeof setProducts === 'function') setProducts(payload.products || []);
+      if (typeof setResults === 'function')  setResults(payload.results || []);
+    } catch (e) {
+      console.error('[PalletBuilder] applyJobPayload error:', e);
+      showToast('No pude restaurar el pallet guardado: ' + (e.message || e), 'error');
     }
   }
 
@@ -380,11 +398,22 @@ export default function PalletBuilder() {
     try {
       let session;
       try { ({ data: { session } } = await _sb.auth.getSession()); }
-      catch { showToast('Error de conexión', 'error'); return; }
+      catch (e) {
+        console.error('[PalletBuilder] auth.getSession failed:', e);
+        showToast('Error de conexión', 'error'); return;
+      }
       if (!session) { showToast('Necesitás estar logueado', 'error'); return; }
 
-      const { data: existing } = await _sb.from('pallets')
+      const { data: existing, error: queryError } = await _sb.from('pallets')
         .select('id,name').eq('user_id', session.user.id).ilike('name', name);
+      if (queryError) {
+        console.error('[PalletBuilder] query existing failed:', queryError);
+        const msg = /relation .* does not exist|does not exist/i.test(queryError.message || '')
+          ? 'La tabla `pallets` no existe en Supabase. Corré la SQL migration primero.'
+          : 'Error al verificar nombre: ' + queryError.message;
+        showToast(msg, 'error');
+        return;
+      }
 
       // Si el nombre choca con OTRO pallet (no el actual), pedir confirmación.
       const conflict = existing?.find(row => String(row.id) !== String(currentJobId));
@@ -428,6 +457,9 @@ export default function PalletBuilder() {
       setCurrentJobName(name);
       setShowSave(false);
       showToast(`Pallet guardado: "${name}"`, 'success');
+    } catch (e) {
+      console.error('[PalletBuilder] confirmSave error:', e);
+      showToast('No pude guardar: ' + (e.message || e), 'error');
     } finally { setIsSaving(false); }
   }
 
@@ -452,40 +484,69 @@ export default function PalletBuilder() {
 
   async function handleLoadList() {
     setSavedLoading(true);
-    let session;
-    try { ({ data: { session } } = await _sb.auth.getSession()); }
-    catch { setSavedLoading(false); return showToast('Error de conexión', 'error'); }
-    if (!session) { setSavedLoading(false); return showToast('Necesitás estar logueado', 'error'); }
+    try {
+      let session;
+      try { ({ data: { session } } = await _sb.auth.getSession()); }
+      catch (e) {
+        console.error('[PalletBuilder] auth.getSession failed:', e);
+        return showToast('Error de conexión', 'error');
+      }
+      if (!session) return showToast('Necesitás estar logueado', 'error');
 
-    const { data, error } = await _sb.from('pallets')
-      .select('id,name,created_at,status,tracking_url')
-      .order('created_at', { ascending: false })
-      .limit(30);
-    setSavedLoading(false);
-    if (error) return showToast('Error al cargar pallets: ' + error.message, 'error');
-    setSavedList(data || []);
-    setShowLoad(true);
+      const { data, error } = await _sb.from('pallets')
+        .select('id,name,created_at,status,tracking_url')
+        .order('created_at', { ascending: false })
+        .limit(30);
+      if (error) {
+        console.error('[PalletBuilder] list pallets failed:', error);
+        const msg = /relation .* does not exist|does not exist/i.test(error.message || '')
+          ? 'La tabla `pallets` no existe en Supabase. Corré la SQL migration primero.'
+          : 'Error al cargar pallets: ' + error.message;
+        return showToast(msg, 'error');
+      }
+      setSavedList(data || []);
+      setShowLoad(true);
+    } catch (e) {
+      console.error('[PalletBuilder] handleLoadList error:', e);
+      showToast('No pude cargar la lista: ' + (e.message || e), 'error');
+    } finally { setSavedLoading(false); }
   }
 
   async function loadJob(id) {
-    const { data, error } = await _sb.from('pallets').select('*').eq('id', id).single();
-    if (error || !data) return showToast('Error al cargar pallet', 'error');
-    applyJobPayload(data.payload);
-    setCurrentJobId(data.id);
-    setCurrentJobName(data.name);
-    setCurrentJobStatus(normalizeJobStatus(data.status));
-    setCurrentJobTracking(data.tracking_url || '');
-    setShowLoad(false);
-    showToast(`✓ Pallet "${data.name}" cargado`, 'success');
+    try {
+      const { data, error } = await _sb.from('pallets').select('*').eq('id', id).single();
+      if (error || !data) {
+        console.error('[PalletBuilder] loadJob failed:', error);
+        return showToast('Error al cargar pallet: ' + (error?.message || 'no encontrado'), 'error');
+      }
+      applyJobPayload(data.payload);
+      setCurrentJobId(data.id);
+      setCurrentJobName(data.name);
+      setCurrentJobStatus(normalizeJobStatus(data.status));
+      setCurrentJobTracking(data.tracking_url || '');
+      setShowLoad(false);
+      showToast(`✓ Pallet "${data.name}" cargado`, 'success');
+    } catch (e) {
+      console.error('[PalletBuilder] loadJob error:', e);
+      showToast('No pude cargar el pallet: ' + (e.message || e), 'error');
+    }
   }
 
   async function deleteJob(id) {
     if (!window.confirm('¿Borrar este pallet guardado?')) return;
-    const { error } = await _sb.from('pallets').delete().eq('id', id);
-    if (error) return showToast('Error al borrar: ' + error.message, 'error');
-    setSavedList(prev => prev.filter(s => s.id !== id));
-    if (String(id) === String(currentJobId)) newJob();
-    showToast('Pallet borrado', 'success');
+    try {
+      const { error } = await _sb.from('pallets').delete().eq('id', id);
+      if (error) {
+        console.error('[PalletBuilder] deleteJob failed:', error);
+        return showToast('Error al borrar: ' + error.message, 'error');
+      }
+      setSavedList(prev => prev.filter(s => s.id !== id));
+      if (String(id) === String(currentJobId)) newJob();
+      showToast('Pallet borrado', 'success');
+    } catch (e) {
+      console.error('[PalletBuilder] deleteJob error:', e);
+      showToast('No pude borrar: ' + (e.message || e), 'error');
+    }
   }
 
   async function updateJobStatus(nextStatus) {

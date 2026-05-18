@@ -1,7 +1,7 @@
 import { useEffect, useRef, useCallback } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { pb_validateGroupPlacement, pb_validateSingleBoxMove, PB_PALLET_BASE_H } from '../../stores/palletStore.js';
+import { pb_validateGroupPlacement, pb_validateSingleBoxMove, PB_PALLET_BASE_H, PB_EDGE_OVERHANG } from '../../stores/palletStore.js';
 
 function fitCameraToObject(camera, controls, size, center) {
   const maxSize = Math.max(size.x, size.y, size.z, 1);
@@ -314,9 +314,20 @@ export default function PalletThreeCanvas({ result, selectedBoxUid, onSelectBox,
     root.add(grid);
 
     for (const box of boxes) {
-      const width = Math.max(0.1, box.dX - 0.35);
-      const height = Math.max(0.1, box.dY - 0.35);
-      const depth = Math.max(0.1, box.dZ - 0.35);
+      // Defensiva: cajas con dims inválidas (NaN, 0, negativas) producen
+      // geometría degenerada que no se renderiza pero deja el outline en
+      // el aire. Las saltamos y avisamos por consola.
+      const dx = Number(box.dX), dy = Number(box.dY), dz = Number(box.dZ);
+      const x = Number(box.x), y = Number(box.y), z = Number(box.z);
+      if (!Number.isFinite(dx) || !Number.isFinite(dy) || !Number.isFinite(dz) ||
+          !Number.isFinite(x)  || !Number.isFinite(y)  || !Number.isFinite(z)  ||
+          dx < 0.5 || dy < 0.5 || dz < 0.5) {
+        console.warn('[PalletThreeCanvas] caja con dims inválidas, salteada:', box);
+        continue;
+      }
+      const width = Math.max(0.1, dx - 0.35);
+      const height = Math.max(0.1, dy - 0.35);
+      const depth = Math.max(0.1, dz - 0.35);
 
       const mesh = new THREE.Mesh(
         new THREE.BoxGeometry(width, height, depth),
@@ -467,8 +478,10 @@ export default function PalletThreeCanvas({ result, selectedBoxUid, onSelectBox,
           if (!point) return null;
           let nextX = Math.round((point.x - box.dX / 2) / snap) * snap;
           let nextZ = Math.round((point.z - box.dZ / 2) / snap) * snap;
-          nextX = Math.max(0, Math.min(result.palL - box.dX, nextX));
-          nextZ = Math.max(0, Math.min(result.palW - box.dZ, nextZ));
+          // Permitir overhang en el drag: la caja puede sobresalir hasta
+          // PB_EDGE_OVERHANG (5cm) del borde del pallet (práctica real).
+          nextX = Math.max(-PB_EDGE_OVERHANG, Math.min(result.palL + PB_EDGE_OVERHANG - box.dX, nextX));
+          nextZ = Math.max(-PB_EDGE_OVERHANG, Math.min(result.palW + PB_EDGE_OVERHANG - box.dZ, nextZ));
           return { nextX, nextZ, placement: validateMove(nextX, nextZ) };
         };
 
