@@ -1299,7 +1299,25 @@ function pb_polishPallets(pallets, products, palL, palW, maxH) {
     for (const box of pallet.boxes) {
       unitsByUid.set(box.uid, pb_makeUnitFromBox(box, sourceById.get(box.id) || { weight: 0 }));
     }
-    const optimizedBoxes = pb_optimizePackedLayout(pallet.boxes, unitsByUid, palL, palW, maxH);
+    let optimizedBoxes = pb_optimizePackedLayout(pallet.boxes, unitsByUid, palL, palW, maxH);
+    // CRÍTICO: el optimizador mueve cajas individualmente y puede dejar
+    // huérfanas a las que apoyaban arriba. Validamos gravedad explícitamente
+    // y revertimos si el resultado es peor que el original en cualquier
+    // dimensión (perdió cajas, subió top, o fragmentó capas).
+    optimizedBoxes = pb_gravitySettle(optimizedBoxes, palL, palW, maxH);
+    optimizedBoxes = pb_dropFloaters(optimizedBoxes, palL, palW);
+
+    const origTop = pallet.boxes.length ? Math.max(...pallet.boxes.map(b => b.y + b.dY)) : 0;
+    const newTop  = optimizedBoxes.length ? Math.max(...optimizedBoxes.map(b => b.y + b.dY)) : 0;
+    const origLayers = new Set(pallet.boxes.map(b => Math.round(b.y))).size;
+    const newLayers  = new Set(optimizedBoxes.map(b => Math.round(b.y))).size;
+    const worse =
+      optimizedBoxes.length < pallet.boxes.length ||  // perdió cajas
+      newTop > origTop + 0.1 ||                       // quedó más alto
+      newLayers > origLayers;                         // fragmentó capas
+
+    if (worse) optimizedBoxes = pallet.boxes; // revertir al original
+
     return pb_finalizeResultMeta({ ...pallet, idx, boxes: optimizedBoxes }, products);
   });
 }
@@ -3568,6 +3586,17 @@ const usePalletStore = create((set, get) => ({
     if (finalized.length > 1) {
       finalized = pb_stuffLeftovers(finalized, products, palL, palW, maxHeight);
     }
+
+    // RED DE SEGURIDAD FINAL: gravedad nunca debe estar rota en el output.
+    // Cualquier pasada anterior puede mover cajas y dejar huérfanas las que
+    // apoyaban arriba. Garantizamos un layout válido o revertimos al previo.
+    finalized = finalized.map(pallet => {
+      let boxes = pb_gravitySettle(pallet.boxes, palL, palW, maxHeight);
+      boxes = pb_dropFloaters(boxes, palL, palW);
+      return pb_finalizeResultMeta({ ...pallet, boxes }, products);
+    }).filter(pallet => pallet.boxes.length > 0)
+      .map((pallet, idx) => ({ ...pallet, idx }));
+
     set({ results: finalized, activeResult: 0, selectedBoxUid: null });
   },
 
