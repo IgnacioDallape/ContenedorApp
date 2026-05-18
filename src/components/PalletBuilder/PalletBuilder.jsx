@@ -253,28 +253,53 @@ export default function PalletBuilder() {
     if (!activeRes || !selectedBox) return;
     if (selectedBox.noRotate) return showToast('Esta caja solo puede ir en su posición por defecto', 'error');
 
-    const nextDims = { dX: selectedBox.dZ, dY: selectedBox.dY, dZ: selectedBox.dX };
-    const placement = pb_validatePlacement(
-      activeRes.boxes,
-      selectedBox,
-      activeRes.palL,
-      activeRes.palW,
-      activeRes.maxHeight,
-      selectedBox.x,
-      selectedBox.z,
-      nextDims
-    );
-
-    if (!placement.valid) {
-      return showToast('No entra rotada en esa posición', 'error');
+    // Generar las 6 orientaciones posibles a partir de las dims originales
+    // (incluyendo "acostarla" — cambiar dY). El botón cicla a la próxima
+    // orientación válida después de la actual.
+    const src = selectedBox.sourceDims || { L: selectedBox.dX, W: selectedBox.dZ, H: selectedBox.dY };
+    const allOris = [
+      { dX: src.L, dZ: src.W, dY: src.H }, // de pie original
+      { dX: src.W, dZ: src.L, dY: src.H }, // de pie rotado 90°
+      { dX: src.L, dZ: src.H, dY: src.W }, // acostada de costado
+      { dX: src.H, dZ: src.L, dY: src.W },
+      { dX: src.W, dZ: src.H, dY: src.L }, // acostada de frente
+      { dX: src.H, dZ: src.W, dY: src.L },
+    ];
+    // Quitar duplicados (cubos perfectos tienen menos orientaciones únicas)
+    const unique = [];
+    const seen = new Set();
+    for (const o of allOris) {
+      const k = `${o.dX}|${o.dY}|${o.dZ}`;
+      if (!seen.has(k)) { seen.add(k); unique.push(o); }
     }
 
-    updateActiveResultBoxes(activeRes.boxes.map(box =>
-      box.uid === selectedBox.uid
-        ? { ...box, ...placement }
-        : box
-    ));
-    showToast('Orientación actualizada', 'success');
+    // Identificar la orientación actual y empezar a probar desde la siguiente
+    const currentKey = `${selectedBox.dX}|${selectedBox.dY}|${selectedBox.dZ}`;
+    const startIdx = Math.max(0, unique.findIndex(o => `${o.dX}|${o.dY}|${o.dZ}` === currentKey));
+
+    for (let i = 1; i <= unique.length; i++) {
+      const candidate = unique[(startIdx + i) % unique.length];
+      if (`${candidate.dX}|${candidate.dY}|${candidate.dZ}` === currentKey) continue;
+      const placement = pb_validatePlacement(
+        activeRes.boxes,
+        selectedBox,
+        activeRes.palL,
+        activeRes.palW,
+        activeRes.maxHeight,
+        selectedBox.x,
+        selectedBox.z,
+        candidate
+      );
+      if (placement.valid) {
+        updateActiveResultBoxes(activeRes.boxes.map(box =>
+          box.uid === selectedBox.uid ? { ...box, ...placement } : box
+        ));
+        showToast(`Orientación: ${candidate.dX}×${candidate.dY}×${candidate.dZ} cm`, 'success');
+        return;
+      }
+    }
+
+    showToast('Ninguna otra orientación entra en esta posición. Movela primero a un lugar con más espacio.', 'error');
   }
 
   function restoreSelectedBoxOrientation() {

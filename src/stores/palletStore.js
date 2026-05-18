@@ -866,7 +866,7 @@ function pb_validateMovedBoxes(staticBoxes, moved, palL, palW, maxH) {
     const supportRects = [...staticBoxes, ...moved]
       .filter(candidate => candidate.uid !== box.uid && Math.abs((candidate.y + candidate.dY) - box.y) <= PB_HEIGHT_EPS)
       .map(candidate => ({ x: candidate.x, z: candidate.z, dX: candidate.dX, dZ: candidate.dZ }));
-    const support = pb_supportForRect({ x: box.x, z: box.z, dX: box.dX, dZ: box.dZ }, supportRects);
+    const support = pb_supportForRect({ x: box.x, z: box.z, dX: box.dX, dZ: box.dZ }, supportRects, { lenient: true });
     if (!support.supported) {
       return { valid: false, reason: 'unsupported', placements: moved };
     }
@@ -1656,7 +1656,10 @@ function pb_intervalCoverageMetrics(intervals, start, end) {
   return { covered, maxGap };
 }
 
-function pb_supportForRect(rect, supportRects) {
+// `lenient: true` afloja los umbrales para colocación manual del usuario.
+// El motor automático sigue usando el modo estricto.
+function pb_supportForRect(rect, supportRects, opts = {}) {
+  const lenient = !!opts.lenient;
   if (!supportRects?.length) {
     return {
       supported: false,
@@ -1713,9 +1716,12 @@ function pb_supportForRect(rect, supportRects) {
   const footprint = rect.dX * rect.dZ;
   const spanRatio = Math.max(rect.dX, rect.dZ) / Math.max(1, Math.min(rect.dX, rect.dZ));
   const strictSupport = footprint >= 2200 || spanRatio >= 1.7;
-  const requiredSupportPercent = strictSupport ? 0.99 : PB_MIN_SUPPORT_PERCENT;
-  const requiredAxisCoverage = strictSupport ? 0.96 : PB_MIN_SUPPORT_AXIS_COVERAGE;
-  const allowedGapRatio = strictSupport ? 0.05 : PB_MAX_SUPPORT_GAP_RATIO;
+  // Modo lenient (manual): usuario es responsable, aceptamos 60% soporte
+  // / 50% axis / 40% gap. Esto permite que el usuario apile cajas en
+  // posiciones que el motor automático rechazaría.
+  const requiredSupportPercent = lenient ? 0.6 : (strictSupport ? 0.99 : PB_MIN_SUPPORT_PERCENT);
+  const requiredAxisCoverage   = lenient ? 0.5 : (strictSupport ? 0.96 : PB_MIN_SUPPORT_AXIS_COVERAGE);
+  const allowedGapRatio        = lenient ? 0.4 : (strictSupport ? 0.05 : PB_MAX_SUPPORT_GAP_RATIO);
 
   return {
     supported:
