@@ -839,7 +839,7 @@ function pb_collectCandidateBaseLevels(staticBoxes, preferredBaseY = 0, mustBeBa
   });
 }
 
-function pb_validateMovedBoxes(staticBoxes, moved, palL, palW, maxH) {
+function pb_validateMovedBoxes(staticBoxes, moved, palL, palW, maxH, opts = {}) {
   for (const box of moved) {
     if (box.x < -PB_EDGE_OVERHANG - PB_HEIGHT_EPS || box.z < -PB_EDGE_OVERHANG - PB_HEIGHT_EPS) {
       return { valid: false, reason: 'out-of-bounds', placements: moved };
@@ -866,7 +866,11 @@ function pb_validateMovedBoxes(staticBoxes, moved, palL, palW, maxH) {
     const supportRects = [...staticBoxes, ...moved]
       .filter(candidate => candidate.uid !== box.uid && Math.abs((candidate.y + candidate.dY) - box.y) <= PB_HEIGHT_EPS)
       .map(candidate => ({ x: candidate.x, z: candidate.z, dX: candidate.dX, dZ: candidate.dZ }));
-    const support = pb_supportForRect({ x: box.x, z: box.z, dX: box.dX, dZ: box.dZ }, supportRects, { lenient: true });
+    const support = pb_supportForRect(
+      { x: box.x, z: box.z, dX: box.dX, dZ: box.dZ },
+      supportRects,
+      { lenient: !opts.strict }
+    );
     if (!support.supported) {
       return { valid: false, reason: 'unsupported', placements: moved };
     }
@@ -886,7 +890,7 @@ function pb_validateMovedBoxes(staticBoxes, moved, palL, palW, maxH) {
   };
 }
 
-function pb_findGroupPlacement(boxes, movingBoxes, rootUid, palL, palW, maxH, nextX, nextZ, preferredBaseY = null) {
+function pb_findGroupPlacement(boxes, movingBoxes, rootUid, palL, palW, maxH, nextX, nextZ, preferredBaseY = null, opts = {}) {
   const root = movingBoxes.find(box => box.uid === rootUid);
   if (!root) return { valid: false, reason: 'missing-root', placements: [] };
 
@@ -910,7 +914,7 @@ function pb_findGroupPlacement(boxes, movingBoxes, rootUid, palL, palW, maxH, ne
       ...box,
       y: pb_roundToGrid(box.y + dy),
     }));
-    const validation = pb_validateMovedBoxes(staticBoxes, moved, palL, palW, maxH);
+    const validation = pb_validateMovedBoxes(staticBoxes, moved, palL, palW, maxH, opts);
     if (validation.valid) {
       return {
         ...validation,
@@ -931,7 +935,7 @@ function pb_findGroupPlacement(boxes, movingBoxes, rootUid, palL, palW, maxH, ne
   return bestFailure || { valid: false, reason: 'unsupported', placements: translated };
 }
 
-export function pb_validatePlacement(boxes, movingBox, palL, palW, maxH, nextX, nextZ, nextDims = null) {
+export function pb_validatePlacement(boxes, movingBox, palL, palW, maxH, nextX, nextZ, nextDims = null, opts = {}) {
   const placed = pb_findGroupPlacement(
     boxes,
     [{
@@ -946,7 +950,8 @@ export function pb_validatePlacement(boxes, movingBox, palL, palW, maxH, nextX, 
     maxH,
     nextX,
     nextZ,
-    movingBox.y
+    movingBox.y,
+    opts
   );
 
   if (!placed.valid) return { valid: false, reason: placed.reason };
@@ -955,11 +960,11 @@ export function pb_validatePlacement(boxes, movingBox, palL, palW, maxH, nextX, 
   return { valid: true, ...root };
 }
 
-export function pb_validateSingleBoxMove(boxes, rootUid, palL, palW, maxH, nextX, nextZ) {
+export function pb_validateSingleBoxMove(boxes, rootUid, palL, palW, maxH, nextX, nextZ, opts = {}) {
   const root = boxes.find(box => box.uid === rootUid);
   if (!root) return { valid: false, reason: 'missing-root', groupUids: [], placements: [] };
 
-  const placement = pb_validatePlacement(boxes, root, palL, palW, maxH, nextX, nextZ);
+  const placement = pb_validatePlacement(boxes, root, palL, palW, maxH, nextX, nextZ, null, opts);
   if (!placement.valid) {
     return {
       valid: false,
@@ -1051,13 +1056,13 @@ export function pb_getSupportedStack(boxes, rootUid) {
   return [...group];
 }
 
-export function pb_validateGroupPlacement(boxes, rootUid, palL, palW, maxH, nextX, nextZ) {
+export function pb_validateGroupPlacement(boxes, rootUid, palL, palW, maxH, nextX, nextZ, opts = {}) {
   const root = boxes.find(box => box.uid === rootUid);
   if (!root) return { valid: false, reason: 'missing-root', groupUids: [], placements: [] };
 
   const groupUids = pb_getSupportedStack(boxes, rootUid);
   const group = boxes.filter(box => groupUids.includes(box.uid));
-  const placed = pb_findGroupPlacement(boxes, group, rootUid, palL, palW, maxH, nextX, nextZ, root.y);
+  const placed = pb_findGroupPlacement(boxes, group, rootUid, palL, palW, maxH, nextX, nextZ, root.y, opts);
   return {
     ...placed,
     groupUids,
@@ -3688,9 +3693,52 @@ const usePalletStore = create((set, get) => ({
   activeResult: 0,
   editingId:    null,
   selectedBoxUid: null,
+  // 'auto' = motor arma; 'manual' = usuario arrastra/coloca con asistencia
+  buildMode: 'auto',
 
   setPalletType(type) {
     set({ palletType: type });
+  },
+
+  setBuildMode(mode) {
+    set({ buildMode: mode === 'manual' ? 'manual' : 'auto' });
+  },
+
+  // Modo manual: arrancar con un pallet vacío para que el usuario lo cargue
+  // unidad por unidad (con asistencia del motor: snap, gravedad, sugerencias).
+  startManualEmpty() {
+    const { palletType, maxHeight, products } = get();
+    const pt = PB_PALLET_TYPES[palletType];
+    const emptyResult = pb_finalizeResultMeta(
+      {
+        idx: 0,
+        type: palletType,
+        palL: pt.L,
+        palW: pt.W,
+        maxHeight,
+        boxes: [],
+        reserveBoxes: [],
+        totalHeight: 0,
+        totalWeight: 0,
+        products: products.map(p => ({ ...p, placedQty: 0 })),
+      },
+      products
+    );
+    set({
+      buildMode: 'manual',
+      results: [emptyResult],
+      activeResult: 0,
+      selectedBoxUid: null,
+    });
+  },
+
+  // Modo manual con pre-armado: corre el motor y deja al usuario editar arriba
+  startManualPrebuilt() {
+    const state = get();
+    if (!state.products.length) return;
+    // Reutilizar build() y luego pasar a manual
+    state.build();
+    set({ buildMode: 'manual' });
   },
 
   setMaxHeight(h) {
@@ -3882,6 +3930,47 @@ const usePalletStore = create((set, get) => ({
     const updated = [...results];
     updated[activeResult] = pb_finalizeResultMeta(
       { ...current, boxes: [...current.boxes, newBox] },
+      current.products || []
+    );
+    set({ results: updated, selectedBoxUid: newBox.uid });
+    return { ok: true, box: newBox };
+  },
+
+  // Pide al motor que reubique una caja seleccionada (modo manual).
+  // Saca la caja, busca la mejor posición con el motor, la coloca ahí.
+  suggestRelocate(uid) {
+    const { results, activeResult } = get();
+    const current = results[activeResult];
+    if (!current) return { ok: false, reason: 'missing-result' };
+    const box = current.boxes.find(b => b.uid === uid);
+    if (!box) return { ok: false, reason: 'missing-box' };
+
+    const otherBoxes = current.boxes.filter(b => b.uid !== uid);
+    const unit = {
+      ...box,
+      dims: box.sourceDims || { L: box.dX, W: box.dZ, H: box.dY },
+      mustBeBase: !!box.mustBeBase,
+      noRotate: !!box.noRotate,
+      weight: Number(box.weight || 0),
+    };
+    const hm = pb_buildHMFromPacked(otherBoxes, current.palL, current.palW);
+    const placement = pb_tryFindContainerLikePlacement(
+      unit, otherBoxes, hm, current.palL, current.palW, current.maxHeight, 'auto', 0
+    );
+    if (!placement) return { ok: false, reason: 'no-fit' };
+
+    const newBox = {
+      ...box,
+      x: placement.px,
+      y: placement.y,
+      z: placement.pz,
+      dX: placement.ori.dX,
+      dY: placement.ori.dY,
+      dZ: placement.ori.dZ,
+    };
+    const updated = [...results];
+    updated[activeResult] = pb_finalizeResultMeta(
+      { ...current, boxes: [...otherBoxes, newBox] },
       current.products || []
     );
     set({ results: updated, selectedBoxUid: newBox.uid });

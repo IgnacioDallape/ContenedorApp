@@ -50,6 +50,7 @@ export default function PalletBuilder() {
     setEditingId, editingId, build, setActiveResult, clearResults,
     selectedBoxUid, setSelectedBoxUid, updateActiveResultBoxes, removeBoxFromActiveResult,
     restoreReserveBoxToActiveResult, reorderActiveResult, placeLeftoverInActiveResult,
+    buildMode, setBuildMode, startManualEmpty, startManualPrebuilt, suggestRelocate,
   } = usePalletStore();
   const { setPendingProduct, catalog, setActiveSection: containerNav } = useContainerStore();
   const { setActiveSection, showToast } = useAppStore();
@@ -171,6 +172,39 @@ export default function PalletBuilder() {
         setIsBuilding(false);
       }
     }, 0);
+  }
+
+  // ── Manual mode helpers ──
+  function handleStartEmpty() {
+    if (!products.length) return showToast('Agregá productos primero', 'error');
+    startManualEmpty();
+    showToast('Pallet vacío listo — arrastrá o usá "+ Acá" para colocar', 'success');
+  }
+  function handleStartPrebuilt() {
+    if (!products.length) return showToast('Agregá productos primero', 'error');
+    setIsBuilding(true);
+    window.setTimeout(() => {
+      try {
+        startManualPrebuilt();
+        showToast('Pre-armado listo — podés mover y editar las cajas', 'success');
+      } finally { setIsBuilding(false); }
+    }, 0);
+  }
+  // Suma cantidades colocadas en TODOS los pallets+reservas
+  function getPlacedCount(productId) {
+    return results.reduce((sum, r) => {
+      const b = r.boxes.filter(x => x.id === productId).length;
+      const rsv = (r.reserveBoxes || []).filter(x => x.id === productId).length;
+      return sum + b + rsv;
+    }, 0);
+  }
+  // "+ Acá" / "Sugerir lugar" en modo manual: usa motor para encontrar mejor posición
+  function handlePlaceUnit(productId) {
+    const r = placeLeftoverInActiveResult(productId);
+    if (!r?.ok) {
+      const reasons = { 'no-fit': 'No hay espacio en este pallet', 'no-leftover': 'Ya están todas colocadas', 'missing-result': 'No hay pallet activo', 'missing-product': 'Producto no encontrado' };
+      showToast(reasons[r?.reason] || 'No se pudo ubicar', 'error');
+    }
   }
 
   // ── Export to container ──
@@ -676,7 +710,11 @@ export default function PalletBuilder() {
               <p style={{ fontSize: 12 }}>Sin productos aún.</p>
             </div>
           ) : (
-            products.map(p => (
+            products.map(p => {
+              const placed = getPlacedCount(p.id);
+              const remaining = Math.max(0, (p.qty || 0) - placed);
+              const showManualBtn = buildMode === 'manual' && results.length > 0 && remaining > 0;
+              return (
               <div key={p.id} className="queue-item" style={{ marginBottom: 6 }}>
                 {p.imgUrl
                   ? <img src={p.imgUrl} style={{ width: 28, height: 28, objectFit: 'cover', borderRadius: 4, flexShrink: 0 }} />
@@ -699,9 +737,21 @@ export default function PalletBuilder() {
                   <div className="queue-meta">
                     {p.dims.L}×{p.dims.W}×{p.dims.H} cm · {p.qty} cj
                     {p.weight > 0 ? ` · ${p.weight} kg/u` : ''}
+                    {buildMode === 'manual' && results.length > 0 && (
+                      <span style={{ marginLeft: 6, padding: '1px 6px', borderRadius: 8, background: remaining > 0 ? 'var(--bg-3)' : 'var(--accent-dim, #d8efe2)', color: remaining > 0 ? 'var(--text-2)' : 'var(--accent)', fontFamily: "'DM Mono', monospace", fontSize: 9, fontWeight: 700 }}>
+                        {placed}/{p.qty}
+                      </span>
+                    )}
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: 3, flexShrink: 0 }}>
+                  {showManualBtn && (
+                    <button
+                      onClick={() => handlePlaceUnit(p.id)}
+                      title="Ubicar 1 unidad con asistencia del motor"
+                      style={{ background: 'var(--accent)', border: 'none', borderRadius: 4, padding: '3px 8px', fontSize: 10, color: '#fff', cursor: 'pointer', fontWeight: 700, fontFamily: "'DM Mono', monospace" }}
+                    >+ Acá</button>
+                  )}
                   <button
                     onClick={() => openEditForm(p)}
                     style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 3, padding: '2px 5px', fontSize: 9, color: 'var(--text-3)', cursor: 'pointer' }}
@@ -712,7 +762,8 @@ export default function PalletBuilder() {
                   >×</button>
                 </div>
               </div>
-            ))
+              );
+            })
           )}
         </div>
 
@@ -724,14 +775,33 @@ export default function PalletBuilder() {
           >
             + Agregar producto
           </button>
-          <button
-            className="btn-primary"
-            style={{ width: '100%', padding: '10px 0' }}
-            onClick={handleBuild}
-            disabled={!products.length || isBuilding}
-          >
-            {isBuilding ? 'Armando...' : 'Armar pallets'}
-          </button>
+          {buildMode === 'auto' ? (
+            <button
+              className="btn-primary"
+              style={{ width: '100%', padding: '10px 0' }}
+              onClick={handleBuild}
+              disabled={!products.length || isBuilding}
+            >
+              {isBuilding ? 'Armando...' : '🤖 Armar pallets (motor)'}
+            </button>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+              <button
+                onClick={handleStartEmpty}
+                disabled={!products.length || isBuilding}
+                style={{ padding: '10px 4px', fontSize: 11, borderRadius: 6, border: '1.5px solid var(--accent)', background: 'transparent', color: 'var(--accent)', cursor: 'pointer', fontWeight: 700, fontFamily: "'DM Mono', monospace" }}
+              >
+                📦 Vacío
+              </button>
+              <button
+                onClick={handleStartPrebuilt}
+                disabled={!products.length || isBuilding}
+                style={{ padding: '10px 4px', fontSize: 11, borderRadius: 6, border: '1.5px solid var(--accent)', background: 'var(--accent)', color: '#fff', cursor: 'pointer', fontWeight: 700, fontFamily: "'DM Mono', monospace" }}
+              >
+                {isBuilding ? '...' : '🤖 Pre-armar'}
+              </button>
+            </div>
+          )}
         </div>
       </aside>
 
@@ -809,6 +879,32 @@ export default function PalletBuilder() {
             🔗 {currentJobTracking ? 'Link seguimiento' : 'Sin link'}
           </button>
 
+          {/* Toggle modo Auto / Manual */}
+          <div style={{ display: 'inline-flex', border: '1.5px solid var(--border)', borderRadius: 8, padding: 2, background: 'var(--bg-3)' }}>
+            <button
+              type="button"
+              onClick={() => setBuildMode('auto')}
+              style={{
+                padding: '5px 12px', fontSize: 10, fontFamily: "'DM Mono', monospace", letterSpacing: '0.4px',
+                borderRadius: 6, cursor: 'pointer', border: 'none', fontWeight: 700,
+                background: buildMode === 'auto' ? 'var(--accent)' : 'transparent',
+                color: buildMode === 'auto' ? '#fff' : 'var(--text-3)',
+              }}
+              title="El motor arma los pallets automáticamente"
+            >🤖 Auto</button>
+            <button
+              type="button"
+              onClick={() => setBuildMode('manual')}
+              style={{
+                padding: '5px 12px', fontSize: 10, fontFamily: "'DM Mono', monospace", letterSpacing: '0.4px',
+                borderRadius: 6, cursor: 'pointer', border: 'none', fontWeight: 700,
+                background: buildMode === 'manual' ? 'var(--accent)' : 'transparent',
+                color: buildMode === 'manual' ? '#fff' : 'var(--text-3)',
+              }}
+              title="Vos armás el pallet con asistencia del motor (snap, gravedad, sugerencias)"
+            >✋ Manual</button>
+          </div>
+
           <div style={{ display: 'flex', gap: 6, marginLeft: 'auto' }}>
             {currentJobId && (
               <button type="button" onClick={newJob} style={{ padding: '6px 12px', fontSize: 11, borderRadius: 6, border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-2)', cursor: 'pointer', fontFamily: "'DM Mono', monospace" }}>
@@ -839,8 +935,17 @@ export default function PalletBuilder() {
                 />
               </div>
               <div style={{ position: 'absolute', left: 0, right: 0, bottom: 22, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, pointerEvents: 'none', color: 'var(--text-3)' }}>
-                <p style={{ fontSize: 13, fontWeight: 500, margin: 0 }}>Agregá productos y presioná "Armar pallets"</p>
-                <p style={{ fontSize: 11, margin: 0, opacity: 0.8 }}>El motor BFD calculará la distribución óptima.</p>
+                {buildMode === 'manual' ? (
+                  <>
+                    <p style={{ fontSize: 13, fontWeight: 500, margin: 0 }}>Modo manual: agregá productos y elegí cómo empezar</p>
+                    <p style={{ fontSize: 11, margin: 0, opacity: 0.8 }}>📦 Vacío: colocás cada caja con asistencia · 🤖 Pre-armar: el motor arma una base y vos la editás</p>
+                  </>
+                ) : (
+                  <>
+                    <p style={{ fontSize: 13, fontWeight: 500, margin: 0 }}>Agregá productos y presioná "Armar pallets"</p>
+                    <p style={{ fontSize: 11, margin: 0, opacity: 0.8 }}>El motor BFD calculará la distribución óptima.</p>
+                  </>
+                )}
               </div>
             </div>
           ) : (
@@ -891,6 +996,7 @@ export default function PalletBuilder() {
                     onSelectBox={setSelectedBoxUid}
                     onUpdateBoxes={updateActiveResultBoxes}
                     onDropReserveBox={restoreReserveBox}
+                    strictMode={buildMode === 'manual'}
                   />
                   {selectedBox && (
                     <div className="pallet-builder-inspector" style={{ position: 'absolute', right: 22, top: 22, zIndex: 30, width: 'min(272px, calc(100% - 44px))', maxHeight: 'calc(100% - 44px)', background: 'linear-gradient(180deg, rgba(251,247,241,0.98), rgba(243,236,227,0.98))', border: '1px solid rgba(141,121,102,0.22)', borderRadius: 18, boxShadow: '0 20px 44px rgba(97,78,60,0.18)', fontFamily: "'DM Mono', monospace", backdropFilter: 'blur(14px)', overflowX: 'hidden', overflowY: 'auto' }}>
@@ -941,6 +1047,18 @@ export default function PalletBuilder() {
                       </div>
 
                       <div style={{ padding: '12px 14px 14px', display: 'grid', gridTemplateColumns: '1fr', gap: 8 }}>
+                        {buildMode === 'manual' && (
+                          <button
+                            onClick={() => {
+                              const r = suggestRelocate(selectedBox.uid);
+                              if (!r?.ok) showToast('Motor no encontró mejor lugar', 'warn');
+                              else showToast('✓ Reubicado por el motor', 'success');
+                            }}
+                            style={{ padding: '10px 8px', borderRadius: 12, border: '1.5px solid var(--accent)', background: 'var(--accent)', color: '#fff', cursor: 'pointer', fontWeight: 700 }}
+                          >
+                            🤖 Sugerir mejor lugar
+                          </button>
+                        )}
                         <button onClick={() => removeBoxFromActiveResult(selectedBox.uid)} style={{ padding: '10px 8px', borderRadius: 12, border: '1px solid rgba(184,92,92,0.26)', background: 'rgba(184,92,92,0.06)', color: 'var(--danger)', cursor: 'pointer' }}>Mover a reserva</button>
                       </div>
                     </div>

@@ -97,7 +97,7 @@ function resetBoxMeshPositions(t, boxes = []) {
   }
 }
 
-export default function PalletThreeCanvas({ result, selectedBoxUid, onSelectBox, onUpdateBoxes, onDropReserveBox }) {
+export default function PalletThreeCanvas({ result, selectedBoxUid, onSelectBox, onUpdateBoxes, onDropReserveBox, strictMode = false }) {
   const mountRef = useRef(null);
   const threeRef = useRef(null);
   const selectedBoxUidRef = useRef(selectedBoxUid);
@@ -454,6 +454,7 @@ export default function PalletThreeCanvas({ result, selectedBoxUid, onSelectBox,
 
         const snap = 2;
         const stackMode = e.shiftKey;
+        const moveOpts = { strict: !!strictMode };
         const validateMove = (nextX, nextZ) => stackMode
           ? pb_validateGroupPlacement(
               result.boxes,
@@ -462,7 +463,8 @@ export default function PalletThreeCanvas({ result, selectedBoxUid, onSelectBox,
               result.palW,
               result.maxHeight,
               nextX,
-              nextZ
+              nextZ,
+              moveOpts
             )
           : pb_validateSingleBoxMove(
               result.boxes,
@@ -471,7 +473,8 @@ export default function PalletThreeCanvas({ result, selectedBoxUid, onSelectBox,
               result.palW,
               result.maxHeight,
               nextX,
-              nextZ
+              nextZ,
+              moveOpts
             );
 
         const readCandidate = (planeY) => {
@@ -549,7 +552,7 @@ export default function PalletThreeCanvas({ result, selectedBoxUid, onSelectBox,
     }
 
     t.renderer.domElement.style.cursor = hit ? 'pointer' : 'default';
-  }, [applySelectedStyle, result]);
+  }, [applySelectedStyle, result, strictMode]);
 
   const handleMouseUp = useCallback((e) => {
     const t = threeRef.current;
