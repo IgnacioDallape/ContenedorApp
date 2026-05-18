@@ -3598,13 +3598,21 @@ const usePalletStore = create((set, get) => ({
     let finalized = pb_finalizePallets(pallets, products, palL, palW, maxHeight);
     // Optimization pass: try to lower individual boxes to better positions
     finalized = pb_polishPallets(finalized, products, palL, palW, maxHeight);
+
+    // Minimizar cantidad de pallets: merge + stuff. Un solo pase es
+    // suficiente en la práctica — iterar más arriesga tiempos > 30s
+    // sin reducir realmente el conteo de pallets.
     if (finalized.length > 1) {
       finalized = pb_mergeRepackPallets(finalized, products, palL, palW, maxHeight);
     }
-    // Pack any remaining boxes from later pallets onto earlier ones if they
-    // still have room. Eliminates "trailing pallet with 1–2 boxes" cases.
     if (finalized.length > 1) {
       finalized = pb_stuffLeftovers(finalized, products, palL, palW, maxHeight);
+    }
+    // Segundo pase: a veces stuffLeftovers libera el último pallet y
+    // queda 1 solo. Otras consolida lo suficiente para que un merge
+    // adicional cierre otro pallet.
+    if (finalized.length > 1) {
+      finalized = pb_mergeRepackPallets(finalized, products, palL, palW, maxHeight);
     }
 
     // RED DE SEGURIDAD FINAL: gravedad nunca debe estar rota en el output.

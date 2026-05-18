@@ -395,10 +395,11 @@ export default function PalletThreeCanvas({ result, selectedBoxUid, onSelectBox,
   const hitSelected = useCallback((e) => {
     const t = threeRef.current;
     if (!t || !selectedBoxUid) return null;
-    const meshes = t.boxMeshMap.get(selectedBoxUid)?.filter(mesh => mesh.isMesh) || [];
-    const hit = getPointerHit(t.renderer, t.camera, t.raycaster, { children: meshes }, e.clientX, e.clientY);
-    const hits = hit ? [hit] : [];
-    return hits[0] || null;
+    // Incluir TODAS las geometrías asociadas (mesh + edges) para que el usuario
+    // pueda agarrar la caja seleccionada desde el wireframe también, no solo
+    // desde el centro relleno. Coincide con el comportamiento del Container.
+    const items = t.boxMeshMap.get(selectedBoxUid) || [];
+    return getPointerHit(t.renderer, t.camera, t.raycaster, { children: items }, e.clientX, e.clientY);
   }, [selectedBoxUid]);
 
   const handleMouseDown = useCallback((e) => {
@@ -476,8 +477,13 @@ export default function PalletThreeCanvas({ result, selectedBoxUid, onSelectBox,
         const readCandidate = (planeY) => {
           const point = getHorizontalPlaneIntersect(e, t.renderer, t.camera, planeY);
           if (!point) return null;
-          let nextX = Math.round((point.x - box.dX / 2) / snap) * snap;
-          let nextZ = Math.round((point.z - box.dZ / 2) / snap) * snap;
+          // Preservar el punto de grab: usamos el offset capturado en mouseDown
+          // para que la caja no salte al centro del cursor al empezar a
+          // arrastrar. Igual que el Container Loader.
+          const grabOffsetX = t.dragOffsets?.x ?? box.dX / 2;
+          const grabOffsetZ = t.dragOffsets?.z ?? box.dZ / 2;
+          let nextX = Math.round((point.x - grabOffsetX) / snap) * snap;
+          let nextZ = Math.round((point.z - grabOffsetZ) / snap) * snap;
           // Permitir overhang en el drag: la caja puede sobresalir hasta
           // PB_EDGE_OVERHANG (5cm) del borde del pallet (práctica real).
           nextX = Math.max(-PB_EDGE_OVERHANG, Math.min(result.palL + PB_EDGE_OVERHANG - box.dX, nextX));
