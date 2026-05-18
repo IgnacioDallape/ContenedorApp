@@ -3075,6 +3075,60 @@ function pb_gravitySettle(packed, palL, palW, maxH) {
   return working;
 }
 
+// Si una caja está sola en su nivel y se apoya entre varias inferiores
+// (típico: 1 caja arriba de un grid 2×2 → parece flotar visualmente),
+// re-alinearla para que se apoye COMPLETAMENTE sobre 1 sola caja inferior
+// del mismo footprint. Forma una columna en lugar de un apex flotante.
+function pb_alignLoneApex(packed, palL, palW, maxH) {
+  if (!packed?.length) return packed;
+  const working = packed.map(b => ({ ...b }));
+  const byY = new Map();
+  for (const b of working) {
+    const k = Math.round(b.y);
+    byY.set(k, (byY.get(k) || 0) + 1);
+  }
+  for (const box of working) {
+    if (box.y <= PB_HEIGHT_EPS) continue;
+    if ((byY.get(Math.round(box.y)) || 0) !== 1) continue; // no apex
+    // Buscar una caja inferior con footprint igual cuyo top toque box.y
+    const candidates = working.filter(b =>
+      b !== box &&
+      Math.abs((b.y + b.dY) - box.y) <= PB_HEIGHT_EPS &&
+      Math.abs(b.dX - box.dX) <= PB_HEIGHT_EPS &&
+      Math.abs(b.dZ - box.dZ) <= PB_HEIGHT_EPS
+    );
+    if (!candidates.length) continue;
+    // Elegir el más cercano al centro actual de box
+    const cx = box.x + box.dX / 2, cz = box.z + box.dZ / 2;
+    candidates.sort((a, b) => {
+      const da = Math.hypot(a.x + a.dX/2 - cx, a.z + a.dZ/2 - cz);
+      const db = Math.hypot(b.x + b.dX/2 - cx, b.z + b.dZ/2 - cz);
+      return da - db;
+    });
+    // Probar cada candidato y aceptar el primero sin colisión.
+    for (const target of candidates) {
+      if (Math.abs(target.x - box.x) <= PB_HEIGHT_EPS && Math.abs(target.z - box.z) <= PB_HEIGHT_EPS) {
+        break; // ya alineada
+      }
+      const others = working.filter(b => b !== box);
+      let collides = false;
+      for (const o of others) {
+        if (target.x < o.x + o.dX - PB_HEIGHT_EPS && target.x + box.dX > o.x + PB_HEIGHT_EPS &&
+            target.z < o.z + o.dZ - PB_HEIGHT_EPS && target.z + box.dZ > o.z + PB_HEIGHT_EPS &&
+            box.y < o.y + o.dY - PB_HEIGHT_EPS && box.y + box.dY > o.y + PB_HEIGHT_EPS) {
+          collides = true; break;
+        }
+      }
+      if (!collides) {
+        box.x = target.x;
+        box.z = target.z;
+        break;
+      }
+    }
+  }
+  return working;
+}
+
 // Drop any box that fails the strict support check (loops because removing
 // a supporting box can leave others floating). Guarantees a gravity-correct
 // output even when a candidate engine placed something with overhang.
@@ -3136,6 +3190,13 @@ export function pb_runPacking(products, palL, palW, maxH) {
   best = pb_centerPackedLayout(best, palL, palW, maxH);
   best = pb_gravitySettle(best, palL, palW, maxH);
   best = pb_dropFloaters(best, palL, palW);
+
+  // Alinear apex solitarios DESPUÉS del centering: una caja sola arriba de
+  // un grid 2×2 parece flotar visualmente aunque tenga 100% de soporte
+  // sobre las 4 juntas. Si hay otra caja del mismo footprint justo debajo,
+  // formar una columna en lugar (apex pasa a estar exactamente encima de
+  // 1 caja inferior → se ve como pila normal, no como apex flotante).
+  best = pb_alignLoneApex(best, palL, palW, maxH);
 
   return best;
 }
