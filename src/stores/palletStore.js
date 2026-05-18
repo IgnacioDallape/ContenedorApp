@@ -2804,19 +2804,154 @@ function pb_layerCount(boxes) {
   return ys.size;
 }
 
+// Suma el área de "hueco interno" dentro del bbox de cada capa.
+// Esto detecta el patrón "dos torres separadas con canal vacío en el medio":
+// si las cajas de una capa están dispersas, su bbox es grande y el hueco
+// (bbox - área cubierta) es grande también.
+function pb_totalInternalVoid(boxes) {
+  if (!boxes.length) return 0;
+  const byY = new Map();
+  for (const b of boxes) {
+    const k = Math.round(b.y);
+    if (!byY.has(k)) byY.set(k, []);
+    byY.get(k).push(b);
+  }
+  let totalVoid = 0;
+  for (const layer of byY.values()) {
+    if (layer.length < 2) continue;
+    const minX = Math.min(...layer.map(b => b.x));
+    const maxX = Math.max(...layer.map(b => b.x + b.dX));
+    const minZ = Math.min(...layer.map(b => b.z));
+    const maxZ = Math.max(...layer.map(b => b.z + b.dZ));
+    const bboxArea = (maxX - minX) * (maxZ - minZ);
+    const filledArea = layer.reduce((s, b) => s + b.dX * b.dZ, 0);
+    totalVoid += Math.max(0, bboxArea - filledArea);
+  }
+  return totalVoid;
+}
+
 function pb_isBetterLayout(candidate, current) {
   if (candidate.length > current.length) return true;
   if (candidate.length < current.length) return false;
   if (candidate.length === 0) return false;
-  // Same box count — pick the cleaner layout. Each extra distinct Y level
-  // is worth 25cm of top height: 5 clean layers @ 172cm (score 297) beats
-  // 6 fragmented layers @ 150cm (score 300). Chosen so layer engine wins
-  // over 'auto' greedy when pack counts are tied.
+  // Misma cantidad de cajas: ganar al layout más limpio.
+  // - cada Y distinto cuesta 25cm de top
+  // - cada 100cm² de hueco interno cuesta 10cm de top (= ×0.1)
+  //   Para un void total de 20000cm² (caso real: canales de 53% en 5 capas),
+  //   esto añade 2000cm al score — domina sobre top/layers y favorece
+  //   layouts más compactos aunque sean ligeramente más altos.
   const cTop = pb_calcTop(candidate);
   const curTop = pb_calcTop(current);
   const cLayers = pb_layerCount(candidate);
   const curLayers = pb_layerCount(current);
-  return (cTop + cLayers * 25) < (curTop + curLayers * 25) - 0.1;
+  const cVoid = pb_totalInternalVoid(candidate);
+  const curVoid = pb_totalInternalVoid(current);
+  const cScore = cTop + cLayers * 25 + cVoid * 0.1;
+  const curScore = curTop + curLayers * 25 + curVoid * 0.1;
+  return cScore < curScore - 0.1;
+}
+
+// Para cada capa (Y) con más de una caja, desliza cada caja lateralmente
+// hacia el centro de masa de las otras cajas de la misma capa SI:
+//   - no provoca colisión
+//   - la caja sigue teniendo soporte (gravedad)
+//   - no rompe el soporte de cajas de capas superiores
+// Esto cierra los "canales internos" típicos cuando el motor coloca cajas
+// en bordes opuestos dejando el medio vacío.
+function pb_compactLaterally(packed, palL, palW, maxH) {
+  if (!packed.length || packed.length > 200) return packed;
+  let working = packed.map(b => ({ ...b }));
+  const passes = 4;
+
+  for (let pass = 0; pass < passes; pass++) {
+    let moved = false;
+    // Agrupar por Y
+    const byY = new Map();
+    for (const b of working) {
+      const k = Math.round(b.y);
+      if (!byY.has(k)) byY.set(k, []);
+      byY.get(k).push(b);
+    }
+
+    // Para cada capa con >= 2 cajas, calcular centro de masa y mover hacia él
+    for (const [yKey, layer] of byY) {
+      if (layer.length < 2) continue;
+      let totalArea = 0, cx = 0, cz = 0;
+      for (const b of layer) {
+        const a = b.dX * b.dZ;
+        cx += (b.x + b.dX / 2) * a;
+        cz += (b.z + b.dZ / 2) * a;
+        totalArea += a;
+      }
+      cx /= totalArea; cz /= totalArea;
+
+      for (const box of layer) {
+        const others = working.filter(b => b.uid !== box.uid);
+        // Dirección hacia el centro
+        const bxCenter = box.x + box.dX / 2;
+        const bzCenter = box.z + box.dZ / 2;
+        const dx0 = cx - bxCenter, dz0 = cz - bzCenter;
+        if (Math.abs(dx0) < 1 && Math.abs(dz0) < 1) continue;
+        // Probar pasos de 2cm hacia el centro
+        const stepCount = 10;
+        const stepX = Math.sign(dx0) * Math.min(2, Math.abs(dx0));
+        const stepZ = Math.sign(dz0) * Math.min(2, Math.abs(dz0));
+        let bestX = box.x, bestZ = box.z, anyMove = false;
+        for (let s = 1; s <= stepCount; s++) {
+          const tryX = pb_roundToGrid(box.x + stepX * s);
+          const tryZ = pb_roundToGrid(box.z + stepZ * s);
+          if (tryX < -PB_EDGE_OVERHANG - 0.1 || tryZ < -PB_EDGE_OVERHANG - 0.1) break;
+          if (tryX + box.dX > palL + PB_EDGE_OVERHANG + 0.1) break;
+          if (tryZ + box.dZ > palW + PB_EDGE_OVERHANG + 0.1) break;
+          // Colisión 3D contra otros
+          let collides = false;
+          for (const o of others) {
+            if (tryX < o.x + o.dX - PB_HEIGHT_EPS && tryX + box.dX > o.x + PB_HEIGHT_EPS &&
+                tryZ < o.z + o.dZ - PB_HEIGHT_EPS && tryZ + box.dZ > o.z + PB_HEIGHT_EPS &&
+                box.y < o.y + o.dY - PB_HEIGHT_EPS && box.y + box.dY > o.y + PB_HEIGHT_EPS) {
+              collides = true; break;
+            }
+          }
+          if (collides) break;
+          // Soporte propio
+          if (box.y > PB_HEIGHT_EPS) {
+            const supRects = pb_getLevelSupportRects(others, box.y, palL, palW);
+            const sup = pb_supportForRect({ x: tryX, z: tryZ, dX: box.dX, dZ: box.dZ }, supRects);
+            if (!sup.supported) break;
+          }
+          // Soporte de cajas que apoyan EN ESTA caja
+          let breaksUpper = false;
+          const myTop = box.y + box.dY;
+          const newRect = { x: tryX, z: tryZ, dX: box.dX, dZ: box.dZ };
+          for (const upper of others) {
+            if (Math.abs(upper.y - myTop) > PB_HEIGHT_EPS) continue;
+            // Simular: ¿upper sigue teniendo soporte?
+            const upperSupportRects = others
+              .filter(b => b.uid !== upper.uid && Math.abs(b.y + b.dY - upper.y) <= PB_HEIGHT_EPS)
+              .map(b => ({ x: b.x, z: b.z, dX: b.dX, dZ: b.dZ }));
+            // reemplazar la entrada de esta caja con su nueva pos
+            upperSupportRects.push(newRect);
+            const upSup = pb_supportForRect({ x: upper.x, z: upper.z, dX: upper.dX, dZ: upper.dZ }, upperSupportRects);
+            if (!upSup.supported) { breaksUpper = true; break; }
+          }
+          if (breaksUpper) break;
+          bestX = tryX; bestZ = tryZ; anyMove = true;
+        }
+        if (anyMove) {
+          const idx = working.findIndex(b => b.uid === box.uid);
+          if (idx >= 0) {
+            working[idx] = { ...working[idx], x: bestX, z: bestZ };
+            // También actualizar el box local para que las siguientes iteraciones lo vean en su nueva posición
+            box.x = bestX;
+            box.z = bestZ;
+            moved = true;
+          }
+        }
+      }
+    }
+    if (!moved) break;
+  }
+  return working;
 }
 
 // Iteratively lower boxes into any internal holes using a full systematic
@@ -3224,6 +3359,10 @@ export function pb_runPacking(products, palL, palW, maxH) {
   const oldResult = normalize(runPalletPacking(products, { palL, palW, maxH, variant: 'auto' }));
   if (pb_isBetterLayout(oldResult, best)) best = oldResult;
 
+  // Compactar lateralmente: desliza cajas hacia el centro de su capa para
+  // cerrar canales internos típicos del greedy ("dos torres con hueco").
+  best = pb_compactLaterally(best, palL, palW, maxH);
+
   // Final pass: center the cluster on the pallet so layouts that don't fill
   // the full footprint don't get visually pushed into a corner.
   // Safety net: gravitySettle + dropFloaters again after centering, since
@@ -3290,6 +3429,10 @@ function pb_sortContainerLikeUnits(units, variant = 'auto') {
     const bWeight = Number(b.weight || 0);
 
     if (variant === 'low-height') {
+      // Short boxes first (ascending H): they fill the floor at y=0 with the
+      // minimum top height. The stronger scoring below (layerVoidMul=300,
+      // adjMul=8000) then clusters same-height boxes together so boxes with
+      // similar H form contiguous groups rather than scattered columns.
       if (Math.abs(aH - bH) > 0.01) return aH - bH;
       if (Math.abs(bFoot - aFoot) > 0.01) return bFoot - aFoot;
       return bVolume - aVolume;
@@ -3328,6 +3471,8 @@ function pb_containerLikeCandidateScore(candidate, unit, packed, palL, palW, var
   // === Compactness — the dominant shape signal ===
   // Global XZ bounding box of every placed box INCLUDING this candidate.
   // Pulls each new box toward the existing cluster instead of a fresh corner.
+  // For low-height, use 3× the multiplier so isolated columns are strongly
+  // penalised relative to positions that stay inside the existing footprint.
   let bbMinX = px, bbMaxX = myRight, bbMinZ = pz, bbMaxZ = myFront;
   for (const b of packed) {
     if (b.x < bbMinX) bbMinX = b.x;
@@ -3335,11 +3480,14 @@ function pb_containerLikeCandidateScore(candidate, unit, packed, palL, palW, var
     if (b.z < bbMinZ) bbMinZ = b.z;
     if (b.z + b.dZ > bbMaxZ) bbMaxZ = b.z + b.dZ;
   }
-  const bboxPenalty = (bbMaxX - bbMinX) * (bbMaxZ - bbMinZ) * 20;
+  const bboxMul = variant === 'low-height' ? 60 : 20;
+  const bboxPenalty = (bbMaxX - bbMinX) * (bbMaxZ - bbMinZ) * bboxMul;
 
   // Same-layer void: empty area inside the current layer's bbox.
   // This is what catches "channels in the middle" — placing far from the
   // existing layer cluster inflates the layer bbox more than it adds filled area.
+  // For low-height, the multiplier is 5× stronger so gap positions decisively
+  // lose to adjacent positions when top-height is the same.
   let layerFilled = ori.dX * ori.dZ;
   let lbMinX = px, lbMaxX = myRight, lbMinZ = pz, lbMaxZ = myFront;
   for (const b of sameLayer) {
@@ -3350,7 +3498,8 @@ function pb_containerLikeCandidateScore(candidate, unit, packed, palL, palW, var
     if (b.z + b.dZ > lbMaxZ) lbMaxZ = b.z + b.dZ;
   }
   const layerBboxArea = (lbMaxX - lbMinX) * (lbMaxZ - lbMinZ);
-  const layerVoidPenalty = Math.max(0, layerBboxArea - layerFilled) * 60;
+  const layerVoidMul = variant === 'low-height' ? 300 : 60;
+  const layerVoidPenalty = Math.max(0, layerBboxArea - layerFilled) * layerVoidMul;
 
   // === Adjacency to neighbours at same Y (cluster-formation reward) ===
   let contactPerim = 0;
@@ -3365,7 +3514,8 @@ function pb_containerLikeCandidateScore(candidate, unit, packed, palL, palW, var
       contactPerim += overlapX; contactCount++;
     }
   }
-  const adjacencyBonus = contactPerim * 2500;
+  const adjMul = variant === 'low-height' ? 8000 : 2500;
+  const adjacencyBonus = contactPerim * adjMul;
 
   // Wall contact — weak; only useful to anchor the very first box on base.
   let wallContact = 0;
@@ -3378,14 +3528,17 @@ function pb_containerLikeCandidateScore(candidate, unit, packed, palL, palW, var
   // Lonely upper-layer stacking is forbidden in real pallets.
   const isolationPenalty = !isBase && contactCount === 0 ? 500000 : 0;
 
-  // Flat upper surface within a layer.
+  // Flat upper surface within a layer. Castigo MUY fuerte por diferencia
+  // de alturas dentro de la misma capa: clave para no mezclar (p.ej.)
+  // cajas de 20cm con cajas de 22cm al lado, lo cual rompe el apilado
+  // posterior y crea canales internos.
   let topAlignPenalty = 0;
   if (sameLayer.length > 0) {
     const closestTop = sameLayer.reduce(
       (best, b) => Math.abs((b.y + b.dY) - top) < Math.abs(best - top) ? (b.y + b.dY) : best,
       sameLayer[0].y + sameLayer[0].dY
     );
-    topAlignPenalty = Math.abs(top - closestTop) * 900;
+    topAlignPenalty = Math.abs(top - closestTop) * 12000;
   }
 
   // No orientation bias — engine picks whichever rotation packs best.
