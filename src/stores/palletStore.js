@@ -3673,6 +3673,68 @@ const usePalletStore = create((set, get) => ({
     set({ results: updated, selectedBoxUid: selectedBoxUid === uid ? null : selectedBoxUid });
   },
 
+  // Intenta colocar UNA unidad de un producto que no entró en NINGÚN pallet
+  // dentro del pallet activo. Si encuentra una posición válida (con el motor
+  // estricto: full support, sin overhang aceptable), la agrega.
+  // Útil cuando el usuario está editando un pallet y quiere meter cajas
+  // huérfanas de otros pallets que sí caben en este.
+  placeLeftoverInActiveResult(productId) {
+    const { results, activeResult, products } = get();
+    const current = results[activeResult];
+    if (!current) return { ok: false, reason: 'missing-result' };
+
+    const product = products.find(p => p.id === productId);
+    if (!product) return { ok: false, reason: 'missing-product' };
+
+    // Cuántas unidades ya están ubicadas (en algún pallet o reserva)
+    const placedAcrossAll = results.reduce((sum, r) => {
+      const inBoxes = r.boxes.filter(b => b.id === productId).length;
+      const inReserve = (r.reserveBoxes || []).filter(b => b.id === productId).length;
+      return sum + inBoxes + inReserve;
+    }, 0);
+    const remainingQty = Math.max(0, (product.qty || 0) - placedAcrossAll);
+    if (remainingQty <= 0) return { ok: false, reason: 'no-leftover' };
+
+    const newIndex = (product.qty || 0) - remainingQty;
+    const unit = {
+      ...product,
+      uid: `${productId}::${newIndex}::leftover-${Date.now()}`,
+      mustBeBase: !!product.mustBeBase,
+      noRotate: !!product.noRotate,
+    };
+
+    const hm = pb_buildHMFromPacked(current.boxes, current.palL, current.palW);
+    const placement = pb_tryFindContainerLikePlacement(
+      unit, current.boxes, hm, current.palL, current.palW, current.maxHeight, 'auto', 0
+    );
+    if (!placement) return { ok: false, reason: 'no-fit' };
+
+    const newBox = {
+      uid: unit.uid,
+      id: unit.id,
+      name: unit.name,
+      color: unit.color || product.color,
+      x: placement.px,
+      y: placement.y,
+      z: placement.pz,
+      dX: placement.ori.dX,
+      dY: placement.ori.dY,
+      dZ: placement.ori.dZ,
+      weight: Number(unit.weight || 0),
+      sourceDims: { L: product.dims.L, W: product.dims.W, H: product.dims.H },
+      mustBeBase: !!unit.mustBeBase,
+      noRotate: !!unit.noRotate,
+    };
+
+    const updated = [...results];
+    updated[activeResult] = pb_finalizeResultMeta(
+      { ...current, boxes: [...current.boxes, newBox] },
+      current.products || []
+    );
+    set({ results: updated, selectedBoxUid: newBox.uid });
+    return { ok: true, box: newBox };
+  },
+
   restoreReserveBoxToActiveResult(uid, nextX = null, nextZ = null) {
     const { results, activeResult, selectedBoxUid } = get();
     const current = results[activeResult];

@@ -49,7 +49,7 @@ export default function PalletBuilder() {
     setPalletType, setMaxHeight, addOrUpdateProduct, removeProduct,
     setEditingId, editingId, build, setActiveResult, clearResults,
     selectedBoxUid, setSelectedBoxUid, updateActiveResultBoxes, removeBoxFromActiveResult,
-    restoreReserveBoxToActiveResult, reorderActiveResult,
+    restoreReserveBoxToActiveResult, reorderActiveResult, placeLeftoverInActiveResult,
   } = usePalletStore();
   const { setPendingProduct, catalog, setActiveSection: containerNav } = useContainerStore();
   const { setActiveSection, showToast } = useAppStore();
@@ -340,6 +340,18 @@ export default function PalletBuilder() {
     }
     showToast('Caja reinsertada en el pallet', 'success');
     return true;
+  }
+
+  // "No entraron" → probar a meterla en el pallet activo.
+  function placeLeftoverHere(productId, productName) {
+    const result = placeLeftoverInActiveResult(productId);
+    if (!result?.ok) {
+      const msg = result?.reason === 'no-fit'
+        ? `No entra "${productName}" en este pallet. Probá moverlo a otro pallet o reordenar.`
+        : 'No pude colocar la caja';
+      return showToast(msg, 'error');
+    }
+    showToast(`✓ "${productName}" colocada en el pallet activo`, 'success');
   }
 
   function reorderPallet(variant, label) {
@@ -1053,15 +1065,32 @@ export default function PalletBuilder() {
                           <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--red)', letterSpacing: 1, marginBottom: 6 }}>NO ENTRARON</div>
                           {leftover.map(p => {
                             const placed = results.reduce((s, r) => s + r.boxes.filter(b => b.name === p.name).length, 0);
+                            const remaining = p.qty - placed;
                             return (
-                              <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, marginBottom: 4 }}>
+                              <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, marginBottom: 6 }}>
                                 <span style={{ display: 'inline-block', width: 7, height: 7, borderRadius: 2, background: p.color || '#999' }} />
-                                <span style={{ flex: 1 }}>{p.name}</span>
-                                <span style={{ color: 'var(--red)', fontWeight: 600 }}>{p.qty - placed} sin ubicar</span>
+                                <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
+                                <span style={{ color: 'var(--red)', fontWeight: 600, fontSize: 10, flexShrink: 0 }}>{remaining} sin ubicar</span>
+                                <button
+                                  type="button"
+                                  onClick={() => placeLeftoverHere(p.id, p.name)}
+                                  title="Probar a meter una unidad en el pallet activo"
+                                  style={{
+                                    padding: '4px 8px', fontSize: 10, fontWeight: 700,
+                                    borderRadius: 6, border: '1px solid var(--accent)',
+                                    background: 'var(--accent)', color: '#fff',
+                                    cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0,
+                                    fontFamily: "'DM Mono', monospace",
+                                  }}
+                                >
+                                  + Acá
+                                </button>
                               </div>
                             );
                           })}
-                          <div style={{ fontSize: 10, color: 'var(--text-3)', marginTop: 6 }}>Aumentá la altura máxima o reducí las cantidades</div>
+                          <div style={{ fontSize: 10, color: 'var(--text-3)', marginTop: 6 }}>
+                            "+ Acá" intenta meter 1 unidad en este pallet. Si no entra acá, probá otro pallet o aumentá la altura máxima.
+                          </div>
                         </div>
                       );
                     })()}
