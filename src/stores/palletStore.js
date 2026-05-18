@@ -3127,6 +3127,10 @@ export function pb_runPacking(products, palL, palW, maxH) {
   const oldResult = normalize(runPalletPacking(products, { palL, palW, maxH, variant: 'auto' }));
   if (pb_isBetterLayout(oldResult, best)) best = oldResult;
 
+  // Final pass: center the cluster on the pallet so layouts that don't fill
+  // the full footprint don't get visually pushed into a corner.
+  best = pb_centerPackedLayout(best, palL, palW, maxH);
+
   return best;
 }
 
