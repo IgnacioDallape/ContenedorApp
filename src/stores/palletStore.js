@@ -3129,7 +3129,13 @@ export function pb_runPacking(products, palL, palW, maxH) {
 
   // Final pass: center the cluster on the pallet so layouts that don't fill
   // the full footprint don't get visually pushed into a corner.
+  // Safety net: gravitySettle + dropFloaters again after centering, since
+  // the per-level re-centering can in rare cases expose floats that the
+  // shift-validators missed (e.g. a box ended up sitting on the seam
+  // between two supports that moved apart by 1 grid step).
   best = pb_centerPackedLayout(best, palL, palW, maxH);
+  best = pb_gravitySettle(best, palL, palW, maxH);
+  best = pb_dropFloaters(best, palL, palW);
 
   return best;
 }
