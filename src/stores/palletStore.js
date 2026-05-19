@@ -3742,7 +3742,12 @@ const usePalletStore = create((set, get) => ({
   },
 
   setMaxHeight(h) {
-    set({ maxHeight: parseInt(h) || 180 });
+    const next = parseInt(h) || 180;
+    // Propagar a TODOS los resultados existentes — el shell 3D y los validadores
+    // leen result.maxHeight, así que sin esto el slider no tendría efecto visible.
+    const { results } = get();
+    const updated = results.map(r => ({ ...r, maxHeight: next }));
+    set({ maxHeight: next, results: updated });
   },
 
   addOrUpdateProduct(prod) {
