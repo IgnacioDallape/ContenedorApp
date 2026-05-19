@@ -78,6 +78,9 @@ export default function PalletBuilder() {
   const [savedList, setSavedList] = useState([]);
   const [savedLoading, setSavedLoading] = useState(false);
   const [trackingDraft, setTrackingDraft] = useState('');
+  const [isSharing, setIsSharing] = useState(false);
+  const [isExportingPDF, setIsExportingPDF] = useState(false);
+  const [currentJobIsPublic, setCurrentJobIsPublic] = useState(false);
 
   const currentJobStatusCfg = STATUS_CONFIG[currentJobStatus] || STATUS_CONFIG.preparacion;
   const canEditJob = !currentJobId || currentJobStatus === 'preparacion';
@@ -514,6 +517,7 @@ export default function PalletBuilder() {
     setCurrentJobName('');
     setCurrentJobStatus('preparacion');
     setCurrentJobTracking('');
+    setCurrentJobIsPublic(false);
   }
 
   function openSaveModal() {
@@ -594,6 +598,118 @@ export default function PalletBuilder() {
     } finally { setIsSaving(false); }
   }
 
+  // ── Compartir link público ──
+  async function copyToClipboardUrl(url) {
+    if (navigator.clipboard?.writeText) {
+      try { await navigator.clipboard.writeText(url); return true; } catch {}
+    }
+    const ta = document.createElement('textarea');
+    ta.value = url; ta.style.position = 'fixed'; ta.style.top = '-9999px';
+    document.body.appendChild(ta); ta.select();
+    let ok = false;
+    try { ok = document.execCommand('copy'); } finally { document.body.removeChild(ta); }
+    return ok;
+  }
+
+  async function handleSharePallet() {
+    if (isSharing) return;
+    if (!products.length) return showToast('Agregá productos primero', 'error');
+    if (!results.length) return showToast('Armá el pallet primero', 'error');
+
+    setIsSharing(true);
+    try {
+      // Si no está guardado, guardar primero automáticamente
+      let jobId = currentJobId;
+      let jobName = currentJobName;
+      if (!jobId) {
+        const { data: { session } } = await _sb.auth.getSession();
+        if (!session) { showToast('Necesitás estar logueado', 'error'); return; }
+        const autoName = `Pallet ${new Date().toLocaleDateString('es-AR')}`;
+        const payload = buildJobPayload();
+        const { data: inserted, error } = await _sb.from('pallets').insert({
+          user_id: session.user.id,
+          name: autoName,
+          payload,
+          status: currentJobStatus,
+          tracking_url: currentJobTracking || null,
+          is_public: true,
+        }).select('id').single();
+        if (error) { showToast('No pude guardar: ' + error.message, 'error'); return; }
+        jobId = inserted.id;
+        jobName = autoName;
+        setCurrentJobId(jobId);
+        setCurrentJobName(autoName);
+        setCurrentJobIsPublic(true);
+      } else if (!currentJobIsPublic) {
+        const { error } = await _sb.from('pallets').update({ is_public: true }).eq('id', jobId);
+        if (error) { showToast('No pude activar el link: ' + error.message, 'error'); return; }
+        setCurrentJobIsPublic(true);
+      }
+
+      const url = getPalletShareUrl(jobId);
+      const shareData = {
+        title: jobName ? `Pallet ${jobName}` : 'Pallet ImportaPro',
+        text: jobName ? `Te comparto el pallet "${jobName}".` : 'Te comparto este pallet.',
+        url,
+      };
+      const canShare = typeof navigator.share === 'function' && (!navigator.canShare || navigator.canShare(shareData));
+      if (canShare) {
+        try { await navigator.share(shareData); showToast('Link compartido', 'success'); return; }
+        catch (e) { if (e?.name === 'AbortError') return; }
+      }
+      const ok = await copyToClipboardUrl(url);
+      showToast(ok ? `🔗 Link copiado: ${url}` : 'No pude copiar el link', ok ? 'success' : 'error');
+    } catch (e) {
+      console.error('[PalletBuilder] share error:', e);
+      showToast('Error al compartir: ' + (e.message || e), 'error');
+    } finally {
+      setIsSharing(false);
+    }
+  }
+
+  // ── Exportar PDF con foto + productos + precios + guía de carga ──
+  async function handleExportPDF() {
+    if (isExportingPDF) return;
+    if (!results.length) return showToast('Armá el pallet primero', 'error');
+    setIsExportingPDF(true);
+    try {
+      // Capturar snapshots de cada pallet 3D
+      const palletCanvas = document.querySelector('.pallet-builder-canvas-panel canvas');
+      const snapshots = [];
+      // Capturar el activo actual
+      for (let i = 0; i < results.length; i++) {
+        if (i !== activeResult) setActiveResult(i);
+        // Esperar al render
+        await new Promise(r => setTimeout(r, 250));
+        const canvas = document.querySelector('.pallet-builder-canvas-panel canvas');
+        if (canvas) {
+          try { snapshots.push({ idx: i, dataUrl: canvas.toDataURL('image/jpeg', 0.92) }); }
+          catch (e) { console.warn('snapshot fail', e); }
+        }
+      }
+      // Restaurar pallet activo
+      setActiveResult(0);
+
+      const { exportPalletPDF } = await import('../../lib/exportPalletPDF.js');
+      await exportPalletPDF({
+        palletName: currentJobName || 'Pallet sin nombre',
+        palletId: currentJobId,
+        palletType,
+        maxHeight,
+        products,
+        results,
+        snapshots,
+        tracking: currentJobTracking,
+      });
+      showToast('PDF generado', 'success');
+    } catch (e) {
+      console.error('[PalletBuilder] PDF error:', e);
+      showToast('Error al generar PDF: ' + (e.message || e), 'error');
+    } finally {
+      setIsExportingPDF(false);
+    }
+  }
+
   async function confirmOverwrite() {
     if (isSaving) return;
     setIsSaving(true);
@@ -655,6 +771,7 @@ export default function PalletBuilder() {
       setCurrentJobName(data.name);
       setCurrentJobStatus(normalizeJobStatus(data.status));
       setCurrentJobTracking(data.tracking_url || '');
+      setCurrentJobIsPublic(!!data.is_public);
       setShowLoad(false);
       showToast(`✓ Pallet "${data.name}" cargado`, 'success');
     } catch (e) {
@@ -965,7 +1082,7 @@ export default function PalletBuilder() {
             >✋ Manual</button>
           </div>
 
-          <div style={{ display: 'flex', gap: 6, marginLeft: 'auto' }}>
+          <div style={{ display: 'flex', gap: 6, marginLeft: 'auto', flexWrap: 'wrap' }}>
             {currentJobId && (
               <button type="button" onClick={newJob} style={{ padding: '6px 12px', fontSize: 11, borderRadius: 6, border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-2)', cursor: 'pointer', fontFamily: "'DM Mono', monospace" }}>
                 + Nuevo
@@ -976,6 +1093,24 @@ export default function PalletBuilder() {
             </button>
             <button type="button" onClick={openSaveModal} disabled={!products.length} style={{ padding: '6px 14px', fontSize: 11, borderRadius: 6, border: '1.5px solid var(--accent)', background: 'var(--accent)', color: '#fff', cursor: products.length ? 'pointer' : 'default', fontFamily: "'DM Mono', monospace", fontWeight: 700, opacity: products.length ? 1 : 0.5 }}>
               💾 Guardar
+            </button>
+            <button
+              type="button"
+              onClick={handleSharePallet}
+              disabled={!results.length || isSharing}
+              title="Genera un link público de solo-lectura"
+              style={{ padding: '6px 12px', fontSize: 11, borderRadius: 6, border: `1.5px solid ${currentJobIsPublic ? '#3A8C52' : 'var(--border)'}`, background: currentJobIsPublic ? '#EDF7F1' : 'var(--bg-3)', color: currentJobIsPublic ? '#3A8C52' : 'var(--text)', cursor: (results.length && !isSharing) ? 'pointer' : 'default', fontFamily: "'DM Mono', monospace", fontWeight: 700, opacity: results.length ? 1 : 0.5 }}
+            >
+              {isSharing ? '🔗 ...' : (currentJobIsPublic ? '🔗 Link activo' : '🔗 Compartir')}
+            </button>
+            <button
+              type="button"
+              onClick={handleExportPDF}
+              disabled={!results.length || isExportingPDF}
+              title="Genera un PDF con fotos, productos, precios y guía de carga"
+              style={{ padding: '6px 12px', fontSize: 11, borderRadius: 6, border: '1.5px solid var(--border)', background: 'var(--bg-3)', color: 'var(--text)', cursor: (results.length && !isExportingPDF) ? 'pointer' : 'default', fontFamily: "'DM Mono', monospace", fontWeight: 700, opacity: results.length ? 1 : 0.5 }}
+            >
+              {isExportingPDF ? '📄 ...' : '📄 PDF'}
             </button>
           </div>
         </div>

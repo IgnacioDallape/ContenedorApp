@@ -6,11 +6,17 @@ import LoginPage from './components/Auth/LoginPage.jsx';
 import AppShell from './components/Layout/AppShell.jsx';
 import PWAInstallPrompt from './components/PWAInstallPrompt.jsx';
 import SharePage from './components/Share/SharePage.jsx';
+import SharePalletPage from './components/Share/SharePalletPage.jsx';
 import Toast from './components/Toast.jsx';
 
-// Detect /share/:id in URL
+// Detect /share/:id in URL (shipment)
 function getShareId() {
   const match = window.location.pathname.match(/^\/share\/([a-f0-9-]{36})$/i);
+  return match ? match[1] : null;
+}
+// Detect /share/pallet/:id in URL
+function getPalletShareId() {
+  const match = window.location.pathname.match(/^\/share\/pallet\/([a-f0-9-]{36})$/i);
   return match ? match[1] : null;
 }
 
@@ -20,10 +26,11 @@ export default function App() {
   const [authMode, setAuthMode] = useState('login');
   const [authMessage, setAuthMessage] = useState('');
   const shareId = getShareId();
+  const palletShareId = getPalletShareId();
 
   // Hooks must always be called — early return is AFTER all hooks
   useEffect(() => {
-    if (shareId) return;
+    if (shareId || palletShareId) return;
     init().then(mode => {
       if (mode === 'recovery') {
         setAuthMode('recovery');
@@ -36,11 +43,12 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (shareId || !user) return;
+    if (shareId || palletShareId || !user) return;
     loadCatalog();
   }, [user]);
 
   // If share URL, render SharePage without auth
+  if (palletShareId) return <><SharePalletPage palletId={palletShareId} /><Toast /></>;
   if (shareId) return <><SharePage shipmentId={shareId} /><Toast /></>;
 
   if (loading) {

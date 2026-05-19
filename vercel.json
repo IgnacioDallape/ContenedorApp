@@ -6,6 +6,7 @@
     }
   ],
   "rewrites": [
-    { "source": "/share/:id", "destination": "/index.html" }
+    { "source": "/share/:id", "destination": "/index.html" },
+    { "source": "/share/pallet/:id", "destination": "/index.html" }
   ]
 }
