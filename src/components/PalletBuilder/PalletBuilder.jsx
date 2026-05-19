@@ -50,7 +50,7 @@ export default function PalletBuilder() {
     setEditingId, editingId, build, setActiveResult, clearResults,
     selectedBoxUid, setSelectedBoxUid, updateActiveResultBoxes, removeBoxFromActiveResult,
     restoreReserveBoxToActiveResult, reorderActiveResult, placeLeftoverInActiveResult,
-    buildMode, setBuildMode, startManualEmpty, startManualPrebuilt, suggestRelocate,
+    buildMode, setBuildMode, startManualEmpty, startManualPrebuilt, suggestRelocate, cyclePlacement,
   } = usePalletStore();
   const { setPendingProduct, catalog, setActiveSection: containerNav } = useContainerStore();
   const { setActiveSection, showToast } = useAppStore();
@@ -1048,16 +1048,40 @@ export default function PalletBuilder() {
 
                       <div style={{ padding: '12px 14px 14px', display: 'grid', gridTemplateColumns: '1fr', gap: 8 }}>
                         {buildMode === 'manual' && (
-                          <button
-                            onClick={() => {
-                              const r = suggestRelocate(selectedBox.uid);
-                              if (!r?.ok) showToast('Motor no encontró mejor lugar', 'warn');
-                              else showToast('✓ Reubicado por el motor', 'success');
-                            }}
-                            style={{ padding: '10px 8px', borderRadius: 12, border: '1.5px solid var(--accent)', background: 'var(--accent)', color: '#fff', cursor: 'pointer', fontWeight: 700 }}
-                          >
-                            🤖 Sugerir mejor lugar
-                          </button>
+                          <>
+                            <button
+                              onClick={() => {
+                                const r = suggestRelocate(selectedBox.uid);
+                                if (!r?.ok) showToast('Motor no encontró mejor lugar', 'warn');
+                                else showToast('✓ Reubicado por el motor', 'success');
+                              }}
+                              style={{ padding: '10px 8px', borderRadius: 12, border: '1.5px solid var(--accent)', background: 'var(--accent)', color: '#fff', cursor: 'pointer', fontWeight: 700 }}
+                            >
+                              🤖 Sugerir mejor lugar
+                            </button>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                              <button
+                                onClick={() => {
+                                  const r = cyclePlacement(selectedBox.uid, -1);
+                                  if (!r?.ok) showToast('Sin más alternativas', 'warn');
+                                  else showToast(`◀ Opción ${r.index + 1}/${r.total}`, 'success');
+                                }}
+                                style={{ padding: '9px 6px', borderRadius: 10, border: '1px solid rgba(141,121,102,0.22)', background: 'rgba(255,255,255,0.6)', color: 'var(--text)', cursor: 'pointer', fontWeight: 600, fontSize: 11 }}
+                              >
+                                ◀ Anterior
+                              </button>
+                              <button
+                                onClick={() => {
+                                  const r = cyclePlacement(selectedBox.uid, 1);
+                                  if (!r?.ok) showToast('Sin alternativas disponibles', 'warn');
+                                  else showToast(`🔄 Opción ${r.index + 1}/${r.total}`, 'success');
+                                }}
+                                style={{ padding: '9px 6px', borderRadius: 10, border: '1.5px solid var(--accent)', background: 'rgba(141,121,102,0.08)', color: 'var(--accent)', cursor: 'pointer', fontWeight: 700, fontSize: 11 }}
+                              >
+                                🔄 Otra posición
+                              </button>
+                            </div>
+                          </>
                         )}
                         <button onClick={() => removeBoxFromActiveResult(selectedBox.uid)} style={{ padding: '10px 8px', borderRadius: 12, border: '1px solid rgba(184,92,92,0.26)', background: 'rgba(184,92,92,0.06)', color: 'var(--danger)', cursor: 'pointer' }}>Mover a reserva</button>
                       </div>

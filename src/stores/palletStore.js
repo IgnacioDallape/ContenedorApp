@@ -3334,7 +3334,9 @@ function pb_dropFloaters(packed, palL, palW) {
 export function pb_runPacking(products, palL, palW, maxH) {
   const totalUnits = products.reduce((s, p) => s + Math.max(0, p.qty || 0), 0);
   const budgetPerVariant = totalUnits > 140 ? 800 : totalUnits > 70 ? 1100 : 1600;
-  const containerVariants = ['auto', 'grid', 'low-height', 'layers'];
+  // size-grouped: nueva variante que procesa cajas idénticas juntas, ayuda
+  // mucho cuando hay mezcla de tamaños (evita capas mixtas con canales).
+  const containerVariants = ['auto', 'grid', 'low-height', 'layers', 'size-grouped'];
 
   // Each candidate is normalized (settle + drop floaters) BEFORE comparing.
   // This way, an engine that "wins" by placing more boxes with overhangs
@@ -3455,6 +3457,21 @@ function pb_sortContainerLikeUnits(units, variant = 'auto') {
       return bFoot - aFoot;
     }
 
+    // Nuevo: agrupa cajas idénticas (mismo L×W×H) en bloque. Para mezcla de
+    // tamaños esto fuerza al motor a poner todas las cajas iguales seguidas,
+    // formando filas/columnas limpias en lugar de mezclarlas con otras.
+    if (variant === 'size-grouped') {
+      // Ordenar por "firma" L×W×H: cajas idénticas van juntas
+      const aSig = `${a.dims.L}x${a.dims.W}x${a.dims.H}`;
+      const bSig = `${b.dims.L}x${b.dims.W}x${b.dims.H}`;
+      if (aSig !== bSig) {
+        // Primero las de mayor volumen
+        if (Math.abs(bVolume - aVolume) > 0.01) return bVolume - aVolume;
+        return aSig.localeCompare(bSig);
+      }
+      return 0;
+    }
+
     if (Math.abs(bWeight - aWeight) > 0.01) return bWeight - aWeight;
     if (Math.abs(bVolume - aVolume) > 0.01) return bVolume - aVolume;
     if (Math.abs(bFoot - aFoot) > 0.01) return bFoot - aFoot;
@@ -3568,17 +3585,24 @@ function pb_containerLikeCandidateScore(candidate, unit, packed, palL, palW, var
 }
 
 function pb_tryFindContainerLikePlacement(unit, packed, hm, palL, palW, maxH, variant = 'auto', deadline = 0) {
+  const all = pb_findAllValidPlacements(unit, packed, hm, palL, palW, maxH, variant, deadline);
+  return all.length ? all[0] : null;
+}
+
+// Devuelve TODOS los candidatos válidos ordenados por score (mejor primero).
+// Usado por el motor (toma el primero) y por la UI manual (cyclePlacement avanza
+// al siguiente "diverso" para que el usuario explore alternativas).
+function pb_findAllValidPlacements(unit, packed, hm, palL, palW, maxH, variant = 'auto', deadline = 0) {
   const totalUnits = packed.length;
   const scanStep = totalUnits > 140 ? 5 : totalUnits > 70 ? 4 : PB_GRID_RES;
   const orientations = pb_getOrientations(unit, palL, palW);
-  let best = null;
+  const candidates = [];
 
   for (const ori of orientations) {
-    // Overhang permitido en +X/+Z (5cm). Centrado posterior re-equilibra.
     const maxX = Math.max(0, palL + PB_EDGE_OVERHANG - ori.dX);
     const maxZ = Math.max(0, palW + PB_EDGE_OVERHANG - ori.dZ);
     for (let pz = 0; pz <= maxZ + PB_HEIGHT_EPS; pz += scanStep) {
-      if (deadline && Date.now() >= deadline) return best;
+      if (deadline && Date.now() >= deadline) break;
       for (let px = 0; px <= maxX + PB_HEIGHT_EPS; px += scanStep) {
         const x = pb_roundToGrid(Math.min(px, maxX));
         const z = pb_roundToGrid(Math.min(pz, maxZ));
@@ -3597,13 +3621,34 @@ function pb_tryFindContainerLikePlacement(unit, packed, hm, palL, palW, maxH, va
 
         const candidate = { unit, px: x, pz: z, ori, y, support };
         const score = pb_containerLikeCandidateScore(candidate, unit, packed, palL, palW, variant);
-        if (!best || score < best.score) best = { ...candidate, score };
+        candidates.push({ ...candidate, score });
       }
     }
   }
 
-  return best;
+  candidates.sort((a, b) => a.score - b.score);
+  return candidates;
 }
+
+// Filtra candidatos para devolver hasta N "diversos" — descarta opciones que
+// están a < minDist cm de una alternativa anterior. Útil para el botón
+// "otra posición" del modo manual: que cada click muestre una opción
+// visiblemente distinta, no la misma esquina con 2cm de diferencia.
+function pb_diversePlacements(candidates, maxN = 12, minDist = 8) {
+  const picked = [];
+  for (const c of candidates) {
+    if (picked.length >= maxN) break;
+    const tooClose = picked.some(p =>
+      p.ori.dX === c.ori.dX && p.ori.dZ === c.ori.dZ && p.ori.dY === c.ori.dY &&
+      Math.hypot(p.px - c.px, p.pz - c.pz) < minDist &&
+      Math.abs(p.y - c.y) < 1
+    );
+    if (!tooClose) picked.push(c);
+  }
+  return picked;
+}
+
+export { pb_findAllValidPlacements, pb_diversePlacements };
 
 function pb_runPackingContainerLike(products, palL, palW, maxH, variant = 'auto', externalDeadline = 0) {
   let queue = pb_expandUnits(products);
@@ -3939,6 +3984,56 @@ const usePalletStore = create((set, get) => ({
     );
     set({ results: updated, selectedBoxUid: newBox.uid });
     return { ok: true, box: newBox };
+  },
+
+  // Modo manual: busca otra posición válida para la caja seleccionada.
+  // Mantiene un cursor por caja (cyclingState) para que clicks sucesivos
+  // exploren alternativas en lugar de devolver siempre la misma.
+  cyclePlacementCursor: new Map(),
+  cyclePlacement(uid, direction = 1) {
+    const { results, activeResult, cyclePlacementCursor } = get();
+    const current = results[activeResult];
+    if (!current) return { ok: false, reason: 'missing-result' };
+    const box = current.boxes.find(b => b.uid === uid);
+    if (!box) return { ok: false, reason: 'missing-box' };
+
+    const otherBoxes = current.boxes.filter(b => b.uid !== uid);
+    const unit = {
+      ...box,
+      dims: box.sourceDims || { L: box.dX, W: box.dZ, H: box.dY },
+      mustBeBase: !!box.mustBeBase,
+      noRotate: !!box.noRotate,
+      weight: Number(box.weight || 0),
+    };
+    const hm = pb_buildHMFromPacked(otherBoxes, current.palL, current.palW);
+    const all = pb_findAllValidPlacements(
+      unit, otherBoxes, hm, current.palL, current.palW, current.maxHeight, 'auto', 0
+    );
+    const diverse = pb_diversePlacements(all, 16, 8);
+    if (!diverse.length) return { ok: false, reason: 'no-fit' };
+
+    const prev = cyclePlacementCursor.get(uid) ?? -1;
+    const next = ((prev + direction) % diverse.length + diverse.length) % diverse.length;
+    const placement = diverse[next];
+    const nextCursor = new Map(cyclePlacementCursor);
+    nextCursor.set(uid, next);
+
+    const newBox = {
+      ...box,
+      x: placement.px,
+      y: placement.y,
+      z: placement.pz,
+      dX: placement.ori.dX,
+      dY: placement.ori.dY,
+      dZ: placement.ori.dZ,
+    };
+    const updated = [...results];
+    updated[activeResult] = pb_finalizeResultMeta(
+      { ...current, boxes: [...otherBoxes, newBox] },
+      current.products || []
+    );
+    set({ results: updated, selectedBoxUid: newBox.uid, cyclePlacementCursor: nextCursor });
+    return { ok: true, box: newBox, index: next, total: diverse.length };
   },
 
   // Pide al motor que reubique una caja seleccionada (modo manual).
