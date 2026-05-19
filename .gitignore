@@ -2,3 +2,4 @@ node_modules/
 dist/
 .claude/
 supabase/.temp/
+tmp_*.mjs
