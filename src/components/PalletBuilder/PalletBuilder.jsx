@@ -501,11 +501,36 @@ export default function PalletBuilder() {
   function applyJobPayload(payload) {
     if (!payload || typeof payload !== 'object') return;
     try {
+      // Sanitizar productos: cada uno necesita dims válidas y color
+      const sanitizedProducts = (payload.products || []).map((p, i) => ({
+        ...p,
+        id: p.id ?? Date.now() + Math.random() + i,
+        color: p.color || PB_COLORS[i % PB_COLORS.length],
+        dims: p.dims || { L: 0, W: 0, H: 0 },
+        qty: Number(p.qty) || 0,
+        weight: Number(p.weight) || 0,
+      }));
+      // Sanitizar results: filtrar los inválidos para no romper el canvas
+      const sanitizedResults = (payload.results || [])
+        .filter(r => r && typeof r === 'object' && Array.isArray(r.boxes))
+        .map((r, idx) => ({
+          idx: typeof r.idx === 'number' ? r.idx : idx,
+          type: r.type || payload.palletType || 'eua',
+          palL: Number(r.palL) || 120,
+          palW: Number(r.palW) || 100,
+          maxHeight: Number(r.maxHeight) || Number(payload.maxHeight) || 180,
+          totalHeight: Number(r.totalHeight) || 0,
+          totalWeight: Number(r.totalWeight) || 0,
+          products: (r.products || []).map(p => ({ ...p })),
+          reserveBoxes: (r.reserveBoxes || []).map(b => ({ ...b })),
+          boxes: r.boxes.filter(b => b && b.uid && typeof b.dX === 'number' && typeof b.dY === 'number' && typeof b.dZ === 'number'),
+        }));
+
       if (payload.palletType) setPalletType(payload.palletType);
       if (payload.maxHeight)  setMaxHeight(payload.maxHeight);
       const { setProducts, setResults } = usePalletStore.getState();
-      if (typeof setProducts === 'function') setProducts(payload.products || []);
-      if (typeof setResults === 'function')  setResults(payload.results || []);
+      if (typeof setProducts === 'function') setProducts(sanitizedProducts);
+      if (typeof setResults === 'function')  setResults(sanitizedResults);
     } catch (e) {
       console.error('[PalletBuilder] applyJobPayload error:', e);
       showToast('No pude restaurar el pallet guardado: ' + (e.message || e), 'error');

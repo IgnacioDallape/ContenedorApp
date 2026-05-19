@@ -55,10 +55,11 @@ export default class ErrorBoundary extends Component {
           </button>
         </div>
         {this.state.error && (
-          <details style={{ marginTop: 12, fontSize: 11, color: 'var(--text-3)', maxWidth: 520, wordBreak: 'break-word' }}>
+          <details style={{ marginTop: 12, fontSize: 11, color: 'var(--text-3)', maxWidth: 520, wordBreak: 'break-word' }} open>
             <summary style={{ cursor: 'pointer' }}>Detalles técnicos</summary>
             <pre style={{ marginTop: 6, padding: 10, background: 'var(--bg-3)', borderRadius: 6, whiteSpace: 'pre-wrap', fontSize: 10 }}>
               {this.state.error.message || String(this.state.error)}
+              {this.state.error.stack ? '\n\n' + this.state.error.stack.split('\n').slice(0, 6).join('\n') : ''}
             </pre>
           </details>
         )}
