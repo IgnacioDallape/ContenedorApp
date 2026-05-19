@@ -336,6 +336,66 @@ export default function PalletBuilder() {
     showToast('Ninguna otra orientación entra en esta posición. Movela primero a un lugar con más espacio.', 'error');
   }
 
+  // Para una caja rectangular: orientar con la dimensión MÁS LARGA en vertical
+  // (caja "parada"). Si ya está parada, la acuesta (dimensión más corta en
+  // vertical). Para cubos, no hace nada.
+  function toggleStandLay() {
+    if (!activeRes || !selectedBox) return;
+    if (selectedBox.noRotate) return showToast('Esta caja solo puede ir en su posición por defecto', 'error');
+    const src = selectedBox.sourceDims || { L: selectedBox.dX, W: selectedBox.dZ, H: selectedBox.dY };
+    const dims = [src.L, src.W, src.H];
+    const maxD = Math.max(...dims);
+    const minD = Math.min(...dims);
+    if (Math.abs(maxD - minD) < 0.01) {
+      return showToast('Esta caja es un cubo: no tiene posición distinta', 'warn');
+    }
+    // ¿Está parada? dY ≈ maxD significa que la dim más larga está vertical.
+    const isStanding = Math.abs(selectedBox.dY - maxD) < 0.01;
+    const targetVertical = isStanding ? minD : maxD;
+    // Las dos dimensiones restantes van al footprint (XZ).
+    const remaining = dims.filter(d => Math.abs(d - targetVertical) > 0.01);
+    // Si hay dos dims iguales, remaining tendrá 2 elementos; sino, también 2.
+    // Si las tres son iguales ya salimos arriba.
+    while (remaining.length < 2) remaining.push(targetVertical);
+    const [a, b] = remaining;
+    // Probar las 2 orientaciones del footprint (a×b y b×a)
+    const tries = [
+      { dX: a, dZ: b, dY: targetVertical },
+      { dX: b, dZ: a, dY: targetVertical },
+    ];
+    for (const candidate of tries) {
+      const placement = pb_validatePlacement(
+        activeRes.boxes,
+        selectedBox,
+        activeRes.palL,
+        activeRes.palW,
+        activeRes.maxHeight,
+        selectedBox.x,
+        selectedBox.z,
+        candidate
+      );
+      if (placement.valid) {
+        updateActiveResultBoxes(activeRes.boxes.map(box =>
+          box.uid === selectedBox.uid ? { ...box, ...placement } : box
+        ));
+        showToast(isStanding ? '⬇ Caja acostada' : '⬆ Caja parada', 'success');
+        return;
+      }
+    }
+    showToast('No entra en esta posición. Movela primero a un lugar más amplio.', 'error');
+  }
+
+  // Indicadores para la UI: la caja seleccionada es rectangular y se puede parar/acostar?
+  const selectedBoxStandLay = (() => {
+    if (!selectedBox) return null;
+    const src = selectedBox.sourceDims || { L: selectedBox.dX, W: selectedBox.dZ, H: selectedBox.dY };
+    const dims = [src.L, src.W, src.H];
+    const maxD = Math.max(...dims);
+    const minD = Math.min(...dims);
+    if (Math.abs(maxD - minD) < 0.01) return null; // cubo
+    return { isStanding: Math.abs(selectedBox.dY - maxD) < 0.01 };
+  })();
+
   function restoreSelectedBoxOrientation() {
     if (!activeRes || !selectedBox?.sourceDims) return;
     const nextDims = {
@@ -1041,6 +1101,23 @@ export default function PalletBuilder() {
                             Restaurar
                           </button>
                         </div>
+                        {/* Para cajas rectangulares: botón explícito Parar/Acostar */}
+                        {selectedBoxStandLay && !selectedBox.noRotate && (
+                          <button
+                            onClick={toggleStandLay}
+                            style={{
+                              marginTop: 8, width: '100%', padding: '10px 8px', borderRadius: 12,
+                              border: '1.5px solid var(--accent)',
+                              background: selectedBoxStandLay.isStanding ? 'rgba(141,121,102,0.08)' : 'var(--accent)',
+                              color: selectedBoxStandLay.isStanding ? 'var(--accent)' : '#fff',
+                              cursor: 'pointer', fontWeight: 700, fontSize: 12,
+                              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                            }}
+                            title="Cambia entre caja parada (lado más largo vertical) y acostada"
+                          >
+                            {selectedBoxStandLay.isStanding ? '⬇ Acostar caja' : '⬆ Parar caja'}
+                          </button>
+                        )}
                         <div style={{ marginTop: 10, padding: '8px 10px', borderRadius: 10, background: 'rgba(141,121,102,0.08)', color: 'var(--muted)', fontSize: 10, lineHeight: 1.45 }}>
                           Podés arrastrar la caja dentro del pallet. Se mueve individualmente; si querés mover la pila completa, mantené Shift mientras arrastrás.
                         </div>
