@@ -113,7 +113,10 @@ export default function PalletThreeCanvas({ result, selectedBoxUid, onSelectBox,
     const width = container.clientWidth || 600;
     const height = container.clientHeight || 400;
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    // preserveDrawingBuffer: true permite capturar el canvas con toDataURL()
+    // para el PDF. Sin esto el WebGL limpia el buffer post-render y se obtiene
+    // una imagen negra. Costo de perf es mínimo.
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
     renderer.setSize(width, height);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.shadowMap.enabled = true;

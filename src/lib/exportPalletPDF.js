@@ -172,11 +172,19 @@ export async function exportPalletPDF({ palletName, palletId, palletType, maxHei
     doc.text(`Pallet ${i + 1}`, margin, py); py += 8;
 
     doc.setTextColor(80, 65, 50);
+    // Calcular altura/peso desde las cajas si no vinieron en el payload
+    const computedTop = r.boxes?.length
+      ? Math.max(...r.boxes.map(b => (Number(b.y) || 0) + (Number(b.dY) || 0)))
+      : 0;
+    const computedWeight = (r.boxes || []).reduce((s, b) => s + (Number(b.weight) || 0), 0);
+    const palletTop = Number(r.totalHeight) || computedTop;
+    const palletWeight = Number(r.totalWeight) || computedWeight;
+
     doc.setFontSize(9); doc.setFont('helvetica', 'normal');
     const stats = [
       `Cajas: ${r.boxes?.length || 0}`,
-      `Altura: ${r.totalHeight || 0} cm`,
-      `Peso: ${fmt(r.totalWeight || 0, 1)} kg`,
+      `Altura: ${palletTop} cm`,
+      `Peso: ${fmt(palletWeight, 1)} kg`,
       `Base: ${r.palL}x${r.palW} cm`,
     ];
     doc.text(ascii(stats.join('   |   ')), margin, py); py += 6;
@@ -231,31 +239,71 @@ export async function exportPalletPDF({ palletName, palletId, palletType, maxHei
     });
   });
 
-  // ── PÁGINA: Guía de carga ──
+  // ── PÁGINA: Guía de carga para personal de armado ──
   doc.addPage();
   doc.setFillColor(141, 121, 102);
   doc.rect(0, 0, pageW, 14, 'F');
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(9); doc.setFont('helvetica', 'bold');
   doc.text('ImportaPro', margin, 10);
-  doc.text('Guia de carga', pageW - margin, 10, { align: 'right' });
+  doc.text('Instrucciones de armado', pageW - margin, 10, { align: 'right' });
 
   let gy = 24;
   doc.setTextColor(141, 121, 102);
   doc.setFontSize(16); doc.setFont('helvetica', 'bold');
-  doc.text('Guia de carga del pallet', margin, gy); gy += 9;
+  doc.text('Como armar este pallet', margin, gy); gy += 7;
 
-  doc.setTextColor(80, 65, 50);
-  doc.setFontSize(9); doc.setFont('helvetica', 'normal');
+  doc.setTextColor(120, 100, 80);
+  doc.setFontSize(10); doc.setFont('helvetica', 'italic');
+  doc.text(ascii('Seguir los pasos en orden. Cada paso indica la posicion sobre el pallet.'), margin, gy); gy += 7;
+  doc.setFont('helvetica', 'normal');
 
-  // Construir capas por Y para guía de carga
+  // Helpers para describir posición de una caja en lenguaje humano
+  function posDescription(box, palL, palW) {
+    const cx = box.x + box.dX / 2;
+    const cz = box.z + box.dZ / 2;
+    // Eje X (largo, 0 → palL): izquierda / centro / derecha
+    let xPart;
+    if (cx < palL * 0.33) xPart = 'izquierda';
+    else if (cx > palL * 0.67) xPart = 'derecha';
+    else xPart = 'centro';
+    // Eje Z (ancho, 0 → palW): atras / centro / adelante
+    let zPart;
+    if (cz < palW * 0.33) zPart = 'atras';
+    else if (cz > palW * 0.67) zPart = 'adelante';
+    else zPart = 'centro';
+    if (xPart === 'centro' && zPart === 'centro') return 'centro del pallet';
+    if (xPart === 'centro') return `${zPart} - centro`;
+    if (zPart === 'centro') return `${xPart} - centro`;
+    return `${zPart} - ${xPart}`;
+  }
+
+  function orientationDescription(box) {
+    const src = box.sourceDims || { L: box.dX, W: box.dZ, H: box.dY };
+    const dims = [src.L, src.W, src.H];
+    const maxD = Math.max(...dims);
+    const minD = Math.min(...dims);
+    if (Math.abs(maxD - minD) < 0.5) return 'cubo';
+    const isStanding = Math.abs(box.dY - maxD) < 0.5;
+    const isLying = Math.abs(box.dY - minD) < 0.5;
+    if (isStanding) return 'parada (lado mas largo arriba)';
+    if (isLying) return 'acostada';
+    return 'de costado';
+  }
+
+  let stepNum = 1;
+
   function guideForPallet(r, idx) {
-    if (gy > pageH - 40) { doc.addPage(); gy = 24; }
+    if (gy > pageH - 50) { doc.addPage(); gy = 24; }
+    // Título de pallet
     doc.setTextColor(141, 121, 102);
-    doc.setFontSize(12); doc.setFont('helvetica', 'bold');
-    doc.text(`Pallet ${idx + 1} — ${r.boxes?.length || 0} cajas`, margin, gy); gy += 6;
+    doc.setFontSize(13); doc.setFont('helvetica', 'bold');
+    doc.text(`PALLET ${idx + 1} — ${r.boxes?.length || 0} cajas`, margin, gy); gy += 5;
+    doc.setFontSize(9); doc.setFont('helvetica', 'normal');
+    doc.setTextColor(120, 100, 80);
+    doc.text(ascii(`Base ${r.palL}x${r.palW} cm. Cargar de abajo hacia arriba.`), margin, gy); gy += 7;
 
-    // Agrupar boxes por nivel Y
+    // Agrupar boxes por nivel Y (capa)
     const byY = new Map();
     (r.boxes || []).forEach(b => {
       const k = Math.round(b.y);
@@ -264,31 +312,101 @@ export async function exportPalletPDF({ palletName, palletId, palletType, maxHei
     });
     const levels = [...byY.entries()].sort(([a], [b]) => a - b);
 
-    doc.setTextColor(80, 65, 50);
-    doc.setFontSize(9); doc.setFont('helvetica', 'normal');
     levels.forEach(([yLvl, boxes], li) => {
       if (gy > pageH - 30) { doc.addPage(); gy = 24; }
-      const byName = new Map();
-      boxes.forEach(b => byName.set(b.name, (byName.get(b.name) || 0) + 1));
-      const desc = [...byName.entries()].map(([n, c]) => `${c}x ${n}`).join(', ');
-      doc.setFont('helvetica', 'bold');
+
+      // Título de capa
       doc.setTextColor(141, 121, 102);
-      const layerNum = li + 1;
-      const yStr = yLvl === 0 ? 'BASE (y=0)' : `Capa ${layerNum} (y=${yLvl}cm)`;
-      doc.text(ascii(yStr), margin, gy); gy += 5;
-      doc.setFont('helvetica', 'normal');
-      doc.setTextColor(80, 65, 50);
-      const wrapped = doc.splitTextToSize(ascii(`Colocar: ${desc}`), pageW - margin * 2);
-      wrapped.forEach(line => { doc.text(line, margin + 4, gy); gy += 4.5; });
-      gy += 1.5;
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(11);
+      let layerLabel;
+      if (yLvl === 0) layerLabel = `>> CAPA ${li + 1} - BASE (sobre el pallet, altura 0 cm)`;
+      else layerLabel = `>> CAPA ${li + 1} - a ${yLvl} cm del pallet`;
+      doc.text(ascii(layerLabel), margin, gy); gy += 5;
+
+      // Línea decorativa
+      doc.setDrawColor(200, 185, 165);
+      doc.setLineWidth(0.3);
+      doc.line(margin, gy - 1, pageW - margin, gy - 1);
+      gy += 2;
+
+      // Agrupar cajas iguales (mismo producto + misma orientación) en la misma capa
+      // para evitar listar 4 veces "1x AlfMed2 en izquierda-atras".
+      const groups = new Map();
+      boxes.sort((a, b) => (a.z - b.z) || (a.x - b.x));
+      boxes.forEach(b => {
+        const ori = orientationDescription(b);
+        const pos = posDescription(b, r.palL, r.palW);
+        const dim = `${b.dX}x${b.dZ}x${b.dY}cm`;
+        const key = `${b.name}|${ori}|${dim}|${pos}`;
+        if (!groups.has(key)) groups.set(key, { name: b.name, ori, dim, pos, count: 0 });
+        groups.get(key).count++;
+      });
+
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(9);
+      doc.setTextColor(60, 50, 40);
+
+      [...groups.values()].forEach(g => {
+        if (gy > pageH - 14) { doc.addPage(); gy = 24; }
+        // Paso numerado
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(141, 121, 102);
+        const stepLabel = `Paso ${stepNum}:`;
+        doc.text(stepLabel, margin, gy);
+        const stepW = doc.getTextWidth(stepLabel) + 2;
+        // Descripción
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(60, 50, 40);
+        const action = g.count > 1
+          ? `Colocar ${g.count} cajas de "${g.name}" (${g.dim}, ${g.ori}) en ${g.pos}.`
+          : `Colocar 1 caja de "${g.name}" (${g.dim}, ${g.ori}) en ${g.pos}.`;
+        const wrapped = doc.splitTextToSize(ascii(action), pageW - margin * 2 - stepW);
+        wrapped.forEach((line, wi) => {
+          if (gy > pageH - 14) { doc.addPage(); gy = 24; }
+          doc.text(line, margin + stepW, gy);
+          gy += 5;
+        });
+        stepNum++;
+      });
+      gy += 3;
     });
     gy += 4;
   }
 
   results.forEach((r, i) => guideForPallet(r, i));
 
+  // Diagrama de referencia
+  if (gy > pageH - 80) { doc.addPage(); gy = 24; }
+  doc.setTextColor(141, 121, 102);
+  doc.setFontSize(12); doc.setFont('helvetica', 'bold');
+  doc.text('Diagrama de orientacion del pallet', margin, gy); gy += 6;
+
+  doc.setTextColor(60, 50, 40);
+  doc.setFontSize(9); doc.setFont('helvetica', 'normal');
+  doc.text(ascii('Cuando la guia dice "izquierda", "derecha", "adelante" o "atras",'), margin, gy); gy += 4.5;
+  doc.text(ascii('referirse al diagrama de abajo. Mira el pallet de arriba (vista cenital).'), margin, gy); gy += 8;
+
+  // Dibujar diagrama simple
+  const diagSize = 60;
+  const diagX = (pageW - diagSize) / 2;
+  doc.setDrawColor(141, 121, 102);
+  doc.setLineWidth(0.8);
+  doc.setFillColor(243, 235, 222);
+  doc.rect(diagX, gy, diagSize, diagSize * 0.83, 'FD');
+
+  doc.setFontSize(9); doc.setFont('helvetica', 'bold');
+  doc.setTextColor(141, 121, 102);
+  doc.text('ATRAS', diagX + diagSize / 2, gy - 2, { align: 'center' });
+  doc.text('ADELANTE', diagX + diagSize / 2, gy + diagSize * 0.83 + 5, { align: 'center' });
+  // Rotar texto izquierda/derecha
+  doc.text('IZQUIERDA', diagX - 2, gy + diagSize * 0.42, { align: 'right' });
+  doc.text('DERECHA', diagX + diagSize + 2, gy + diagSize * 0.42, { align: 'left' });
+  doc.setFontSize(8); doc.setFont('helvetica', 'normal');
+  doc.setTextColor(80, 65, 50);
+  doc.text('CENTRO', diagX + diagSize / 2, gy + diagSize * 0.42 + 1, { align: 'center' });
+  gy += diagSize * 0.83 + 12;
+
   // Recomendaciones generales
-  if (gy > pageH - 50) { doc.addPage(); gy = 24; }
+  if (gy > pageH - 60) { doc.addPage(); gy = 24; }
   doc.setTextColor(141, 121, 102);
   doc.setFontSize(12); doc.setFont('helvetica', 'bold');
   doc.text('Recomendaciones generales', margin, gy); gy += 7;
@@ -296,13 +414,14 @@ export async function exportPalletPDF({ palletName, palletId, palletType, maxHei
   doc.setTextColor(80, 65, 50);
   doc.setFontSize(9); doc.setFont('helvetica', 'normal');
   const tips = [
-    '1. Cargar siempre desde la BASE hacia arriba, respetando el orden de capas listado.',
-    '2. Las cajas pesadas van abajo, las livianas arriba.',
-    '3. Mantener la cara mas larga apoyada en el pallet salvo indicacion contraria.',
-    '4. Verificar estabilidad de cada capa antes de armar la siguiente.',
-    '5. Usar film stretch en sentido horario, comenzando por la base y subiendo en espiral.',
-    '6. Etiqueta de identificacion: pegar en una cara visible del pallet armado.',
-    '7. Si el pallet se mueve por logistica externa, escanear el QR de la portada para ver online.',
+    '* Cargar SIEMPRE de abajo hacia arriba, en el orden de los pasos.',
+    '* Las cajas pesadas van en la base. Las livianas arriba.',
+    '* "Parada" = caja con el lado mas largo apuntando hacia arriba.',
+    '* "Acostada" = caja con el lado mas corto apuntando hacia arriba (perfil bajo).',
+    '* Antes de empezar la siguiente capa, verificar que la actual este firme y nivelada.',
+    '* Una vez terminado, envolver con film stretch en espiral desde la base hacia arriba.',
+    '* Pegar etiqueta de identificacion en una cara visible del pallet.',
+    '* Si tenes dudas, escanear el QR de la portada para ver el armado en 3D.',
   ];
   tips.forEach(t => {
     const wrapped = doc.splitTextToSize(ascii(t), pageW - margin * 2);

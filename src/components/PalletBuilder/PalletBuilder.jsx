@@ -698,22 +698,27 @@ export default function PalletBuilder() {
     if (!results.length) return showToast('Armá el pallet primero', 'error');
     setIsExportingPDF(true);
     try {
-      // Capturar snapshots de cada pallet 3D
-      const palletCanvas = document.querySelector('.pallet-builder-canvas-panel canvas');
+      // Capturar snapshots de cada pallet 3D.
+      // El canvas usa preserveDrawingBuffer:true así que toDataURL siempre
+      // devuelve el último frame renderizado. Esperamos 2 RAFs + 400ms para
+      // dar tiempo a React (setActiveResult) + useEffect del canvas + RAF de
+      // animación.
       const snapshots = [];
-      // Capturar el activo actual
+      const waitForRender = () => new Promise(resolve => {
+        requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(resolve, 400)));
+      });
       for (let i = 0; i < results.length; i++) {
-        if (i !== activeResult) setActiveResult(i);
-        // Esperar al render
-        await new Promise(r => setTimeout(r, 250));
+        setActiveResult(i);
+        await waitForRender();
         const canvas = document.querySelector('.pallet-builder-canvas-panel canvas');
         if (canvas) {
           try { snapshots.push({ idx: i, dataUrl: canvas.toDataURL('image/jpeg', 0.92) }); }
-          catch (e) { console.warn('snapshot fail', e); }
+          catch (e) { console.warn('[exportPDF] snapshot fail', e); }
         }
       }
-      // Restaurar pallet activo
+      // Restaurar pallet activo al inicio
       setActiveResult(0);
+      await waitForRender();
 
       const { exportPalletPDF } = await import('../../lib/exportPalletPDF.js');
       await exportPalletPDF({
