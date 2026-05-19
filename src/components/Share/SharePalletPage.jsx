@@ -142,6 +142,7 @@ export default function SharePalletPage({ palletId }) {
                   onSelectBox={() => {}}
                   onUpdateBoxes={() => {}}
                   onDropReserveBox={() => {}}
+                  readOnly={true}
                 />
               </Suspense>
             </div>

@@ -97,7 +97,7 @@ function resetBoxMeshPositions(t, boxes = []) {
   }
 }
 
-export default function PalletThreeCanvas({ result, selectedBoxUid, onSelectBox, onUpdateBoxes, onDropReserveBox, strictMode = false }) {
+export default function PalletThreeCanvas({ result, selectedBoxUid, onSelectBox, onUpdateBoxes, onDropReserveBox, strictMode = false, readOnly = false }) {
   const mountRef = useRef(null);
   const threeRef = useRef(null);
   const selectedBoxUidRef = useRef(selectedBoxUid);
@@ -414,6 +414,9 @@ export default function PalletThreeCanvas({ result, selectedBoxUid, onSelectBox,
     t.dragInvalid = false;
 
     if (e.button !== 0) return;
+    // En modo readOnly (vista compartida pública) no se permite arrastrar
+    // cajas. Igual dejamos que el OrbitControls maneje rotación/zoom.
+    if (readOnly) return;
 
     let hit = hitSelected(e);
     if (!hit) {
@@ -435,7 +438,7 @@ export default function PalletThreeCanvas({ result, selectedBoxUid, onSelectBox,
       z: dragPoint.z - box.z,
     };
     t.controls.enabled = false;
-  }, [hitSelected, onSelectBox, result, selectedBoxUid]);
+  }, [hitSelected, onSelectBox, result, selectedBoxUid, readOnly]);
 
   const handleMouseMove = useCallback((e) => {
     const t = threeRef.current;
@@ -622,12 +625,14 @@ export default function PalletThreeCanvas({ result, selectedBoxUid, onSelectBox,
   }, [onUpdateBoxes, result]);
 
   const handleDragOver = useCallback((e) => {
+    if (readOnly) return;
     if (!e.dataTransfer?.types?.includes('application/x-pallet-reserve-box')) return;
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
-  }, []);
+  }, [readOnly]);
 
   const handleDrop = useCallback((e) => {
+    if (readOnly) return;
     if (!result || !onDropReserveBox) return;
     const reserveUid = e.dataTransfer?.getData('application/x-pallet-reserve-box');
     if (!reserveUid) return;
@@ -639,7 +644,7 @@ export default function PalletThreeCanvas({ result, selectedBoxUid, onSelectBox,
     if (!point) return;
 
     onDropReserveBox(reserveUid, point.x, point.z);
-  }, [onDropReserveBox, result]);
+  }, [onDropReserveBox, result, readOnly]);
 
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%' }}>
