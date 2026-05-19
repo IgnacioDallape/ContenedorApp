@@ -267,28 +267,38 @@ export async function exportPalletPDF({ palletName, palletId, palletType, maxHei
     if (cx < palL * 0.33) xPart = 'izquierda';
     else if (cx > palL * 0.67) xPart = 'derecha';
     else xPart = 'centro';
-    // Eje Z (ancho, 0 → palW): atras / centro / adelante
+    // Eje Z (ancho, 0 → palW): trasera / central / delantera
     let zPart;
-    if (cz < palW * 0.33) zPart = 'atras';
-    else if (cz > palW * 0.67) zPart = 'adelante';
-    else zPart = 'centro';
-    if (xPart === 'centro' && zPart === 'centro') return 'centro del pallet';
-    if (xPart === 'centro') return `${zPart} - centro`;
-    if (zPart === 'centro') return `${xPart} - centro`;
-    return `${zPart} - ${xPart}`;
+    if (cz < palW * 0.33) zPart = 'trasera';
+    else if (cz > palW * 0.67) zPart = 'delantera';
+    else zPart = 'central';
+    if (xPart === 'centro' && zPart === 'central') return 'el centro del pallet';
+    if (xPart === 'centro') return `la zona ${zPart}`;
+    if (zPart === 'central') return `la zona central ${xPart}`;
+    return `la esquina ${zPart} ${xPart}`;
   }
 
+  // Devuelve "parada"/"acostada"/"de costado" o null si es cubo (sin orientación relevante)
   function orientationDescription(box) {
     const src = box.sourceDims || { L: box.dX, W: box.dZ, H: box.dY };
     const dims = [src.L, src.W, src.H];
     const maxD = Math.max(...dims);
     const minD = Math.min(...dims);
-    if (Math.abs(maxD - minD) < 0.5) return 'cubo';
+    if (Math.abs(maxD - minD) < 0.5) return null; // cubo: orientación irrelevante
     const isStanding = Math.abs(box.dY - maxD) < 0.5;
     const isLying = Math.abs(box.dY - minD) < 0.5;
-    if (isStanding) return 'parada (lado mas largo arriba)';
+    if (isStanding) return 'parada';
     if (isLying) return 'acostada';
     return 'de costado';
+  }
+
+  // Pluraliza la orientación según cantidad
+  function pluralOri(ori, count) {
+    if (!ori) return null;
+    if (count <= 1) return ori;
+    if (ori === 'parada') return 'paradas';
+    if (ori === 'acostada') return 'acostadas';
+    return ori; // "de costado" no cambia
   }
 
   let stepNum = 1;
@@ -336,9 +346,10 @@ export async function exportPalletPDF({ palletName, palletId, palletType, maxHei
       boxes.forEach(b => {
         const ori = orientationDescription(b);
         const pos = posDescription(b, r.palL, r.palW);
-        const dim = `${b.dX}x${b.dZ}x${b.dY}cm`;
-        const key = `${b.name}|${ori}|${dim}|${pos}`;
-        if (!groups.has(key)) groups.set(key, { name: b.name, ori, dim, pos, count: 0 });
+        // dim solo para la clave de agrupación (distingue orientaciones distintas con mismo nombre)
+        const dimKey = `${b.dX}x${b.dZ}x${b.dY}`;
+        const key = `${b.name}|${ori}|${dimKey}|${pos}`;
+        if (!groups.has(key)) groups.set(key, { name: b.name, ori, pos, count: 0 });
         groups.get(key).count++;
       });
 
@@ -356,9 +367,11 @@ export async function exportPalletPDF({ palletName, palletId, palletType, maxHei
         // Descripción
         doc.setFont('helvetica', 'normal');
         doc.setTextColor(60, 50, 40);
+        const oriLabel = pluralOri(g.ori, g.count);
+        const oriText = oriLabel ? ` ${oriLabel}` : '';
         const action = g.count > 1
-          ? `Colocar ${g.count} cajas de "${g.name}" (${g.dim}, ${g.ori}) en ${g.pos}.`
-          : `Colocar 1 caja de "${g.name}" (${g.dim}, ${g.ori}) en ${g.pos}.`;
+          ? `Colocar ${g.count} cajas de "${g.name}"${oriText} en ${g.pos}.`
+          : `Colocar 1 caja de "${g.name}"${oriText} en ${g.pos}.`;
         const wrapped = doc.splitTextToSize(ascii(action), pageW - margin * 2 - stepW);
         wrapped.forEach((line, wi) => {
           if (gy > pageH - 14) { doc.addPage(); gy = 24; }
@@ -382,8 +395,8 @@ export async function exportPalletPDF({ palletName, palletId, palletType, maxHei
 
   doc.setTextColor(60, 50, 40);
   doc.setFontSize(9); doc.setFont('helvetica', 'normal');
-  doc.text(ascii('Cuando la guia dice "izquierda", "derecha", "adelante" o "atras",'), margin, gy); gy += 4.5;
-  doc.text(ascii('referirse al diagrama de abajo. Mira el pallet de arriba (vista cenital).'), margin, gy); gy += 8;
+  doc.text(ascii('Cuando la guia dice "izquierda", "derecha", "delantera" o "trasera",'), margin, gy); gy += 4.5;
+  doc.text(ascii('referirse al diagrama de abajo. Vista del pallet desde arriba (cenital).'), margin, gy); gy += 8;
 
   // Dibujar diagrama simple
   const diagSize = 60;
@@ -395,8 +408,8 @@ export async function exportPalletPDF({ palletName, palletId, palletType, maxHei
 
   doc.setFontSize(9); doc.setFont('helvetica', 'bold');
   doc.setTextColor(141, 121, 102);
-  doc.text('ATRAS', diagX + diagSize / 2, gy - 2, { align: 'center' });
-  doc.text('ADELANTE', diagX + diagSize / 2, gy + diagSize * 0.83 + 5, { align: 'center' });
+  doc.text('TRASERA', diagX + diagSize / 2, gy - 2, { align: 'center' });
+  doc.text('DELANTERA', diagX + diagSize / 2, gy + diagSize * 0.83 + 5, { align: 'center' });
   // Rotar texto izquierda/derecha
   doc.text('IZQUIERDA', diagX - 2, gy + diagSize * 0.42, { align: 'right' });
   doc.text('DERECHA', diagX + diagSize + 2, gy + diagSize * 0.42, { align: 'left' });
@@ -414,14 +427,15 @@ export async function exportPalletPDF({ palletName, palletId, palletType, maxHei
   doc.setTextColor(80, 65, 50);
   doc.setFontSize(9); doc.setFont('helvetica', 'normal');
   const tips = [
-    '* Cargar SIEMPRE de abajo hacia arriba, en el orden de los pasos.',
-    '* Las cajas pesadas van en la base. Las livianas arriba.',
-    '* "Parada" = caja con el lado mas largo apuntando hacia arriba.',
-    '* "Acostada" = caja con el lado mas corto apuntando hacia arriba (perfil bajo).',
-    '* Antes de empezar la siguiente capa, verificar que la actual este firme y nivelada.',
-    '* Una vez terminado, envolver con film stretch en espiral desde la base hacia arriba.',
-    '* Pegar etiqueta de identificacion en una cara visible del pallet.',
-    '* Si tenes dudas, escanear el QR de la portada para ver el armado en 3D.',
+    '* Seguir los pasos en orden, siempre de abajo hacia arriba (capa a capa).',
+    '* Las cajas mas pesadas van en la base; las mas livianas en las capas superiores.',
+    '* "Parada": la caja se coloca con su lado mas largo apuntando hacia arriba.',
+    '* "Acostada": la caja se apoya sobre su cara mas grande (perfil bajo).',
+    '* "De costado": la caja se apoya sobre una de sus caras laterales.',
+    '* Verificar que cada capa quede firme y nivelada antes de comenzar la siguiente.',
+    '* Al terminar, envolver el pallet con film stretch en espiral desde la base hacia arriba.',
+    '* Pegar una etiqueta de identificacion en una cara visible del pallet.',
+    '* Ante cualquier duda, escanear el QR de la portada para ver el armado en 3D.',
   ];
   tips.forEach(t => {
     const wrapped = doc.splitTextToSize(ascii(t), pageW - margin * 2);

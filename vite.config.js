@@ -8,4 +8,8 @@ export default defineConfig({
     outDir: 'dist',
     assetsDir: 'assets',
   },
+  test: {
+    environment: 'node',
+    globals: true,
+  },
 });
