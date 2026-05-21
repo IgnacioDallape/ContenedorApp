@@ -626,7 +626,7 @@ export default function Calculator() {
                 ]} />
                 <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'10px 14px', background:'var(--accent)', borderRadius:8, marginTop:2 }}>
                   <span style={{ fontSize:13, fontWeight:700, color:'#fff', letterSpacing:'0.03em' }}>COSTO UNITARIO TOTAL</span>
-                  <span style={{ fontSize:16, fontWeight:800, color:'#fff', fontFamily:"'DM Mono', monospace" }}>U$S {rd(c.costoUSD,2)}</span>
+                  <span style={{ fontSize:16, fontWeight:800, color:'#fff', fontFamily:"'Inter', system-ui, -apple-system, sans-serif" }}>U$S {rd(c.costoUSD,2)}</span>
                 </div>
               </div>
             </div>
@@ -712,12 +712,12 @@ function ResultGroup({ color, label, rows, subtotal }) {
     <div style={{ borderLeft: `3px solid ${color}`, borderRadius: '0 6px 6px 0', background: 'var(--bg-3)', overflow: 'hidden' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 12px', background: `${color}18` }}>
         <span style={{ fontSize: 12, fontWeight: 700, color, letterSpacing: '0.07em', textTransform: 'uppercase' }}>{label}</span>
-        {subtotal && <span style={{ fontSize: 12, fontWeight: 600, color, fontFamily: "'DM Mono', monospace" }}>{subtotal}</span>}
+        {subtotal && <span style={{ fontSize: 12, fontWeight: 600, color, fontFamily: "'Inter', system-ui, -apple-system, sans-serif" }}>{subtotal}</span>}
       </div>
       {rows.map(([l, val], i) => (
         <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 12px', borderTop: '1px solid var(--border)' }}>
           <span style={{ fontSize: 13, color: 'var(--text-2)' }}>{l}</span>
-          <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', fontFamily: "'DM Mono', monospace" }}>{val}</span>
+          <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', fontFamily: "'Inter', system-ui, -apple-system, sans-serif" }}>{val}</span>
         </div>
       ))}
     </div>
@@ -819,19 +819,19 @@ function InteractiveDonut({ slices, centerLabel, centerValue, large = false }) {
           {hov ? (
             <div style={{ width: large ? 130 : 104, display:'flex', flexDirection:'column', alignItems:'center', gap:2, textAlign:'center' }}>
               <div style={{ fontSize: large ? 10 : 9, fontWeight:700, color:'var(--text-3)', textTransform:'uppercase', letterSpacing:'0.07em', lineHeight:1.15 }}>{hov.label}</div>
-              <div style={{ fontSize: large ? 30 : 22, fontWeight:800, color: hov.color, fontFamily:"'DM Mono',monospace", lineHeight:1.05 }}>{rd(hov.pct,1)}%</div>
-              <div style={{ fontSize: large ? 13 : 10, color:'var(--text-3)', fontFamily:"'DM Mono',monospace", lineHeight:1.1 }}>U$S {rd(hov.usd,2)}</div>
+              <div style={{ fontSize: large ? 30 : 22, fontWeight:800, color: hov.color, fontFamily:"'Inter', system-ui, -apple-system, sans-serif", lineHeight:1.05 }}>{rd(hov.pct,1)}%</div>
+              <div style={{ fontSize: large ? 13 : 10, color:'var(--text-3)', fontFamily:"'Inter', system-ui, -apple-system, sans-serif", lineHeight:1.1 }}>U$S {rd(hov.usd,2)}</div>
             </div>
           ) : (
             <div style={{ width: large ? 140 : 112, display:'flex', flexDirection:'column', alignItems:'center', gap: large ? 4 : 3, textAlign:'center' }}>
               <div style={{ fontSize: large ? 10 : 9, fontWeight:700, color:'var(--text-3)', textTransform:'uppercase', letterSpacing:'0.07em', lineHeight:1.15 }}>{centerLabel}</div>
               {centerParts ? (
                 <>
-                  <div style={{ fontSize: large ? 13 : 11, fontWeight:700, color:'var(--text-3)', fontFamily:"'DM Mono',monospace", lineHeight:1 }}>{centerParts.currency}</div>
-                  <div style={{ fontSize: large ? 22 : 16, fontWeight:800, color:'var(--text)', fontFamily:"'DM Mono',monospace", lineHeight:1.05 }}>{centerParts.amount}</div>
+                  <div style={{ fontSize: large ? 13 : 11, fontWeight:700, color:'var(--text-3)', fontFamily:"'Inter', system-ui, -apple-system, sans-serif", lineHeight:1 }}>{centerParts.currency}</div>
+                  <div style={{ fontSize: large ? 22 : 16, fontWeight:800, color:'var(--text)', fontFamily:"'Inter', system-ui, -apple-system, sans-serif", lineHeight:1.05 }}>{centerParts.amount}</div>
                 </>
               ) : (
-                <div style={{ fontSize: large ? 22 : 16, fontWeight:800, color:'var(--text)', fontFamily:"'DM Mono',monospace", lineHeight:1.05 }}>{centerValue}</div>
+                <div style={{ fontSize: large ? 22 : 16, fontWeight:800, color:'var(--text)', fontFamily:"'Inter', system-ui, -apple-system, sans-serif", lineHeight:1.05 }}>{centerValue}</div>
               )}
             </div>
           )}
@@ -856,8 +856,8 @@ function InteractiveDonut({ slices, centerLabel, centerValue, large = false }) {
                 borderBottom:'1px solid var(--border)', transition:'all 0.15s' }}>
               <span style={{ width: large ? 8 : 6, height: large ? 8 : 6, borderRadius:1, background:s.color, flexShrink:0 }}/>
               <span style={{ fontSize: large ? 13 : 12, color: active ? 'var(--text)' : 'var(--text-2)', flex:1, fontWeight: active ? 600 : 400, transition:'color 0.15s' }}>{s.label}</span>
-              {large && <span style={{ fontSize:12, color:'var(--text-3)', fontFamily:"'DM Mono',monospace", minWidth:38, textAlign:'right' }}>{pct}%</span>}
-              <span style={{ fontSize: large ? 13 : 12, fontWeight: active ? 700 : 500, color: active ? s.color : 'var(--text-3)', fontFamily:"'DM Mono',monospace", transition:'color 0.15s' }}>
+              {large && <span style={{ fontSize:12, color:'var(--text-3)', fontFamily:"'Inter', system-ui, -apple-system, sans-serif", minWidth:38, textAlign:'right' }}>{pct}%</span>}
+              <span style={{ fontSize: large ? 13 : 12, fontWeight: active ? 700 : 500, color: active ? s.color : 'var(--text-3)', fontFamily:"'Inter', system-ui, -apple-system, sans-serif", transition:'color 0.15s' }}>
                 U$S {rd(s.usd, 2)}
               </span>
             </div>

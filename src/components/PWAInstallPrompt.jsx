@@ -90,7 +90,7 @@ export default function PWAInstallPrompt() {
     >
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
         <div>
-          <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 28, lineHeight: 1, color: 'var(--text)' }}>
+          <div style={{ fontFamily: "'Inter', system-ui, -apple-system, sans-serif", fontSize: 28, lineHeight: 1, color: 'var(--text)' }}>
             Instalar app
           </div>
           <div style={{ marginTop: 8, fontSize: 13, lineHeight: 1.6, color: 'var(--text-2)' }}>

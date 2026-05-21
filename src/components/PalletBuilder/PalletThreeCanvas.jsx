@@ -672,13 +672,13 @@ export default function PalletThreeCanvas({ result, selectedBoxUid, onSelectBox,
           padding: '8px 12px',
           borderRadius: 8,
           fontSize: 12,
-          fontFamily: "'Jost', sans-serif",
+          fontFamily: "'Inter', system-ui, -apple-system, sans-serif",
           boxShadow: '0 4px 16px rgba(0,0,0,0.3)',
           zIndex: 10,
           maxWidth: 220,
         }}
       />
-      <div style={{ position: 'absolute', bottom: 8, left: '50%', transform: 'translateX(-50%)', fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'rgba(141,121,102,0.6)', letterSpacing: 1, pointerEvents: 'none', whiteSpace: 'nowrap' }}>
+      <div style={{ position: 'absolute', bottom: 8, left: '50%', transform: 'translateX(-50%)', fontFamily: "'Inter', system-ui, -apple-system, sans-serif", fontSize: 9, color: 'rgba(141,121,102,0.6)', letterSpacing: 1, pointerEvents: 'none', whiteSpace: 'nowrap' }}>
         🖱 DRAG PARA MOVER · SCROLL ZOOM · CLIC = SELECCIONAR
       </div>
     </div>

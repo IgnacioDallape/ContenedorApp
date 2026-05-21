@@ -54,7 +54,7 @@ export default function App() {
   if (loading) {
     return (
       <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:'100vh', background:'var(--bg, #F8F4EE)' }}>
-        <div style={{ fontFamily:'DM Mono, monospace', fontSize:12, color:'var(--muted, #8D7966)', letterSpacing:2 }}>
+        <div style={{ fontFamily:'Inter, system-ui, -apple-system, sans-serif', fontSize:12, color:'var(--muted, #8D7966)', letterSpacing:2 }}>
           Cargando...
         </div>
       </div>

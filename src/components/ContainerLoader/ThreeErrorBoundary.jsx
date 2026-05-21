@@ -23,13 +23,13 @@ export default class ThreeErrorBoundary extends Component {
           border: '1px solid var(--border)', gap: 12,
         }}>
           <div style={{ fontSize: 36 }}>⚠️</div>
-          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 12, color: 'var(--muted)', letterSpacing: 1, textAlign: 'center', maxWidth: 300 }}>
+          <div style={{ fontFamily: "'Inter', system-ui, -apple-system, sans-serif", fontSize: 12, color: 'var(--muted)', letterSpacing: 1, textAlign: 'center', maxWidth: 300 }}>
             No se pudo inicializar la vista 3D.<br />
             Verificá que tu navegador soporte WebGL.
           </div>
           <button
             onClick={() => this.setState({ hasError: false, error: null })}
-            style={{ padding: '7px 18px', fontSize: 12, fontFamily: "'DM Mono', monospace", borderRadius: 6, border: '1px solid var(--c1)', background: 'transparent', color: 'var(--c1)', cursor: 'pointer' }}>
+            style={{ padding: '7px 18px', fontSize: 12, fontFamily: "'Inter', system-ui, -apple-system, sans-serif", borderRadius: 6, border: '1px solid var(--c1)', background: 'transparent', color: 'var(--c1)', cursor: 'pointer' }}>
             Reintentar
           </button>
           {this.props.showDetails && this.state.error && (

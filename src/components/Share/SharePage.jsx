@@ -99,13 +99,13 @@ export default function SharePage({ shipmentId }) {
   }
 
   if (loading) return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', fontFamily: "'DM Mono', monospace", fontSize: 12, color: '#8D7966', letterSpacing: 2 }}>
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', fontFamily: "'Inter', system-ui, -apple-system, sans-serif", fontSize: 12, color: '#8D7966', letterSpacing: 2 }}>
       Cargando embarque...
     </div>
   );
 
   if (error) return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', fontFamily: "'Jost', sans-serif", color: '#6b5a4e', gap: 12 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', fontFamily: "'Inter', system-ui, -apple-system, sans-serif", color: '#6b5a4e', gap: 12 }}>
       <div style={{ fontSize: 40 }}>🚢</div>
       <div style={{ fontSize: 16 }}>{error}</div>
       <a href="/" style={{ fontSize: 13, color: '#8D7966' }}>Ir a ImportaPro →</a>
@@ -124,12 +124,12 @@ export default function SharePage({ shipmentId }) {
   const date = new Date(shipment.created_at).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
 
   return (
-    <div style={{ minHeight: '100vh', background: '#F8F4EE', fontFamily: "'Jost', sans-serif" }}>
+    <div style={{ minHeight: '100vh', background: '#F8F4EE', fontFamily: "'Inter', system-ui, -apple-system, sans-serif" }}>
       {/* Header */}
       <div style={{ background: '#8D7966', color: '#fff', padding: '16px 32px' }}>
-        <div style={{ fontSize: 11, fontFamily: "'DM Mono', monospace", letterSpacing: 2, opacity: 0.8, marginBottom: 4 }}>IMPORTAPRO — EMBARQUE COMPARTIDO</div>
+        <div style={{ fontSize: 11, fontFamily: "'Inter', system-ui, -apple-system, sans-serif", letterSpacing: 2, opacity: 0.8, marginBottom: 4 }}>IMPORTAPRO — EMBARQUE COMPARTIDO</div>
         <div style={{ fontSize: 22, fontWeight: 700 }}>{shipment.name}</div>
-        <div style={{ fontSize: 11, opacity: 0.7, marginTop: 4, fontFamily: "'DM Mono', monospace" }}>{date}</div>
+        <div style={{ fontSize: 11, opacity: 0.7, marginTop: 4, fontFamily: "'Inter', system-ui, -apple-system, sans-serif" }}>{date}</div>
       </div>
 
       <div style={{ maxWidth: 900, margin: '0 auto', padding: '24px 20px' }}>
@@ -142,7 +142,7 @@ export default function SharePage({ shipmentId }) {
             ['Valor', 'U$S ' + fmt(totVal)],
           ].map(([label, val]) => (
             <div key={label} style={{ background: '#fff', borderRadius: 10, padding: '12px 10px', border: '1px solid #E8E0D8', textAlign: 'center' }}>
-              <div style={{ fontSize: 9, fontFamily: "'DM Mono', monospace", color: '#8D7966', letterSpacing: 1, marginBottom: 4 }}>{label.toUpperCase()}</div>
+              <div style={{ fontSize: 9, fontFamily: "'Inter', system-ui, -apple-system, sans-serif", color: '#8D7966', letterSpacing: 1, marginBottom: 4 }}>{label.toUpperCase()}</div>
               <div style={{ fontSize: 17, fontWeight: 700, color: '#4a3d35' }}>{val}</div>
             </div>
           ))}
@@ -157,13 +157,13 @@ export default function SharePage({ shipmentId }) {
         }}>
           <span style={{ fontSize: 28 }}>{st.icon}</span>
           <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 10, fontFamily: "'DM Mono', monospace", color: st.color, letterSpacing: 1, marginBottom: 2 }}>ESTADO DEL EMBARQUE</div>
+            <div style={{ fontSize: 10, fontFamily: "'Inter', system-ui, -apple-system, sans-serif", color: st.color, letterSpacing: 1, marginBottom: 2 }}>ESTADO DEL EMBARQUE</div>
             <div style={{ fontSize: 18, fontWeight: 700, color: st.color }}>{st.label}</div>
           </div>
           {allProds.length > 0 && (
             <button
               onClick={() => show3d ? setShow3d(false) : handle3d(containers)}
-              style={{ padding: '8px 16px', background: show3d ? '#8D7966' : '#fff', color: show3d ? '#fff' : '#8D7966', border: '1.5px solid #8D7966', borderRadius: 8, cursor: 'pointer', fontFamily: "'DM Mono', monospace", fontSize: 11, letterSpacing: 1, whiteSpace: 'nowrap' }}>
+              style={{ padding: '8px 16px', background: show3d ? '#8D7966' : '#fff', color: show3d ? '#fff' : '#8D7966', border: '1.5px solid #8D7966', borderRadius: 8, cursor: 'pointer', fontFamily: "'Inter', system-ui, -apple-system, sans-serif", fontSize: 11, letterSpacing: 1, whiteSpace: 'nowrap' }}>
               {show3d ? '× Cerrar 3D' : '🧊 Ver en 3D'}
             </button>
           )}
@@ -180,18 +180,18 @@ export default function SharePage({ shipmentId }) {
         {show3d && (
           <div style={{ marginBottom: 20, background: '#fff', border: '1px solid #E8E0D8', borderRadius: 10, overflow: 'hidden' }}>
             <div style={{ background: '#F0EBE3', padding: '10px 16px', display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-              <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: '#8D7966', letterSpacing: 1 }}>VISTA 3D</span>
+              <span style={{ fontFamily: "'Inter', system-ui, -apple-system, sans-serif", fontSize: 10, color: '#8D7966', letterSpacing: 1 }}>VISTA 3D</span>
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                 {containers.map((c, i) => (
                   <button key={i} onClick={() => { switchToContainer(i); setActive3d(i); }}
-                    style={{ padding: '4px 10px', fontSize: 11, fontFamily: "'DM Mono', monospace", borderRadius: 5, cursor: 'pointer', border: `1.5px solid ${active3d === i ? '#8D7966' : '#E8E0D8'}`, background: active3d === i ? '#8D7966' : 'transparent', color: active3d === i ? '#fff' : '#8D7966' }}>
+                    style={{ padding: '4px 10px', fontSize: 11, fontFamily: "'Inter', system-ui, -apple-system, sans-serif", borderRadius: 5, cursor: 'pointer', border: `1.5px solid ${active3d === i ? '#8D7966' : '#E8E0D8'}`, background: active3d === i ? '#8D7966' : 'transparent', color: active3d === i ? '#fff' : '#8D7966' }}>
                     Cont. {i + 1}
                   </button>
                 ))}
               </div>
             </div>
             <div style={{ height: 380, position: 'relative' }}>
-              <Suspense fallback={<div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', fontFamily: "'DM Mono', monospace", fontSize: 11, color: '#8D7966', letterSpacing: 2 }}>Cargando 3D...</div>}>
+              <Suspense fallback={<div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', fontFamily: "'Inter', system-ui, -apple-system, sans-serif", fontSize: 11, color: '#8D7966', letterSpacing: 2 }}>Cargando 3D...</div>}>
                 <ThreeCanvas readOnly />
               </Suspense>
             </div>
@@ -209,13 +209,13 @@ export default function SharePage({ shipmentId }) {
             <div key={ci} style={{ background: '#fff', borderRadius: 10, border: '1px solid #E8E0D8', marginBottom: 16, overflow: 'hidden' }}>
               <div style={{ background: '#F0EBE3', padding: '12px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div style={{ fontWeight: 600, color: '#5a4a3e' }}>Contenedor {ci + 1} — {ct?.label || cont.type}</div>
-                <div style={{ fontSize: 11, fontFamily: "'DM Mono', monospace", color: '#8D7966' }}>{fmt(cVol)} m³ · {pct}% ocupación</div>
+                <div style={{ fontSize: 11, fontFamily: "'Inter', system-ui, -apple-system, sans-serif", color: '#8D7966' }}>{fmt(cVol)} m³ · {pct}% ocupación</div>
               </div>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                 <thead>
                   <tr style={{ borderBottom: '1px solid #E8E0D8' }}>
                     {['Producto', 'Tipo', 'Dims (cm)', 'Cant.', 'Volumen', 'Precio/u', 'Notas'].map(h => (
-                      <th key={h} style={{ padding: '8px 14px', textAlign: 'left', fontFamily: "'DM Mono', monospace", fontSize: 10, color: '#8D7966', fontWeight: 600, letterSpacing: 1 }}>{h}</th>
+                      <th key={h} style={{ padding: '8px 14px', textAlign: 'left', fontFamily: "'Inter', system-ui, -apple-system, sans-serif", fontSize: 10, color: '#8D7966', fontWeight: 600, letterSpacing: 1 }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
@@ -227,7 +227,7 @@ export default function SharePage({ shipmentId }) {
                         {p.name}
                       </td>
                       <td style={{ padding: '9px 14px', color: '#6b5a4e', fontSize: 12 }}>{p.type === 'pallet' ? 'Pallet' : 'Caja'}</td>
-                      <td style={{ padding: '9px 14px', color: '#6b5a4e', fontSize: 12, fontFamily: "'DM Mono', monospace" }}>{p.dims.L}×{p.dims.W}×{p.dims.H}</td>
+                      <td style={{ padding: '9px 14px', color: '#6b5a4e', fontSize: 12, fontFamily: "'Inter', system-ui, -apple-system, sans-serif" }}>{p.dims.L}×{p.dims.W}×{p.dims.H}</td>
                       <td style={{ padding: '9px 14px', color: '#6b5a4e', textAlign: 'center' }}>{p.qty}</td>
                       <td style={{ padding: '9px 14px', color: '#6b5a4e', fontSize: 12 }}>{fmt(p.vol * p.qty)} m³</td>
                       <td style={{ padding: '9px 14px', color: '#6b5a4e', fontSize: 12 }}>{p.price ? 'U$S ' + fmt(p.price) : '—'}</td>

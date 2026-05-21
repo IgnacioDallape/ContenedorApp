@@ -43,13 +43,13 @@ export default class ErrorBoundary extends Component {
         <div style={{ display: 'flex', gap: 10, marginTop: 6 }}>
           <button
             onClick={() => this.setState({ hasError: false, error: null })}
-            style={{ padding: '8px 18px', fontSize: 12, fontFamily: "'DM Mono', monospace", borderRadius: 6, border: '1px solid var(--accent)', background: 'var(--accent)', color: '#fff', cursor: 'pointer', fontWeight: 700 }}
+            style={{ padding: '8px 18px', fontSize: 12, fontFamily: "'Inter', system-ui, -apple-system, sans-serif", borderRadius: 6, border: '1px solid var(--accent)', background: 'var(--accent)', color: '#fff', cursor: 'pointer', fontWeight: 700 }}
           >
             Reintentar
           </button>
           <button
             onClick={() => window.location.reload()}
-            style={{ padding: '8px 18px', fontSize: 12, fontFamily: "'DM Mono', monospace", borderRadius: 6, border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-2)', cursor: 'pointer' }}
+            style={{ padding: '8px 18px', fontSize: 12, fontFamily: "'Inter', system-ui, -apple-system, sans-serif", borderRadius: 6, border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-2)', cursor: 'pointer' }}
           >
             Recargar app
           </button>

@@ -206,7 +206,7 @@ export default function Catalog() {
                     <div className="cat-name">
                       {p.name}
                       {ipBadge && (
-                        <span style={{ fontSize: 9, background: '#1a4f8a', color: '#fff', padding: '1px 6px', borderRadius: 10, fontFamily: "'DM Mono', monospace", letterSpacing: '0.5px', verticalAlign: 'middle', marginLeft: 4 }}>
+                        <span style={{ fontSize: 9, background: '#1a4f8a', color: '#fff', padding: '1px 6px', borderRadius: 10, fontFamily: "'Inter', system-ui, -apple-system, sans-serif", letterSpacing: '0.5px', verticalAlign: 'middle', marginLeft: 4 }}>
                           IP
                         </span>
                       )}
@@ -261,7 +261,7 @@ export default function Catalog() {
 
                         {/* Zone selector */}
                         <div className="cat-footer-row2">
-                          <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--text-3)', letterSpacing: 1, whiteSpace: 'nowrap' }}>ZONA:</span>
+                          <span style={{ fontFamily: "'Inter', system-ui, -apple-system, sans-serif", fontSize: 9, color: 'var(--text-3)', letterSpacing: 1, whiteSpace: 'nowrap' }}>ZONA:</span>
                           <div className="zone-select-wrap">
                             {['auto', '0', '1', '2'].map((v, i) => {
                               const cur = selectedCatalogZones[p.id] === undefined ? 'auto' : selectedCatalogZones[p.id];
@@ -275,7 +275,7 @@ export default function Catalog() {
                                   onClick={() => setZone(p.id, v)}
                                   style={{
                                     padding: '2px 8px', fontSize: 9,
-                                    fontFamily: "'DM Mono', monospace", letterSpacing: '0.5px',
+                                    fontFamily: "'Inter', system-ui, -apple-system, sans-serif", letterSpacing: '0.5px',
                                     borderRadius: 20, cursor: 'pointer', transition: 'all 0.15s',
                                     border: `1px solid ${col}`, color: isActive ? '#fff' : col,
                                     background: isActive ? col : 'transparent',

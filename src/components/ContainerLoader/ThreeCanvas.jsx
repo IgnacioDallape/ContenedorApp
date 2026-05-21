@@ -597,7 +597,7 @@ function ThreeCanvas({ onSelectInstance, onSetZone, onClearZone, readOnly = fals
     function makeLabel(text, pos) {
       const canvas2 = document.createElement('canvas'); canvas2.width = 256; canvas2.height = 64;
       const ctx2 = canvas2.getContext('2d');
-      ctx2.font = 'bold 28px Jost, sans-serif';
+      ctx2.font = 'bold 28px Inter, system-ui, -apple-system, sans-serif';
       ctx2.fillStyle = '#8D7966'; ctx2.textAlign = 'center'; ctx2.textBaseline = 'middle';
       ctx2.fillText(text, 128, 32);
       const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(canvas2), transparent: true, opacity: 0.85 }));
@@ -1050,14 +1050,14 @@ function ThreeCanvas({ onSelectInstance, onSetZone, onClearZone, readOnly = fals
       }}>
         <style>{`@keyframes _spin{to{transform:rotate(360deg)}}`}</style>
         <div style={{ width: 28, height: 28, border: '3px solid #E0D5C8', borderTopColor: '#8D7966', borderRadius: '50%', animation: '_spin 0.8s linear infinite' }} />
-        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: '#8D7966', letterSpacing: 2 }}>CARGANDO</div>
+        <div style={{ fontFamily: "'Inter', system-ui, -apple-system, sans-serif", fontSize: 10, color: '#8D7966', letterSpacing: 2 }}>CARGANDO</div>
       </div>
       <div
         id="tooltip3d"
         style={{
           display: 'none', position: 'absolute', pointerEvents: 'none',
           background: 'rgba(30,22,14,0.92)', color: '#E8DDD0', padding: '8px 12px',
-          borderRadius: 8, fontSize: 12, fontFamily: "'Jost', sans-serif",
+          borderRadius: 8, fontSize: 12, fontFamily: "'Inter', system-ui, -apple-system, sans-serif",
           boxShadow: '0 4px 16px rgba(0,0,0,0.3)', zIndex: 10, maxWidth: 220,
         }}
       />

@@ -864,7 +864,7 @@ export default function PalletBuilder() {
 
         {/* Pallet config */}
         <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
-          <div style={{ fontSize: 10, fontFamily: "'DM Mono', monospace", letterSpacing: 1, color: 'var(--text-3)', marginBottom: 8 }}>TIPO DE PALLET</div>
+          <div style={{ fontSize: 10, fontFamily: "'Inter', system-ui, -apple-system, sans-serif", letterSpacing: 1, color: 'var(--text-3)', marginBottom: 8 }}>TIPO DE PALLET</div>
           <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
             {Object.entries(PB_PALLET_TYPES).map(([key, val]) => (
               <button
@@ -879,7 +879,7 @@ export default function PalletBuilder() {
                 }}
               >
                 {val.label}<br />
-                <span style={{ fontSize: 10, fontFamily: "'DM Mono', monospace", opacity: 0.8 }}>{val.dims}</span>
+                <span style={{ fontSize: 10, fontFamily: "'Inter', system-ui, -apple-system, sans-serif", opacity: 0.8 }}>{val.dims}</span>
               </button>
             ))}
           </div>
@@ -902,7 +902,7 @@ export default function PalletBuilder() {
         {/* Products list */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '10px 16px' }}>
           <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
-            <span style={{ fontSize: 10, fontFamily: "'DM Mono', monospace", letterSpacing: 1, color: 'var(--text-3)' }}>PRODUCTOS ({products.length})</span>
+            <span style={{ fontSize: 10, fontFamily: "'Inter', system-ui, -apple-system, sans-serif", letterSpacing: 1, color: 'var(--text-3)' }}>PRODUCTOS ({products.length})</span>
             <button
               onClick={openCatalogPicker}
               style={{ marginLeft: 'auto', fontSize: 10, padding: '3px 8px', background: 'transparent', border: '1px solid var(--border)', borderRadius: 'var(--radius)', cursor: 'pointer', color: 'var(--text-2)' }}
@@ -931,12 +931,12 @@ export default function PalletBuilder() {
                   <div className="queue-name">
                     {p.name}
                     {p.mustBeBase && (
-                      <span style={{ fontSize: 9, padding: '1px 6px', borderRadius: 10, background: 'var(--accent)', color: '#fff', fontFamily: "'DM Mono', monospace", marginLeft: 4 }}>
+                      <span style={{ fontSize: 9, padding: '1px 6px', borderRadius: 10, background: 'var(--accent)', color: '#fff', fontFamily: "'Inter', system-ui, -apple-system, sans-serif", marginLeft: 4 }}>
                         ⬇ BASE
                       </span>
                     )}
                     {p.noRotate && (
-                      <span style={{ fontSize: 9, padding: '1px 6px', borderRadius: 10, background: 'var(--bg-3)', color: 'var(--text)', fontFamily: "'DM Mono', monospace", marginLeft: 4, border: '1px solid var(--border)' }}>
+                      <span style={{ fontSize: 9, padding: '1px 6px', borderRadius: 10, background: 'var(--bg-3)', color: 'var(--text)', fontFamily: "'Inter', system-ui, -apple-system, sans-serif", marginLeft: 4, border: '1px solid var(--border)' }}>
                         POS. FIJA
                       </span>
                     )}
@@ -945,7 +945,7 @@ export default function PalletBuilder() {
                     {p.dims.L}×{p.dims.W}×{p.dims.H} cm · {p.qty} cj
                     {p.weight > 0 ? ` · ${p.weight} kg/u` : ''}
                     {buildMode === 'manual' && results.length > 0 && (
-                      <span style={{ marginLeft: 6, padding: '1px 6px', borderRadius: 8, background: remaining > 0 ? 'var(--bg-3)' : 'var(--accent-dim, #d8efe2)', color: remaining > 0 ? 'var(--text-2)' : 'var(--accent)', fontFamily: "'DM Mono', monospace", fontSize: 9, fontWeight: 700 }}>
+                      <span style={{ marginLeft: 6, padding: '1px 6px', borderRadius: 8, background: remaining > 0 ? 'var(--bg-3)' : 'var(--accent-dim, #d8efe2)', color: remaining > 0 ? 'var(--text-2)' : 'var(--accent)', fontFamily: "'Inter', system-ui, -apple-system, sans-serif", fontSize: 9, fontWeight: 700 }}>
                         {placed}/{p.qty}
                       </span>
                     )}
@@ -956,7 +956,7 @@ export default function PalletBuilder() {
                     <button
                       onClick={() => handlePlaceUnit(p.id)}
                       title="Ubicar 1 unidad con asistencia del motor"
-                      style={{ background: 'var(--accent)', border: 'none', borderRadius: 4, padding: '3px 8px', fontSize: 10, color: '#fff', cursor: 'pointer', fontWeight: 700, fontFamily: "'DM Mono', monospace" }}
+                      style={{ background: 'var(--accent)', border: 'none', borderRadius: 4, padding: '3px 8px', fontSize: 10, color: '#fff', cursor: 'pointer', fontWeight: 700, fontFamily: "'Inter', system-ui, -apple-system, sans-serif" }}
                     >+ Acá</button>
                   )}
                   <button
@@ -996,14 +996,14 @@ export default function PalletBuilder() {
               <button
                 onClick={handleStartEmpty}
                 disabled={!products.length || isBuilding}
-                style={{ padding: '10px 4px', fontSize: 11, borderRadius: 6, border: '1.5px solid var(--accent)', background: 'transparent', color: 'var(--accent)', cursor: 'pointer', fontWeight: 700, fontFamily: "'DM Mono', monospace" }}
+                style={{ padding: '10px 4px', fontSize: 11, borderRadius: 6, border: '1.5px solid var(--accent)', background: 'transparent', color: 'var(--accent)', cursor: 'pointer', fontWeight: 700, fontFamily: "'Inter', system-ui, -apple-system, sans-serif" }}
               >
                 📦 Vacío
               </button>
               <button
                 onClick={handleStartPrebuilt}
                 disabled={!products.length || isBuilding}
-                style={{ padding: '10px 4px', fontSize: 11, borderRadius: 6, border: '1.5px solid var(--accent)', background: 'var(--accent)', color: '#fff', cursor: 'pointer', fontWeight: 700, fontFamily: "'DM Mono', monospace" }}
+                style={{ padding: '10px 4px', fontSize: 11, borderRadius: 6, border: '1.5px solid var(--accent)', background: 'var(--accent)', color: '#fff', cursor: 'pointer', fontWeight: 700, fontFamily: "'Inter', system-ui, -apple-system, sans-serif" }}
               >
                 {isBuilding ? '...' : '🤖 Pre-armar'}
               </button>
@@ -1018,7 +1018,7 @@ export default function PalletBuilder() {
         {/* Top bar: nombre del job, estado, link de seguimiento, guardar/cargar */}
         <div style={{ padding: '10px 16px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', flexShrink: 0, background: 'var(--bg-2)' }}>
           <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, flex: '1 1 220px' }}>
-            <div style={{ fontSize: 10, fontFamily: "'DM Mono', monospace", letterSpacing: 1, color: 'var(--text-3)' }}>
+            <div style={{ fontSize: 10, fontFamily: "'Inter', system-ui, -apple-system, sans-serif", letterSpacing: 1, color: 'var(--text-3)' }}>
               {currentJobId ? 'PALLET GUARDADO' : 'PALLET SIN GUARDAR'}
             </div>
             <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -1033,7 +1033,7 @@ export default function PalletBuilder() {
               onClick={() => setShowStatusPicker(v => !v)}
               title={currentJobStatusCfg.label}
               style={{
-                padding: '6px 12px', fontSize: 10, fontFamily: "'DM Mono', monospace", letterSpacing: '0.4px',
+                padding: '6px 12px', fontSize: 10, fontFamily: "'Inter', system-ui, -apple-system, sans-serif", letterSpacing: '0.4px',
                 borderRadius: 8, cursor: 'pointer',
                 border: `1.5px solid ${currentJobStatusCfg.color}55`,
                 background: currentJobStatusCfg.bg, color: currentJobStatusCfg.color,
@@ -1056,7 +1056,7 @@ export default function PalletBuilder() {
                         background: currentJobStatus === key ? cfg.bg : 'transparent',
                         border: `1.5px solid ${currentJobStatus === key ? cfg.color + '55' : 'transparent'}`,
                         borderRadius: 7, padding: '6px 10px', cursor: 'pointer', textAlign: 'left',
-                        color: cfg.color, fontFamily: "'DM Mono', monospace", fontSize: 10, fontWeight: 600,
+                        color: cfg.color, fontFamily: "'Inter', system-ui, -apple-system, sans-serif", fontSize: 10, fontWeight: 600,
                         display: 'flex', alignItems: 'center', gap: 7,
                       }}
                     >
@@ -1075,7 +1075,7 @@ export default function PalletBuilder() {
             onClick={() => { setTrackingDraft(currentJobTracking || ''); setShowTrackingEditor(true); }}
             title={currentJobTracking || 'Sin link de seguimiento'}
             style={{
-              padding: '6px 12px', fontSize: 11, fontFamily: "'DM Mono', monospace", letterSpacing: '0.3px',
+              padding: '6px 12px', fontSize: 11, fontFamily: "'Inter', system-ui, -apple-system, sans-serif", letterSpacing: '0.3px',
               borderRadius: 8, cursor: 'pointer',
               border: `1.5px solid ${currentJobTracking ? 'var(--accent)' : 'var(--border)'}`,
               background: currentJobTracking ? 'var(--accent-dim, rgba(0,0,0,0.06))' : 'transparent',
@@ -1092,7 +1092,7 @@ export default function PalletBuilder() {
               type="button"
               onClick={() => setBuildMode('auto')}
               style={{
-                padding: '5px 12px', fontSize: 10, fontFamily: "'DM Mono', monospace", letterSpacing: '0.4px',
+                padding: '5px 12px', fontSize: 10, fontFamily: "'Inter', system-ui, -apple-system, sans-serif", letterSpacing: '0.4px',
                 borderRadius: 6, cursor: 'pointer', border: 'none', fontWeight: 700,
                 background: buildMode === 'auto' ? 'var(--accent)' : 'transparent',
                 color: buildMode === 'auto' ? '#fff' : 'var(--text-3)',
@@ -1103,7 +1103,7 @@ export default function PalletBuilder() {
               type="button"
               onClick={() => setBuildMode('manual')}
               style={{
-                padding: '5px 12px', fontSize: 10, fontFamily: "'DM Mono', monospace", letterSpacing: '0.4px',
+                padding: '5px 12px', fontSize: 10, fontFamily: "'Inter', system-ui, -apple-system, sans-serif", letterSpacing: '0.4px',
                 borderRadius: 6, cursor: 'pointer', border: 'none', fontWeight: 700,
                 background: buildMode === 'manual' ? 'var(--accent)' : 'transparent',
                 color: buildMode === 'manual' ? '#fff' : 'var(--text-3)',
@@ -1114,14 +1114,14 @@ export default function PalletBuilder() {
 
           <div style={{ display: 'flex', gap: 6, marginLeft: 'auto', flexWrap: 'wrap' }}>
             {currentJobId && (
-              <button type="button" onClick={newJob} style={{ padding: '6px 12px', fontSize: 11, borderRadius: 6, border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-2)', cursor: 'pointer', fontFamily: "'DM Mono', monospace" }}>
+              <button type="button" onClick={newJob} style={{ padding: '6px 12px', fontSize: 11, borderRadius: 6, border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-2)', cursor: 'pointer', fontFamily: "'Inter', system-ui, -apple-system, sans-serif" }}>
                 + Nuevo
               </button>
             )}
-            <button type="button" onClick={handleLoadList} style={{ padding: '6px 12px', fontSize: 11, borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg-3)', color: 'var(--text)', cursor: 'pointer', fontFamily: "'DM Mono', monospace", fontWeight: 600 }}>
+            <button type="button" onClick={handleLoadList} style={{ padding: '6px 12px', fontSize: 11, borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg-3)', color: 'var(--text)', cursor: 'pointer', fontFamily: "'Inter', system-ui, -apple-system, sans-serif", fontWeight: 600 }}>
               📂 Cargar
             </button>
-            <button type="button" onClick={openSaveModal} disabled={!products.length} style={{ padding: '6px 14px', fontSize: 11, borderRadius: 6, border: '1.5px solid var(--accent)', background: 'var(--accent)', color: '#fff', cursor: products.length ? 'pointer' : 'default', fontFamily: "'DM Mono', monospace", fontWeight: 700, opacity: products.length ? 1 : 0.5 }}>
+            <button type="button" onClick={openSaveModal} disabled={!products.length} style={{ padding: '6px 14px', fontSize: 11, borderRadius: 6, border: '1.5px solid var(--accent)', background: 'var(--accent)', color: '#fff', cursor: products.length ? 'pointer' : 'default', fontFamily: "'Inter', system-ui, -apple-system, sans-serif", fontWeight: 700, opacity: products.length ? 1 : 0.5 }}>
               💾 Guardar
             </button>
             <button
@@ -1129,7 +1129,7 @@ export default function PalletBuilder() {
               onClick={handleSharePallet}
               disabled={!results.length || isSharing}
               title="Genera un link público de solo-lectura"
-              style={{ padding: '6px 12px', fontSize: 11, borderRadius: 6, border: `1.5px solid ${currentJobIsPublic ? '#3A8C52' : 'var(--border)'}`, background: currentJobIsPublic ? '#EDF7F1' : 'var(--bg-3)', color: currentJobIsPublic ? '#3A8C52' : 'var(--text)', cursor: (results.length && !isSharing) ? 'pointer' : 'default', fontFamily: "'DM Mono', monospace", fontWeight: 700, opacity: results.length ? 1 : 0.5 }}
+              style={{ padding: '6px 12px', fontSize: 11, borderRadius: 6, border: `1.5px solid ${currentJobIsPublic ? '#3A8C52' : 'var(--border)'}`, background: currentJobIsPublic ? '#EDF7F1' : 'var(--bg-3)', color: currentJobIsPublic ? '#3A8C52' : 'var(--text)', cursor: (results.length && !isSharing) ? 'pointer' : 'default', fontFamily: "'Inter', system-ui, -apple-system, sans-serif", fontWeight: 700, opacity: results.length ? 1 : 0.5 }}
             >
               {isSharing ? '🔗 ...' : (currentJobIsPublic ? '🔗 Link activo' : '🔗 Compartir')}
             </button>
@@ -1138,7 +1138,7 @@ export default function PalletBuilder() {
               onClick={handleExportPDF}
               disabled={!results.length || isExportingPDF}
               title="Genera un PDF con fotos, productos, precios y guía de carga"
-              style={{ padding: '6px 12px', fontSize: 11, borderRadius: 6, border: '1.5px solid var(--border)', background: 'var(--bg-3)', color: 'var(--text)', cursor: (results.length && !isExportingPDF) ? 'pointer' : 'default', fontFamily: "'DM Mono', monospace", fontWeight: 700, opacity: results.length ? 1 : 0.5 }}
+              style={{ padding: '6px 12px', fontSize: 11, borderRadius: 6, border: '1.5px solid var(--border)', background: 'var(--bg-3)', color: 'var(--text)', cursor: (results.length && !isExportingPDF) ? 'pointer' : 'default', fontFamily: "'Inter', system-ui, -apple-system, sans-serif", fontWeight: 700, opacity: results.length ? 1 : 0.5 }}
             >
               {isExportingPDF ? '📄 ...' : '📄 PDF'}
             </button>
@@ -1183,7 +1183,7 @@ export default function PalletBuilder() {
                     onClick={() => setActiveResult(i)}
                     style={{
                       padding: '6px 14px', fontSize: 11, borderRadius: 6, cursor: 'pointer', transition: 'all 0.15s',
-                      fontFamily: "'DM Mono', monospace", letterSpacing: '0.5px',
+                      fontFamily: "'Inter', system-ui, -apple-system, sans-serif", letterSpacing: '0.5px',
                       border: `1.5px solid ${i === activeResult ? 'var(--accent)' : 'var(--border)'}`,
                       background: i === activeResult ? 'var(--accent-dim, rgba(0,0,0,0.06))' : 'transparent',
                       color: i === activeResult ? 'var(--accent)' : 'var(--text-3)',
@@ -1196,14 +1196,14 @@ export default function PalletBuilder() {
                 <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
                   <button
                     onClick={() => activeRes && addPalletToContainer(activeRes)}
-                    style={{ padding: '6px 14px', fontSize: 11, fontFamily: "'DM Mono', monospace", letterSpacing: '0.5px', borderRadius: 6, cursor: 'pointer', border: '1.5px solid var(--accent)', background: 'var(--accent)', color: '#fff', fontWeight: 700 }}
+                    style={{ padding: '6px 14px', fontSize: 11, fontFamily: "'Inter', system-ui, -apple-system, sans-serif", letterSpacing: '0.5px', borderRadius: 6, cursor: 'pointer', border: '1.5px solid var(--accent)', background: 'var(--accent)', color: '#fff', fontWeight: 700 }}
                   >
                     + Este pallet
                   </button>
                   {results.length > 1 && (
                     <button
                       onClick={addAllPalletsToContainer}
-                      style={{ padding: '6px 14px', fontSize: 11, fontFamily: "'DM Mono', monospace", letterSpacing: '0.5px', borderRadius: 6, cursor: 'pointer', border: '1.5px solid var(--accent)', background: 'transparent', color: 'var(--accent)', fontWeight: 700 }}
+                      style={{ padding: '6px 14px', fontSize: 11, fontFamily: "'Inter', system-ui, -apple-system, sans-serif", letterSpacing: '0.5px', borderRadius: 6, cursor: 'pointer', border: '1.5px solid var(--accent)', background: 'transparent', color: 'var(--accent)', fontWeight: 700 }}
                     >
                       + Todos ({results.length})
                     </button>
@@ -1224,7 +1224,7 @@ export default function PalletBuilder() {
                     strictMode={buildMode === 'manual'}
                   />
                   {selectedBox && (
-                    <div className="pallet-builder-inspector" style={{ position: 'absolute', right: 22, top: 22, zIndex: 30, width: 'min(272px, calc(100% - 44px))', maxHeight: 'calc(100% - 44px)', background: 'linear-gradient(180deg, rgba(251,247,241,0.98), rgba(243,236,227,0.98))', border: '1px solid rgba(141,121,102,0.22)', borderRadius: 18, boxShadow: '0 20px 44px rgba(97,78,60,0.18)', fontFamily: "'DM Mono', monospace", backdropFilter: 'blur(14px)', overflowX: 'hidden', overflowY: 'auto' }}>
+                    <div className="pallet-builder-inspector" style={{ position: 'absolute', right: 22, top: 22, zIndex: 30, width: 'min(272px, calc(100% - 44px))', maxHeight: 'calc(100% - 44px)', background: 'linear-gradient(180deg, rgba(251,247,241,0.98), rgba(243,236,227,0.98))', border: '1px solid rgba(141,121,102,0.22)', borderRadius: 18, boxShadow: '0 20px 44px rgba(97,78,60,0.18)', fontFamily: "'Inter', system-ui, -apple-system, sans-serif", backdropFilter: 'blur(14px)', overflowX: 'hidden', overflowY: 'auto' }}>
                       <div style={{ padding: '14px 14px 12px', background: 'linear-gradient(135deg, var(--c1), #a48f7d)', color: 'var(--c5)', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
                           <div style={{ width: 34, height: 34, borderRadius: 10, background: 'rgba(248,241,233,0.16)', display: 'grid', placeItems: 'center', fontSize: 16, flexShrink: 0 }}>📦</div>
@@ -1343,14 +1343,14 @@ export default function PalletBuilder() {
                         { label: 'PESO', val: `${activeRes.totalWeight.toFixed(1)} kg`, sub: 'estimado' },
                       ].map(s => (
                         <div key={s.label} style={{ background: 'var(--bg-3)', borderRadius: 8, padding: '8px 10px', border: '1px solid var(--border)' }}>
-                          <div style={{ fontSize: 9, color: 'var(--text-3)', fontFamily: "'DM Mono', monospace", letterSpacing: 1, marginBottom: 3 }}>{s.label}</div>
+                          <div style={{ fontSize: 9, color: 'var(--text-3)', fontFamily: "'Inter', system-ui, -apple-system, sans-serif", letterSpacing: 1, marginBottom: 3 }}>{s.label}</div>
                           <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>{s.val}</div>
                           <div style={{ fontSize: 10, color: 'var(--text-3)' }}>{s.sub}</div>
                         </div>
                       ))}
                     </div>
 
-                    <div style={{ fontSize: 10, fontFamily: "'DM Mono', monospace", letterSpacing: 1, color: 'var(--text-3)', marginBottom: 6 }}>REORDENAR</div>
+                    <div style={{ fontSize: 10, fontFamily: "'Inter', system-ui, -apple-system, sans-serif", letterSpacing: 1, color: 'var(--text-3)', marginBottom: 6 }}>REORDENAR</div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 14 }}>
                       {REORDER_OPTIONS.map(option => (
                         <button
@@ -1375,7 +1375,7 @@ export default function PalletBuilder() {
                     </div>
 
                     {/* Per-product breakdown */}
-                    <div style={{ fontSize: 10, fontFamily: "'DM Mono', monospace", letterSpacing: 1, color: 'var(--text-3)', marginBottom: 6 }}>DISTRIBUCIÓN</div>
+                    <div style={{ fontSize: 10, fontFamily: "'Inter', system-ui, -apple-system, sans-serif", letterSpacing: 1, color: 'var(--text-3)', marginBottom: 6 }}>DISTRIBUCIÓN</div>
                     {(() => {
                       const counts = {};
                       for (const b of activeRes.boxes) counts[b.name] = (counts[b.name] || 0) + 1;
@@ -1385,7 +1385,7 @@ export default function PalletBuilder() {
                           <div key={name} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, marginBottom: 6 }}>
                             <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: 2, background: prod?.color || '#999', flexShrink: 0 }} />
                             <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</span>
-                            <span style={{ fontWeight: 600, color: 'var(--accent)', fontFamily: "'DM Mono', monospace", fontSize: 11 }}>{cnt} cj</span>
+                            <span style={{ fontWeight: 600, color: 'var(--accent)', fontFamily: "'Inter', system-ui, -apple-system, sans-serif", fontSize: 11 }}>{cnt} cj</span>
                           </div>
                         );
                       });
@@ -1393,7 +1393,7 @@ export default function PalletBuilder() {
 
                     {!!activeRes.reserveBoxes?.length && (
                       <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid var(--border)' }}>
-                        <div style={{ fontSize: 10, fontFamily: "'DM Mono', monospace", letterSpacing: 1, color: 'var(--text-3)', marginBottom: 8 }}>RESERVA MANUAL</div>
+                        <div style={{ fontSize: 10, fontFamily: "'Inter', system-ui, -apple-system, sans-serif", letterSpacing: 1, color: 'var(--text-3)', marginBottom: 8 }}>RESERVA MANUAL</div>
                         <div style={{ display: 'grid', gap: 8 }}>
                           {activeRes.reserveBoxes.map(box => (
                             <div
@@ -1464,7 +1464,7 @@ export default function PalletBuilder() {
                                     borderRadius: 6, border: '1px solid var(--accent)',
                                     background: 'var(--accent)', color: '#fff',
                                     cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0,
-                                    fontFamily: "'DM Mono', monospace",
+                                    fontFamily: "'Inter', system-ui, -apple-system, sans-serif",
                                   }}
                                 >
                                   + Acá
@@ -1659,7 +1659,7 @@ export default function PalletBuilder() {
                         )}
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>{p.name}</div>
-                          <div style={{ fontSize: 11, color: 'var(--text-3)', fontFamily: "'DM Mono', monospace" }}>
+                          <div style={{ fontSize: 11, color: 'var(--text-3)', fontFamily: "'Inter', system-ui, -apple-system, sans-serif" }}>
                             {p.dims.L}×{p.dims.W}×{p.dims.H} cm{p.weight ? ` · ${p.weight} kg/u` : ''}
                           </div>
                         </div>
@@ -1719,7 +1719,7 @@ export default function PalletBuilder() {
         <div onClick={() => setShowSave(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 }}>
           <div onClick={e => e.stopPropagation()} style={{ background: 'var(--bg-2)', borderRadius: 12, padding: 20, width: '100%', maxWidth: 440, border: '1px solid var(--border)' }}>
             <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 14 }}>Guardar pallet</div>
-            <label style={{ fontSize: 10, fontFamily: "'DM Mono', monospace", letterSpacing: 1, color: 'var(--text-3)', display: 'block', marginBottom: 6 }}>NOMBRE</label>
+            <label style={{ fontSize: 10, fontFamily: "'Inter', system-ui, -apple-system, sans-serif", letterSpacing: 1, color: 'var(--text-3)', display: 'block', marginBottom: 6 }}>NOMBRE</label>
             <input
               type="text" autoFocus value={saveName}
               onChange={e => setSaveName(e.target.value)}
@@ -1775,12 +1775,12 @@ export default function PalletBuilder() {
                     <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', border: '1px solid var(--border)', borderRadius: 8, background: 'var(--bg-3)' }}>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.name}</div>
-                        <div style={{ fontSize: 10, color: 'var(--text-3)', fontFamily: "'DM Mono', monospace" }}>
+                        <div style={{ fontSize: 10, color: 'var(--text-3)', fontFamily: "'Inter', system-ui, -apple-system, sans-serif" }}>
                           {new Date(s.created_at).toLocaleDateString()} · <span style={{ color: cfg.color }}>{cfg.icon} {cfg.label}</span>
                         </div>
                       </div>
-                      <button onClick={() => loadJob(s.id)} style={{ padding: '5px 14px', fontSize: 11, borderRadius: 6, border: 'none', background: 'var(--accent)', color: '#fff', cursor: 'pointer', fontWeight: 700, fontFamily: "'DM Mono', monospace" }}>Cargar →</button>
-                      <button onClick={() => deleteJob(s.id)} title="Borrar" style={{ padding: '5px 10px', fontSize: 11, borderRadius: 6, border: '1px solid rgba(192,57,43,0.3)', background: 'transparent', color: '#c0392b', cursor: 'pointer', fontFamily: "'DM Mono', monospace" }}>×</button>
+                      <button onClick={() => loadJob(s.id)} style={{ padding: '5px 14px', fontSize: 11, borderRadius: 6, border: 'none', background: 'var(--accent)', color: '#fff', cursor: 'pointer', fontWeight: 700, fontFamily: "'Inter', system-ui, -apple-system, sans-serif" }}>Cargar →</button>
+                      <button onClick={() => deleteJob(s.id)} title="Borrar" style={{ padding: '5px 10px', fontSize: 11, borderRadius: 6, border: '1px solid rgba(192,57,43,0.3)', background: 'transparent', color: '#c0392b', cursor: 'pointer', fontFamily: "'Inter', system-ui, -apple-system, sans-serif" }}>×</button>
                     </div>
                   );
                 })
@@ -1800,7 +1800,7 @@ export default function PalletBuilder() {
               type="url" autoFocus value={trackingDraft}
               onChange={e => setTrackingDraft(e.target.value)}
               placeholder="https://..."
-              style={{ width: '100%', padding: '10px 12px', fontSize: 12, border: '1px solid var(--border-2)', borderRadius: 6, background: 'var(--bg-3)', color: 'var(--text)', boxSizing: 'border-box', fontFamily: "'DM Mono', monospace" }}
+              style={{ width: '100%', padding: '10px 12px', fontSize: 12, border: '1px solid var(--border-2)', borderRadius: 6, background: 'var(--bg-3)', color: 'var(--text)', boxSizing: 'border-box', fontFamily: "'Inter', system-ui, -apple-system, sans-serif" }}
             />
             {currentJobTracking && (
               <a href={currentJobTracking} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-block', marginTop: 10, fontSize: 11, color: 'var(--accent)', textDecoration: 'underline' }}>
@@ -1810,7 +1810,7 @@ export default function PalletBuilder() {
             {currentJobId && (
               <div style={{ marginTop: 14, padding: '10px 12px', background: 'var(--bg-3)', border: '1px solid var(--border)', borderRadius: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 10, color: 'var(--text-3)', fontFamily: "'DM Mono', monospace", letterSpacing: 1 }}>LINK PÚBLICO INTERNO</div>
+                  <div style={{ fontSize: 10, color: 'var(--text-3)', fontFamily: "'Inter', system-ui, -apple-system, sans-serif", letterSpacing: 1 }}>LINK PÚBLICO INTERNO</div>
                   <div style={{ fontSize: 11, color: 'var(--text-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{getPalletShareUrl(currentJobId)}</div>
                 </div>
                 <button onClick={copyShareLink} style={{ padding: '5px 12px', fontSize: 11, borderRadius: 6, border: '1px solid var(--border)', background: 'transparent', cursor: 'pointer', color: 'var(--text-2)' }}>Copiar</button>

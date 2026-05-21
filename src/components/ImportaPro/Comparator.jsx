@@ -64,7 +64,7 @@ function ProductCard({ slotIdx, product, onSelect, savedProducts, c }) {
             <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>
               Costo por unidad
             </div>
-            <div style={{ fontSize: 32, fontWeight: 800, color: 'var(--text)', fontFamily: "'DM Mono',monospace", lineHeight: 1.1 }}>
+            <div style={{ fontSize: 32, fontWeight: 800, color: 'var(--text)', fontFamily: "'Inter', system-ui, -apple-system, sans-serif", lineHeight: 1.1 }}>
               {ars(c.costoARS)}
             </div>
             <div style={{ fontSize: 13, color: 'var(--text-3)', marginTop: 3 }}>
@@ -102,13 +102,13 @@ function ProductCard({ slotIdx, product, onSelect, savedProducts, c }) {
               <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 14px',
                 borderBottom: '1px solid var(--border)', borderLeft: `3px solid ${rc}` }}>
                 <span style={{ fontSize: 13, color: 'var(--text-2)' }}>{label}</span>
-                <span style={{ fontSize: 13, fontWeight: 600, fontFamily: "'DM Mono',monospace", color: 'var(--text)' }}>{val}</span>
+                <span style={{ fontSize: 13, fontWeight: 600, fontFamily: "'Inter', system-ui, -apple-system, sans-serif", color: 'var(--text)' }}>{val}</span>
               </div>
             ))}
             <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px',
               background: color, borderLeft: `3px solid ${color}` }}>
               <span style={{ fontSize: 13, fontWeight: 700, color: '#fff', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Total por unidad</span>
-              <span style={{ fontSize: 15, fontWeight: 800, fontFamily: "'DM Mono',monospace", color: '#fff' }}>U$S {rd(c.costoUSD, 2)}</span>
+              <span style={{ fontSize: 15, fontWeight: 800, fontFamily: "'Inter', system-ui, -apple-system, sans-serif", color: '#fff' }}>U$S {rd(c.costoUSD, 2)}</span>
             </div>
           </div>
         </>
@@ -274,7 +274,7 @@ export default function Comparator() {
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
                                   <span style={{ fontSize: 17, fontWeight: 700,
                                     color: isNeg ? '#c0392b' : 'var(--text)',
-                                    fontFamily: "'DM Mono',monospace" }}>
+                                    fontFamily: "'Inter', system-ui, -apple-system, sans-serif" }}>
                                     {gan !== null ? ars(gan) : '—'}
                                   </span>
                                   {margin !== null && (
@@ -363,7 +363,7 @@ export default function Comparator() {
                           borderLeft: `2px solid ${wins && !tie ? color : 'transparent'}`,
                           display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
                           <span style={{ fontSize: 15, fontWeight: wins && !tie ? 800 : 600,
-                            fontFamily: "'DM Mono',monospace",
+                            fontFamily: "'Inter', system-ui, -apple-system, sans-serif",
                             color: wins && !tie ? 'var(--text)' : 'var(--text-2)' }}>
                             {fmt(val)}
                           </span>

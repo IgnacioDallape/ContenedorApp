@@ -16,7 +16,7 @@ export default function Toast() {
             padding: '10px 20px',
             borderRadius: 8,
             fontSize: 13,
-            fontFamily: 'Jost, sans-serif',
+            fontFamily: 'Inter, system-ui, -apple-system, sans-serif',
             boxShadow: '0 4px 20px rgba(0,0,0,0.2)',
             pointerEvents: 'auto',
             cursor: 'pointer',

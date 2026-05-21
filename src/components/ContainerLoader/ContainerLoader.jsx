@@ -964,7 +964,7 @@ export default function ContainerLoader() {
 
     // Legend: direction label
     ctx.fillStyle = '#8D7966';
-    ctx.font = '10px DM Mono, monospace';
+    ctx.font = '10px Inter, system-ui, -apple-system, sans-serif';
     ctx.fillText('← frente', 4, canvas.height - 6);
     ctx.fillText(`Max ${maxW.toFixed(1)} kg/m²`, canvas.width - 80, 14);
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -990,21 +990,21 @@ export default function ContainerLoader() {
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontWeight: 700, fontSize: 14, color: '#3d2e24', marginBottom: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.name}</div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-              <span style={{ fontSize: 10, color: '#9a8778', fontFamily: "'DM Mono', monospace" }}>{date}</span>
+              <span style={{ fontSize: 10, color: '#9a8778', fontFamily: "'Inter', system-ui, -apple-system, sans-serif" }}>{date}</span>
               <span style={{ width: 3, height: 3, borderRadius: '50%', background: '#C8B8A8', flexShrink: 0 }} />
-              <span style={{ fontSize: 10, color: '#9a8778', fontFamily: "'DM Mono', monospace" }}>{totalConts} cont{totalConts > 1 ? 's' : ''}</span>
+              <span style={{ fontSize: 10, color: '#9a8778', fontFamily: "'Inter', system-ui, -apple-system, sans-serif" }}>{totalConts} cont{totalConts > 1 ? 's' : ''}</span>
               <span style={{ width: 3, height: 3, borderRadius: '50%', background: '#C8B8A8', flexShrink: 0 }} />
-              <span style={{ fontSize: 10, color: '#9a8778', fontFamily: "'DM Mono', monospace" }}>{totalProds} prod{totalProds !== 1 ? 's' : ''}</span>
+              <span style={{ fontSize: 10, color: '#9a8778', fontFamily: "'Inter', system-ui, -apple-system, sans-serif" }}>{totalProds} prod{totalProds !== 1 ? 's' : ''}</span>
               {finalizedLabel && (
                 <>
                   <span style={{ width: 3, height: 3, borderRadius: '50%', background: '#C8B8A8', flexShrink: 0 }} />
-                  <span style={{ fontSize: 10, color: '#9a8778', fontFamily: "'DM Mono', monospace" }}>Finalizado {finalizedLabel}</span>
+                  <span style={{ fontSize: 10, color: '#9a8778', fontFamily: "'Inter', system-ui, -apple-system, sans-serif" }}>Finalizado {finalizedLabel}</span>
                 </>
               )}
             </div>
             {sNotes && <div style={{ marginTop: 5, fontSize: 11, color: '#8D7966', fontStyle: 'italic', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>📝 {sNotes}</div>}
           </div>
-          <button onClick={() => setOpenStatusId(isOpen ? null : s.id)} style={{ flexShrink: 0, cursor: isFinalizedSection ? 'default' : 'pointer', border: `1.5px solid ${st.color}55`, borderRadius: 20, padding: '4px 10px', background: st.bg, color: st.color, fontFamily: "'DM Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: '0.3px', display: 'flex', alignItems: 'center', gap: 5 }} disabled={isFinalizedSection}>
+          <button onClick={() => setOpenStatusId(isOpen ? null : s.id)} style={{ flexShrink: 0, cursor: isFinalizedSection ? 'default' : 'pointer', border: `1.5px solid ${st.color}55`, borderRadius: 20, padding: '4px 10px', background: st.bg, color: st.color, fontFamily: "'Inter', system-ui, -apple-system, sans-serif", fontSize: 10, fontWeight: 700, letterSpacing: '0.3px', display: 'flex', alignItems: 'center', gap: 5 }} disabled={isFinalizedSection}>
             <span>{st.icon}</span>
             <span>{st.label}</span>
             {!isFinalizedSection && <span style={{ fontSize: 8, opacity: 0.6 }}>▾</span>}
@@ -1016,7 +1016,7 @@ export default function ContainerLoader() {
             {STATUS_ORDER.map((key) => {
               const cfg = STATUS_CONFIG[key];
               return (
-                <button key={key} onClick={() => { updateShipmentStatus(s.id, key); setOpenStatusId(null); }} style={{ background: normalizedStatus === key ? cfg.bg : 'transparent', border: `1.5px solid ${normalizedStatus === key ? cfg.color + '55' : 'transparent'}`, borderRadius: 7, padding: '6px 10px', cursor: 'pointer', textAlign: 'left', color: cfg.color, fontFamily: "'DM Mono', monospace", fontSize: 10, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 7 }}>
+                <button key={key} onClick={() => { updateShipmentStatus(s.id, key); setOpenStatusId(null); }} style={{ background: normalizedStatus === key ? cfg.bg : 'transparent', border: `1.5px solid ${normalizedStatus === key ? cfg.color + '55' : 'transparent'}`, borderRadius: 7, padding: '6px 10px', cursor: 'pointer', textAlign: 'left', color: cfg.color, fontFamily: "'Inter', system-ui, -apple-system, sans-serif", fontSize: 10, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 7 }}>
                   <span>{cfg.icon}</span>
                   <span>{cfg.label}</span>
                 </button>
@@ -1030,17 +1030,17 @@ export default function ContainerLoader() {
             <button
               onClick={() => handleShareShipment(s)}
               disabled={sharingShipmentId === s.id}
-              style={{ padding: '4px 10px', fontSize: 10, fontFamily: "'DM Mono', monospace", borderRadius: 6, cursor: sharingShipmentId === s.id ? 'wait' : 'pointer', border: `1px solid ${s.is_public ? '#3A8C52' : '#D8CFC6'}`, color: s.is_public ? '#3A8C52' : '#9a8778', background: s.is_public ? '#EDF7F1' : 'transparent', opacity: sharingShipmentId === s.id ? 0.7 : 1 }}
+              style={{ padding: '4px 10px', fontSize: 10, fontFamily: "'Inter', system-ui, -apple-system, sans-serif", borderRadius: 6, cursor: sharingShipmentId === s.id ? 'wait' : 'pointer', border: `1px solid ${s.is_public ? '#3A8C52' : '#D8CFC6'}`, color: s.is_public ? '#3A8C52' : '#9a8778', background: s.is_public ? '#EDF7F1' : 'transparent', opacity: sharingShipmentId === s.id ? 0.7 : 1 }}
             >
               {sharingShipmentId === s.id ? '🔗 Abriendo...' : s.is_public ? '🔗 Compartir link' : '🔗 Compartir'}
             </button>
           )}
           {!isFinalizedSection && s.is_public && (
-            <button onClick={() => disableShipmentPublic(s.id)} style={{ padding: '4px 10px', fontSize: 10, fontFamily: "'DM Mono', monospace", borderRadius: 6, cursor: 'pointer', border: '1px solid #E8D6CF', color: '#B85C5C', background: '#FFF8F6' }}>
+            <button onClick={() => disableShipmentPublic(s.id)} style={{ padding: '4px 10px', fontSize: 10, fontFamily: "'Inter', system-ui, -apple-system, sans-serif", borderRadius: 6, cursor: 'pointer', border: '1px solid #E8D6CF', color: '#B85C5C', background: '#FFF8F6' }}>
               Desactivar link
             </button>
           )}
-          <button onClick={() => handleExportShipmentCSV(s)} title="Exportar CSV" style={{ padding: '4px 10px', fontSize: 10, fontFamily: "'DM Mono', monospace", borderRadius: 6, cursor: 'pointer', border: '1px solid #D8CFC6', color: '#9a8778', background: 'transparent' }}>
+          <button onClick={() => handleExportShipmentCSV(s)} title="Exportar CSV" style={{ padding: '4px 10px', fontSize: 10, fontFamily: "'Inter', system-ui, -apple-system, sans-serif", borderRadius: 6, cursor: 'pointer', border: '1px solid #D8CFC6', color: '#9a8778', background: 'transparent' }}>
             📊 CSV
           </button>
           <button
@@ -1053,16 +1053,16 @@ export default function ContainerLoader() {
               await exportShipmentPDF({ containers, currentContainerType, views, shipmentName: currentShipmentName, shipmentId: currentShipmentId });
             }}
             title={String(currentShipmentId) === String(s.id) ? 'Exportar PDF' : 'Cargá el embarque para exportar PDF'}
-            style={{ padding: '4px 10px', fontSize: 10, fontFamily: "'DM Mono', monospace", borderRadius: 6, cursor: 'pointer', border: `1px solid ${String(currentShipmentId) === String(s.id) ? '#D8CFC6' : '#EDE8E3'}`, color: String(currentShipmentId) === String(s.id) ? '#9a8778' : '#C8B8A8', background: 'transparent', opacity: String(currentShipmentId) === String(s.id) ? 1 : 0.5 }}>
+            style={{ padding: '4px 10px', fontSize: 10, fontFamily: "'Inter', system-ui, -apple-system, sans-serif", borderRadius: 6, cursor: 'pointer', border: `1px solid ${String(currentShipmentId) === String(s.id) ? '#D8CFC6' : '#EDE8E3'}`, color: String(currentShipmentId) === String(s.id) ? '#9a8778' : '#C8B8A8', background: 'transparent', opacity: String(currentShipmentId) === String(s.id) ? 1 : 0.5 }}>
             📄 PDF
           </button>
           {!isFinalizedSection && normalizedStatus === 'entregado' && (
-            <button onClick={() => finalizeShipment(s.id)} style={{ padding: '4px 10px', fontSize: 10, fontFamily: "'DM Mono', monospace", borderRadius: 6, cursor: 'pointer', border: '1px solid rgba(58,140,82,0.22)', color: '#3A8C52', background: '#EDF7F1' }}>
+            <button onClick={() => finalizeShipment(s.id)} style={{ padding: '4px 10px', fontSize: 10, fontFamily: "'Inter', system-ui, -apple-system, sans-serif", borderRadius: 6, cursor: 'pointer', border: '1px solid rgba(58,140,82,0.22)', color: '#3A8C52', background: '#EDF7F1' }}>
               ✓ Finalizar
             </button>
           )}
           <div style={{ flex: 1 }} />
-          <button onClick={() => loadShipment(s.id)} style={{ padding: '4px 14px', fontSize: 10, fontFamily: "'DM Mono', monospace", borderRadius: 6, border: '1.5px solid #8D7966', color: '#fff', background: '#8D7966', cursor: 'pointer', fontWeight: 600 }}>Cargar →</button>
+          <button onClick={() => loadShipment(s.id)} style={{ padding: '4px 14px', fontSize: 10, fontFamily: "'Inter', system-ui, -apple-system, sans-serif", borderRadius: 6, border: '1.5px solid #8D7966', color: '#fff', background: '#8D7966', cursor: 'pointer', fontWeight: 600 }}>Cargar →</button>
           {!isFinalizedSection && (
             <button onClick={() => { setDeleteShipId(s.id); setShowDeleteShip(true); }} style={{ padding: '4px 8px', fontSize: 12, borderRadius: 6, border: '1px solid #E8E0D8', color: '#b85c5c', background: 'transparent', cursor: 'pointer', lineHeight: 1 }}>✕</button>
           )}
@@ -1195,7 +1195,7 @@ export default function ContainerLoader() {
           </div>
 
           {formError && (
-            <div style={{ color: 'var(--error, #c0392b)', fontSize: 11, fontFamily: "'DM Mono', monospace", marginBottom: 8, padding: '6px 10px', background: 'rgba(192,57,43,0.08)', borderRadius: 6, border: '1px solid rgba(192,57,43,0.2)' }}>
+            <div style={{ color: 'var(--error, #c0392b)', fontSize: 11, fontFamily: "'Inter', system-ui, -apple-system, sans-serif", marginBottom: 8, padding: '6px 10px', background: 'rgba(192,57,43,0.08)', borderRadius: 6, border: '1px solid rgba(192,57,43,0.2)' }}>
               ⚠ {formError}
             </div>
           )}
@@ -1218,7 +1218,7 @@ export default function ContainerLoader() {
             </div>
           )}
 
-          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--muted)', letterSpacing: '2px', textTransform: 'uppercase', marginBottom: 14 }}>Productos cargados</div>
+          <div style={{ fontFamily: "'Inter', system-ui, -apple-system, sans-serif", fontSize: 10, color: 'var(--muted)', letterSpacing: '2px', textTransform: 'uppercase', marginBottom: 14 }}>Productos cargados</div>
 
           <div id="productList">
             {loadedProducts.length === 0 ? (
@@ -1232,7 +1232,7 @@ export default function ContainerLoader() {
                   <div className="queue-info">
                     <div className="queue-name">
                       {p.name}
-                      {zoneIdx >= 0 && <span style={{ fontSize: 9, padding: '1px 6px', borderRadius: 10, background: ZONE_COLORS_HEX[zoneIdx], color: '#fff', fontFamily: "'DM Mono', monospace", marginLeft: 4 }}>Z{zoneIdx+1}</span>}
+                      {zoneIdx >= 0 && <span style={{ fontSize: 9, padding: '1px 6px', borderRadius: 10, background: ZONE_COLORS_HEX[zoneIdx], color: '#fff', fontFamily: "'Inter', system-ui, -apple-system, sans-serif", marginLeft: 4 }}>Z{zoneIdx+1}</span>}
                       <span className="queue-price" style={{ float: 'right' }}>${fmt(p.price * p.qty)}</span>
                     </div>
                     <div className="queue-meta">
@@ -1242,7 +1242,7 @@ export default function ContainerLoader() {
                   <div style={{ display: 'flex', gap: 3, flexShrink: 0, alignItems: 'center' }}>
                     <button onClick={() => { if (!ensureEditable('agregar o quitar mercadería')) return; p.qty > 1 ? updateProductQty(p.id, p.qty - 1) : removeProduct(p.id); }} title="Reducir cantidad" disabled={!canEditShipment}
                       style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 3, padding: '2px 6px', fontSize: 12, color: 'var(--muted)', cursor: canEditShipment ? 'pointer' : 'not-allowed', lineHeight: 1, opacity: canEditShipment ? 1 : 0.45 }}>−</button>
-                    <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, minWidth: 18, textAlign: 'center', color: 'var(--text)' }}>{p.qty}</span>
+                    <span style={{ fontFamily: "'Inter', system-ui, -apple-system, sans-serif", fontSize: 10, minWidth: 18, textAlign: 'center', color: 'var(--text)' }}>{p.qty}</span>
                     <button onClick={() => { if (!ensureEditable('agregar o quitar mercadería')) return; updateProductQty(p.id, p.qty + 1); }} title="Aumentar cantidad" disabled={!canEditShipment}
                       style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 3, padding: '2px 6px', fontSize: 12, color: 'var(--muted)', cursor: canEditShipment ? 'pointer' : 'not-allowed', lineHeight: 1, opacity: canEditShipment ? 1 : 0.45 }}>+</button>
                     <button className="btn-remove" onClick={() => { if (!ensureEditable('agregar o quitar mercadería')) return; removeProduct(p.id); }} title="Eliminar" disabled={!canEditShipment} style={{ opacity: canEditShipment ? 1 : 0.45, cursor: canEditShipment ? 'pointer' : 'not-allowed' }}>×</button>
@@ -1276,23 +1276,23 @@ export default function ContainerLoader() {
             <div className="section-header">
               <div className="section-title">Visualización del Contenedor {ct.label}</div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--muted)' }}>{ct.dims}</span>
-                <span style={{ padding: '4px 8px', borderRadius: 999, background: '#EAF7F0', color: '#2F8F5B', fontSize: 10, fontFamily: "'DM Mono', monospace" }}>
+                <span style={{ fontFamily: "'Inter', system-ui, -apple-system, sans-serif", fontSize: 10, color: 'var(--muted)' }}>{ct.dims}</span>
+                <span style={{ padding: '4px 8px', borderRadius: 999, background: '#EAF7F0', color: '#2F8F5B', fontSize: 10, fontFamily: "'Inter', system-ui, -apple-system, sans-serif" }}>
                   Verde {supportSummary.stable}
                 </span>
                 {(supportSummary.partial > 0 || supportSummary.auxiliary > 0) && (
-                  <span style={{ padding: '4px 8px', borderRadius: 999, background: '#FBF3E6', color: '#8C6B3C', fontSize: 10, fontFamily: "'DM Mono', monospace" }}>
+                  <span style={{ padding: '4px 8px', borderRadius: 999, background: '#FBF3E6', color: '#8C6B3C', fontSize: 10, fontFamily: "'Inter', system-ui, -apple-system, sans-serif" }}>
                     Amarillo {supportSummary.partial + supportSummary.auxiliary}
                   </span>
                 )}
-                <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 8px', borderRadius: 999, border: '1px solid var(--border)', fontSize: 10, fontFamily: "'DM Mono', monospace", color: 'var(--muted)' }}>
+                <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 8px', borderRadius: 999, border: '1px solid var(--border)', fontSize: 10, fontFamily: "'Inter', system-ui, -apple-system, sans-serif", color: 'var(--muted)' }}>
                   <input type="checkbox" checked={allowAuxiliarySupport} onChange={e => setAllowAuxiliarySupport(e.target.checked)} />
                   Permitir soporte auxiliar
                 </label>
                 {loadedProducts.some(p => p.weight > 0) && (
                   <button
                     onClick={() => setShowWeightMap(v => !v)}
-                    style={{ padding: '3px 9px', fontSize: 11, fontFamily: "'DM Mono', monospace", borderRadius: 5, cursor: 'pointer', border: `1px solid ${showWeightMap ? 'var(--c1)' : 'var(--border)'}`, background: showWeightMap ? 'var(--c1)15' : 'transparent', color: showWeightMap ? 'var(--c1)' : 'var(--muted)' }}>
+                    style={{ padding: '3px 9px', fontSize: 11, fontFamily: "'Inter', system-ui, -apple-system, sans-serif", borderRadius: 5, cursor: 'pointer', border: `1px solid ${showWeightMap ? 'var(--c1)' : 'var(--border)'}`, background: showWeightMap ? 'var(--c1)15' : 'transparent', color: showWeightMap ? 'var(--c1)' : 'var(--muted)' }}>
                     🌡 Peso
                   </button>
                 )}
@@ -1317,7 +1317,7 @@ export default function ContainerLoader() {
                       onDrop={e => { e.preventDefault(); handleTabDrop(dragTabIdx, i); setDragTabIdx(null); setDragOverTabIdx(null); }}
                       onDragEnd={() => { setDragTabIdx(null); setDragOverTabIdx(null); }}
                       onClick={() => switchToContainer(i)}
-                      style={{ padding: '6px 14px', fontSize: 11, fontFamily: "'DM Mono', monospace", letterSpacing: '0.5px', borderRadius: 6, cursor: isDragging ? 'grabbing' : 'grab', border: `1.5px solid ${isDragOver ? 'var(--c1)' : isActive ? 'var(--c1)' : 'var(--border)'}`, background: isActive ? 'var(--c1)' : isDragOver ? 'var(--c1)22' : 'transparent', color: isActive ? 'var(--c5)' : 'var(--muted)', fontWeight: isActive ? 700 : 400, display: 'flex', alignItems: 'center', gap: 4, opacity: isDragging ? 0.4 : 1, transition: 'border-color 0.15s, background 0.15s, opacity 0.15s', outline: isDragOver ? '2px solid var(--c1)' : 'none', outlineOffset: 1 }}>
+                      style={{ padding: '6px 14px', fontSize: 11, fontFamily: "'Inter', system-ui, -apple-system, sans-serif", letterSpacing: '0.5px', borderRadius: 6, cursor: isDragging ? 'grabbing' : 'grab', border: `1.5px solid ${isDragOver ? 'var(--c1)' : isActive ? 'var(--c1)' : 'var(--border)'}`, background: isActive ? 'var(--c1)' : isDragOver ? 'var(--c1)22' : 'transparent', color: isActive ? 'var(--c5)' : 'var(--muted)', fontWeight: isActive ? 700 : 400, display: 'flex', alignItems: 'center', gap: 4, opacity: isDragging ? 0.4 : 1, transition: 'border-color 0.15s, background 0.15s, opacity 0.15s', outline: isDragOver ? '2px solid var(--c1)' : 'none', outlineOffset: 1 }}>
                       <span style={{ opacity: 0.5, fontSize: 10, letterSpacing: 0 }}>⠿</span>
                       🚢 Cont. {c.id} <span style={{ opacity: 0.7 }}>{cpct}%</span>
                       {shipmentContainers.length > 1 && (
@@ -1327,16 +1327,16 @@ export default function ContainerLoader() {
                   );
                 })}
                 <button onClick={() => { if (!ensureEditable('editar este embarque')) return; addNewContainer(); }} disabled={!canEditShipment}
-                  style={{ padding: '6px 12px', fontSize: 11, fontFamily: "'DM Mono', monospace", borderRadius: 6, cursor: canEditShipment ? 'pointer' : 'not-allowed', border: '1.5px dashed var(--border)', background: 'transparent', color: 'var(--muted)', opacity: canEditShipment ? 1 : 0.45 }}>
+                  style={{ padding: '6px 12px', fontSize: 11, fontFamily: "'Inter', system-ui, -apple-system, sans-serif", borderRadius: 6, cursor: canEditShipment ? 'pointer' : 'not-allowed', border: '1.5px dashed var(--border)', background: 'transparent', color: 'var(--muted)', opacity: canEditShipment ? 1 : 0.45 }}>
                   + Nuevo contenedor
                 </button>
               </div>
               <button onClick={handleSaveShipment}
-                style={{ padding: '6px 14px', fontSize: 11, fontFamily: "'DM Mono', monospace", letterSpacing: '0.5px', borderRadius: 6, cursor: 'pointer', border: '1.5px solid var(--c1)', color: 'var(--c1)', background: 'transparent', whiteSpace: 'nowrap' }}>
+                style={{ padding: '6px 14px', fontSize: 11, fontFamily: "'Inter', system-ui, -apple-system, sans-serif", letterSpacing: '0.5px', borderRadius: 6, cursor: 'pointer', border: '1.5px solid var(--c1)', color: 'var(--c1)', background: 'transparent', whiteSpace: 'nowrap' }}>
                 💾 Guardar embarque
               </button>
               <button onClick={handleLoadShipments}
-                style={{ padding: '6px 14px', fontSize: 11, fontFamily: "'DM Mono', monospace", letterSpacing: '0.5px', borderRadius: 6, cursor: 'pointer', border: '1px solid var(--border)', color: 'var(--muted)', background: 'transparent', whiteSpace: 'nowrap' }}>
+                style={{ padding: '6px 14px', fontSize: 11, fontFamily: "'Inter', system-ui, -apple-system, sans-serif", letterSpacing: '0.5px', borderRadius: 6, cursor: 'pointer', border: '1px solid var(--border)', color: 'var(--muted)', background: 'transparent', whiteSpace: 'nowrap' }}>
                 📂 Mis embarques
               </button>
                 {(currentShipmentId || loadedProducts.length > 0) && (
@@ -1344,7 +1344,7 @@ export default function ContainerLoader() {
                   <button
                     onClick={() => setShowCurrentStatusPicker(v => !v)}
                     title={currentStatusCfg.label}
-                    style={{ padding: '6px 12px', fontSize: 10, fontFamily: "'DM Mono', monospace", letterSpacing: '0.4px', borderRadius: 8, cursor: 'pointer', border: `1.5px solid ${currentStatusCfg.color}55`, background: currentStatusCfg.bg, color: currentStatusCfg.color, lineHeight: 1, display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }}>
+                    style={{ padding: '6px 12px', fontSize: 10, fontFamily: "'Inter', system-ui, -apple-system, sans-serif", letterSpacing: '0.4px', borderRadius: 8, cursor: 'pointer', border: `1.5px solid ${currentStatusCfg.color}55`, background: currentStatusCfg.bg, color: currentStatusCfg.color, lineHeight: 1, display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }}>
                     <span>{currentStatusCfg.icon}</span>
                     <span>{currentStatusCfg.label}</span>
                     <span style={{ fontSize: 8, opacity: 0.6 }}>â–¾</span>
@@ -1356,7 +1356,7 @@ export default function ContainerLoader() {
                         return (
                           <button key={key}
                             onClick={() => { updateShipmentStatus(currentShipmentId, key); setShowCurrentStatusPicker(false); }}
-                            style={{ background: currentShipmentStatus === key ? cfg.bg : 'transparent', border: `1.5px solid ${currentShipmentStatus === key ? cfg.color + '55' : 'transparent'}`, borderRadius: 7, padding: '6px 10px', cursor: 'pointer', textAlign: 'left', color: cfg.color, fontFamily: "'DM Mono', monospace", fontSize: 10, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 7 }}>
+                            style={{ background: currentShipmentStatus === key ? cfg.bg : 'transparent', border: `1.5px solid ${currentShipmentStatus === key ? cfg.color + '55' : 'transparent'}`, borderRadius: 7, padding: '6px 10px', cursor: 'pointer', textAlign: 'left', color: cfg.color, fontFamily: "'Inter', system-ui, -apple-system, sans-serif", fontSize: 10, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 7 }}>
                             <span>{cfg.icon}</span>
                             <span>{cfg.label}</span>
                           </button>
@@ -1374,7 +1374,7 @@ export default function ContainerLoader() {
                     style={{
                       padding: '6px 12px',
                       fontSize: 10,
-                      fontFamily: "'DM Mono', monospace",
+                      fontFamily: "'Inter', system-ui, -apple-system, sans-serif",
                       letterSpacing: '0.4px',
                       borderRadius: 8,
                       cursor: sharingShipmentId === currentShipmentId ? 'wait' : 'pointer',
@@ -1399,7 +1399,7 @@ export default function ContainerLoader() {
                     style={{
                       padding: '6px 10px',
                       fontSize: 10,
-                      fontFamily: "'DM Mono', monospace",
+                      fontFamily: "'Inter', system-ui, -apple-system, sans-serif",
                       letterSpacing: '0.4px',
                       borderRadius: 8,
                       cursor: 'pointer',
@@ -1420,7 +1420,7 @@ export default function ContainerLoader() {
                   }}
                   disabled={loadedProducts.length === 0}
                   title="Exportar PDF"
-                  style={{ padding: '6px 11px', fontSize: 10, fontFamily: "'DM Mono', monospace", letterSpacing: '0.4px', borderRadius: 8, cursor: loadedProducts.length === 0 ? 'not-allowed' : 'pointer', border: '1px solid var(--border)', color: loadedProducts.length === 0 ? 'var(--muted)' : 'var(--text)', background: 'transparent', opacity: loadedProducts.length === 0 ? 0.45 : 1, lineHeight: 1, display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }}>
+                  style={{ padding: '6px 11px', fontSize: 10, fontFamily: "'Inter', system-ui, -apple-system, sans-serif", letterSpacing: '0.4px', borderRadius: 8, cursor: loadedProducts.length === 0 ? 'not-allowed' : 'pointer', border: '1px solid var(--border)', color: loadedProducts.length === 0 ? 'var(--muted)' : 'var(--text)', background: 'transparent', opacity: loadedProducts.length === 0 ? 0.45 : 1, lineHeight: 1, display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }}>
                   <span style={{ fontSize: 11 }}>🧾</span>
                   <span>PDF</span>
                 </button>
@@ -1436,7 +1436,7 @@ export default function ContainerLoader() {
                     onChange={e => setShipmentNotes(e.target.value)}
                     placeholder="📝 Notas del embarque..."
                     rows={1}
-                    style={{ flex: 1, padding: '7px 12px', border: '1px solid var(--border)', borderRadius: 7, fontFamily: "'Jost', sans-serif", fontSize: 12, background: 'var(--surface)', color: 'var(--text)', boxSizing: 'border-box', resize: 'vertical', lineHeight: 1.5, opacity: 0.85 }}
+                    style={{ flex: 1, padding: '7px 12px', border: '1px solid var(--border)', borderRadius: 7, fontFamily: "'Inter', system-ui, -apple-system, sans-serif", fontSize: 12, background: 'var(--surface)', color: 'var(--text)', boxSizing: 'border-box', resize: 'vertical', lineHeight: 1.5, opacity: 0.85 }}
                   />
                   <div style={{ display: 'none' }}>
                     <button
@@ -1453,7 +1453,7 @@ export default function ContainerLoader() {
                           return (
                             <button key={key}
                               onClick={() => { updateShipmentStatus(currentShipmentId, key); setShowCurrentStatusPicker(false); }}
-                              style={{ background: currentShipmentStatus === key ? cfg.bg : 'transparent', border: `1.5px solid ${currentShipmentStatus === key ? cfg.color + '55' : 'transparent'}`, borderRadius: 7, padding: '6px 10px', cursor: 'pointer', textAlign: 'left', color: cfg.color, fontFamily: "'DM Mono', monospace", fontSize: 10, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 7 }}>
+                              style={{ background: currentShipmentStatus === key ? cfg.bg : 'transparent', border: `1.5px solid ${currentShipmentStatus === key ? cfg.color + '55' : 'transparent'}`, borderRadius: 7, padding: '6px 10px', cursor: 'pointer', textAlign: 'left', color: cfg.color, fontFamily: "'Inter', system-ui, -apple-system, sans-serif", fontSize: 10, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 7 }}>
                               <span>{cfg.icon}</span><span>{cfg.label}</span>
                             </button>
                           );
@@ -1464,7 +1464,7 @@ export default function ContainerLoader() {
                   {currentShipmentId && currentShipmentStatus === 'entregado' && (
                     <button
                       onClick={() => finalizeShipment(currentShipmentId)}
-                      style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid rgba(58,140,82,0.28)', background: 'rgba(58,140,82,0.08)', color: '#3A8C52', fontFamily: "'DM Mono', monospace", fontSize: 10, cursor: 'pointer', whiteSpace: 'nowrap' }}
+                      style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid rgba(58,140,82,0.28)', background: 'rgba(58,140,82,0.08)', color: '#3A8C52', fontFamily: "'Inter', system-ui, -apple-system, sans-serif", fontSize: 10, cursor: 'pointer', whiteSpace: 'nowrap' }}
                     >
                       ✓ Finalizar embarque
                     </button>
@@ -1500,7 +1500,7 @@ export default function ContainerLoader() {
               <div style={{ marginTop: 10, marginBottom: 8, padding: '10px 12px', borderRadius: 10, border: '1px solid rgba(122,92,138,0.2)', background: 'linear-gradient(135deg, rgba(243,238,248,0.95), rgba(248,244,238,0.96))', color: '#6C587C', display: 'flex', alignItems: 'center', gap: 10 }}>
                 <span style={{ fontSize: 15, lineHeight: 1 }}>🔒</span>
                 <div>
-                  <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, letterSpacing: 1.2 }}>MODO VISUAL</div>
+                  <div style={{ fontFamily: "'Inter', system-ui, -apple-system, sans-serif", fontSize: 10, letterSpacing: 1.2 }}>MODO VISUAL</div>
                   <div style={{ fontSize: 12, lineHeight: 1.45 }}>Este embarque solo se puede editar cuando vuelve a <b>En preparación</b>.</div>
                 </div>
               </div>
@@ -1530,13 +1530,13 @@ export default function ContainerLoader() {
 
             {/* Semi panel */}
             {isSemi && (
-              <div style={{ display: 'none', background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 8, padding: '10px 14px', marginBottom: 8, fontFamily: "'DM Mono', monospace", fontSize: 11 }}>
+              <div style={{ display: 'none', background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 8, padding: '10px 14px', marginBottom: 8, fontFamily: "'Inter', system-ui, -apple-system, sans-serif", fontSize: 11 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <span style={{ color: 'var(--muted)', letterSpacing: 1, textTransform: 'uppercase' }}>Límite peso</span>
                     <input type="number" min="1000" max="60000" step="500" value={semiWeightLimit}
                       onChange={e => setSemiWeightLimit(e.target.value)}
-                      style={{ width: 90, padding: '4px 8px', border: '1.5px solid var(--border)', borderRadius: 5, fontFamily: "'DM Mono', monospace", fontSize: 12, background: 'var(--c5)', color: 'var(--text)', textAlign: 'right' }} />
+                      style={{ width: 90, padding: '4px 8px', border: '1.5px solid var(--border)', borderRadius: 5, fontFamily: "'Inter', system-ui, -apple-system, sans-serif", fontSize: 12, background: 'var(--c5)', color: 'var(--text)', textAlign: 'right' }} />
                     <span style={{ color: 'var(--muted)' }}>kg</span>
                   </div>
                 </div>
@@ -1562,7 +1562,7 @@ export default function ContainerLoader() {
 
               {/* Inspector panel */}
               {inspector && (
-                <div className="cl-inspector-panel" style={{ position: 'absolute', right: 14, top: 14, zIndex: 60, width: 'min(272px, calc(100% - 28px))', maxHeight: 'calc(100% - 28px)', background: 'linear-gradient(180deg, rgba(251,247,241,0.98), rgba(243,236,227,0.98))', border: '1px solid rgba(141,121,102,0.22)', borderRadius: 18, boxShadow: '0 20px 44px rgba(97,78,60,0.18)', fontFamily: "'DM Mono', monospace", backdropFilter: 'blur(14px)', overflowX: 'hidden', overflowY: 'auto' }}>
+                <div className="cl-inspector-panel" style={{ position: 'absolute', right: 14, top: 14, zIndex: 60, width: 'min(272px, calc(100% - 28px))', maxHeight: 'calc(100% - 28px)', background: 'linear-gradient(180deg, rgba(251,247,241,0.98), rgba(243,236,227,0.98))', border: '1px solid rgba(141,121,102,0.22)', borderRadius: 18, boxShadow: '0 20px 44px rgba(97,78,60,0.18)', fontFamily: "'Inter', system-ui, -apple-system, sans-serif", backdropFilter: 'blur(14px)', overflowX: 'hidden', overflowY: 'auto' }}>
                   <div style={{ padding: '14px 14px 12px', background: 'linear-gradient(135deg, var(--c1), #a48f7d)', color: 'var(--c5)', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
                       <div style={{ width: 34, height: 34, borderRadius: 10, background: 'rgba(248,241,233,0.16)', display: 'grid', placeItems: 'center', fontSize: 16, flexShrink: 0 }}>
@@ -1635,19 +1635,19 @@ export default function ContainerLoader() {
 
               {/* Zone buttons */}
               <div className="cl-zone-controls" style={{ position: 'absolute', top: 10, left: 10, zIndex: 10, display: 'flex', gap: 5, alignItems: 'center', flexWrap: 'wrap' }}>
-                <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--muted)', letterSpacing: 1 }}>ZONA:</span>
+                <span style={{ fontFamily: "'Inter', system-ui, -apple-system, sans-serif", fontSize: 9, color: 'var(--muted)', letterSpacing: 1 }}>ZONA:</span>
                 {[0, 1, 2].map(i => {
                   const isSet = priorityZones[i] !== null;
                   const isSel = selectedZoneSlot === i;
                   return (
                     <button key={i} onClick={() => { if (!canEditShipment) return; setSelectedZoneSlot(i); }}
-                      style={{ padding: '3px 9px', fontSize: 11, fontFamily: "'DM Mono', monospace", borderRadius: 4, cursor: canEditShipment ? 'pointer' : 'not-allowed', border: `1.5px solid ${ZONE_COLORS_HEX[i]}`, color: isSet ? '#fff' : ZONE_COLORS_HEX[i], background: isSet ? ZONE_COLORS_HEX[i] : 'transparent', fontWeight: isSel ? 700 : 400, outline: isSel ? `2px solid ${ZONE_COLORS_HEX[i]}` : 'none', outlineOffset: 1, opacity: canEditShipment ? 1 : 0.5 }}>
+                      style={{ padding: '3px 9px', fontSize: 11, fontFamily: "'Inter', system-ui, -apple-system, sans-serif", borderRadius: 4, cursor: canEditShipment ? 'pointer' : 'not-allowed', border: `1.5px solid ${ZONE_COLORS_HEX[i]}`, color: isSet ? '#fff' : ZONE_COLORS_HEX[i], background: isSet ? ZONE_COLORS_HEX[i] : 'transparent', fontWeight: isSel ? 700 : 400, outline: isSel ? `2px solid ${ZONE_COLORS_HEX[i]}` : 'none', outlineOffset: 1, opacity: canEditShipment ? 1 : 0.5 }}>
                       {i+1}
                     </button>
                   );
                 })}
                 <button onClick={() => { if (!ensureEditable('reordenar la carga')) return; clearPriorityZones(); }}
-                  style={{ padding: '3px 9px', fontSize: 9, fontFamily: "'DM Mono', monospace", borderRadius: 4, cursor: canEditShipment ? 'pointer' : 'not-allowed', border: '1px solid var(--muted)', color: 'var(--muted)', background: 'transparent', letterSpacing: '0.5px', opacity: canEditShipment ? 1 : 0.45 }}>
+                  style={{ padding: '3px 9px', fontSize: 9, fontFamily: "'Inter', system-ui, -apple-system, sans-serif", borderRadius: 4, cursor: canEditShipment ? 'pointer' : 'not-allowed', border: '1px solid var(--muted)', color: 'var(--muted)', background: 'transparent', letterSpacing: '0.5px', opacity: canEditShipment ? 1 : 0.45 }}>
                   ✕ Sin zonas
                 </button>
               </div>
@@ -1655,12 +1655,12 @@ export default function ContainerLoader() {
               {/* Active zones indicator */}
               {activeZoneCount > 0 && (
                 <div className="cl-zone-indicator" style={{ position: 'absolute', top: 10, right: 10, zIndex: 10, display: 'flex', gap: 8, alignItems: 'center' }}>
-                  <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--c1)', letterSpacing: 1, textTransform: 'uppercase', background: 'rgba(248,241,233,0.9)', padding: '4px 8px', borderRadius: 4, border: '1px solid var(--c1)' }}>● ZONAS ACTIVAS</span>
+                  <span style={{ fontFamily: "'Inter', system-ui, -apple-system, sans-serif", fontSize: 9, color: 'var(--c1)', letterSpacing: 1, textTransform: 'uppercase', background: 'rgba(248,241,233,0.9)', padding: '4px 8px', borderRadius: 4, border: '1px solid var(--c1)' }}>● ZONAS ACTIVAS</span>
                 </div>
               )}
 
               {/* Hint bar */}
-              <div id="hintBar" className="cl-hint-bar" style={{ position: 'absolute', bottom: 8, left: '50%', transform: 'translateX(-50%)', fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'rgba(141,121,102,0.6)', letterSpacing: 1, pointerEvents: 'none', whiteSpace: 'nowrap' }}>
+              <div id="hintBar" className="cl-hint-bar" style={{ position: 'absolute', bottom: 8, left: '50%', transform: 'translateX(-50%)', fontFamily: "'Inter', system-ui, -apple-system, sans-serif", fontSize: 9, color: 'rgba(141,121,102,0.6)', letterSpacing: 1, pointerEvents: 'none', whiteSpace: 'nowrap' }}>
                 {canEditShipment ? '🖱 DRAG PARA MOVER · SCROLL ZOOM · CLIC = SELECCIONAR · DOBLE CLIC = FIJAR ZONA' : '👁 SCROLL ZOOM · CLIC = SELECCIONAR · VISTA SOLO LECTURA'}
               </div>
             </div>
@@ -1668,16 +1668,16 @@ export default function ContainerLoader() {
             {/* Weight heatmap */}
             {showWeightMap && loadedProducts.some(p => p.weight > 0) && (
               <div style={{ marginTop: 12, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, padding: '12px 14px' }}>
-                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--muted)', letterSpacing: 2, marginBottom: 8, textTransform: 'uppercase' }}>Distribución de peso — vista planta</div>
+                <div style={{ fontFamily: "'Inter', system-ui, -apple-system, sans-serif", fontSize: 10, color: 'var(--muted)', letterSpacing: 2, marginBottom: 8, textTransform: 'uppercase' }}>Distribución de peso — vista planta</div>
                 <canvas ref={weightCanvasRef} width={600} height={Math.round(600 * (CONT_W / CONT_L))} style={{ width: '100%', height: 'auto', borderRadius: 4, display: 'block' }} />
                 <div style={{ display: 'flex', gap: 16, marginTop: 8, alignItems: 'center', justifyContent: 'flex-end' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'var(--muted)', fontFamily: "'DM Mono', monospace" }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'var(--muted)', fontFamily: "'Inter', system-ui, -apple-system, sans-serif" }}>
                     <span style={{ display: 'inline-block', width: 14, height: 14, background: '#F0EBE3', border: '1px solid var(--border)', borderRadius: 2 }} /> Sin peso
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'var(--muted)', fontFamily: "'DM Mono', monospace" }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'var(--muted)', fontFamily: "'Inter', system-ui, -apple-system, sans-serif" }}>
                     <span style={{ display: 'inline-block', width: 14, height: 14, background: 'rgb(255,200,40)', borderRadius: 2 }} /> Bajo
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'var(--muted)', fontFamily: "'DM Mono', monospace" }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'var(--muted)', fontFamily: "'Inter', system-ui, -apple-system, sans-serif" }}>
                     <span style={{ display: 'inline-block', width: 14, height: 14, background: 'rgb(255,80,40)', borderRadius: 2 }} /> Alto
                   </div>
                 </div>
@@ -1727,7 +1727,7 @@ export default function ContainerLoader() {
                               <input type="number" min="1" max="500"
                                 key={`${p.id}_${p.qty}`}
                                 defaultValue={p.qty}
-                                style={{ width: 54, padding: '2px 6px', fontFamily: "'DM Mono', monospace", fontSize: 12, border: '1px solid var(--border)', borderRadius: 4, background: 'var(--bg)', color: 'var(--text)', textAlign: 'center' }}
+                                style={{ width: 54, padding: '2px 6px', fontFamily: "'Inter', system-ui, -apple-system, sans-serif", fontSize: 12, border: '1px solid var(--border)', borderRadius: 4, background: 'var(--bg)', color: 'var(--text)', textAlign: 'center' }}
                                 onBlur={e => { const v = Math.max(1, Math.min(500, parseInt(e.target.value) || 1)); updateProductQty(p.id, v); }}
                                 onKeyDown={e => { if (e.key === 'Enter') { const v = Math.max(1, Math.min(500, parseInt(e.target.value) || 1)); updateProductQty(p.id, v); e.target.blur(); } }}
                               />
@@ -1740,15 +1740,15 @@ export default function ContainerLoader() {
                             <td className="td-price">${fmt(p.price * p.qty)}</td>
                             <td>
                               <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                                <button onClick={() => { if (!ensureEditable('reordenar la carga')) return; reorderOneProduct(p.id); }} disabled={!canEditShipment} style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid rgba(141,121,102,0.2)', background: 'rgba(141,121,102,0.06)', color: 'var(--c1)', fontFamily: "'DM Mono', monospace", fontSize: 10, cursor: canEditShipment ? 'pointer' : 'not-allowed', opacity: canEditShipment ? 1 : 0.45, whiteSpace: 'nowrap' }}>Reordenar</button>
+                                <button onClick={() => { if (!ensureEditable('reordenar la carga')) return; reorderOneProduct(p.id); }} disabled={!canEditShipment} style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid rgba(141,121,102,0.2)', background: 'rgba(141,121,102,0.06)', color: 'var(--c1)', fontFamily: "'Inter', system-ui, -apple-system, sans-serif", fontSize: 10, cursor: canEditShipment ? 'pointer' : 'not-allowed', opacity: canEditShipment ? 1 : 0.45, whiteSpace: 'nowrap' }}>Reordenar</button>
                                 <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
                                   {[0, 1, 2].map(i => {
                                     const isActive = zoneIdx === i;
                                     return (
-                                      <button key={i} onClick={() => { if (!ensureEditable('asignar zona prioritaria')) return; setSelectedZoneSlot(i); moveProductToZone(p.id); }} disabled={!canEditShipment} title={`Mover a zona ${i + 1}`} style={{ width: 30, height: 28, borderRadius: 8, border: `1px solid ${ZONE_COLORS_HEX[i]}`, background: isActive ? ZONE_COLORS_HEX[i] : `${ZONE_COLORS_HEX[i]}18`, color: isActive ? '#fff' : ZONE_COLORS_HEX[i], fontFamily: "'DM Mono', monospace", fontSize: 10, fontWeight: 700, cursor: canEditShipment ? 'pointer' : 'not-allowed', opacity: canEditShipment ? 1 : 0.45 }}>Z{i + 1}</button>
+                                      <button key={i} onClick={() => { if (!ensureEditable('asignar zona prioritaria')) return; setSelectedZoneSlot(i); moveProductToZone(p.id); }} disabled={!canEditShipment} title={`Mover a zona ${i + 1}`} style={{ width: 30, height: 28, borderRadius: 8, border: `1px solid ${ZONE_COLORS_HEX[i]}`, background: isActive ? ZONE_COLORS_HEX[i] : `${ZONE_COLORS_HEX[i]}18`, color: isActive ? '#fff' : ZONE_COLORS_HEX[i], fontFamily: "'Inter', system-ui, -apple-system, sans-serif", fontSize: 10, fontWeight: 700, cursor: canEditShipment ? 'pointer' : 'not-allowed', opacity: canEditShipment ? 1 : 0.45 }}>Z{i + 1}</button>
                                     );
                                   })}
-                                  <button onClick={() => { if (!ensureEditable('quitar prioridad de zona')) return; if (zoneIdx >= 0) setPriorityZone(zoneIdx, null); }} disabled={!canEditShipment || zoneIdx < 0} title="Quitar zona prioritaria" style={{ width: 34, height: 28, borderRadius: 8, border: '1px solid var(--border)', background: 'transparent', color: 'var(--muted)', fontFamily: "'DM Mono', monospace", fontSize: 10, cursor: canEditShipment && zoneIdx >= 0 ? 'pointer' : 'not-allowed', opacity: canEditShipment && zoneIdx >= 0 ? 1 : 0.35 }}>Sin</button>
+                                  <button onClick={() => { if (!ensureEditable('quitar prioridad de zona')) return; if (zoneIdx >= 0) setPriorityZone(zoneIdx, null); }} disabled={!canEditShipment || zoneIdx < 0} title="Quitar zona prioritaria" style={{ width: 34, height: 28, borderRadius: 8, border: '1px solid var(--border)', background: 'transparent', color: 'var(--muted)', fontFamily: "'Inter', system-ui, -apple-system, sans-serif", fontSize: 10, cursor: canEditShipment && zoneIdx >= 0 ? 'pointer' : 'not-allowed', opacity: canEditShipment && zoneIdx >= 0 ? 1 : 0.35 }}>Sin</button>
                                 </div>
                               </div>
                             </td>
@@ -1862,7 +1862,7 @@ export default function ContainerLoader() {
             <input
               value={shipmentsFilter} onChange={e => setShipmentsFilter(e.target.value)}
               placeholder="Buscar por nombre..."
-              style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid var(--border)', fontFamily: "'Jost', sans-serif", fontSize: 13, background: 'var(--bg)', color: 'var(--text)', marginBottom: 12, boxSizing: 'border-box' }}
+              style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid var(--border)', fontFamily: "'Inter', system-ui, -apple-system, sans-serif", fontSize: 13, background: 'var(--bg)', color: 'var(--text)', marginBottom: 12, boxSizing: 'border-box' }}
             />
             <div style={{ overflowY: 'auto', flex: 1, minHeight: 0 }}>
               {shipmentsLoading ? (
@@ -1872,13 +1872,13 @@ export default function ContainerLoader() {
               ) : (
                 <>
                   <div style={{ marginBottom: 14 }}>
-                    <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--muted)', letterSpacing: 1.4, marginBottom: 8 }}>EMBARQUES ACTIVOS</div>
+                    <div style={{ fontFamily: "'Inter', system-ui, -apple-system, sans-serif", fontSize: 10, color: 'var(--muted)', letterSpacing: 1.4, marginBottom: 8 }}>EMBARQUES ACTIVOS</div>
                     {activeShipments.length === 0 ? (
                       <div style={{ background: '#FAFAF8', border: '1px dashed #D8CFC6', borderRadius: 10, padding: 16, color: '#9a8778', fontSize: 12 }}>No hay embarques activos en esta vista.</div>
                     ) : activeShipments.map((s) => renderShipmentCard(s))}
                   </div>
                   <div>
-                    <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--muted)', letterSpacing: 1.4, marginBottom: 8 }}>EMBARQUES FINALIZADOS</div>
+                    <div style={{ fontFamily: "'Inter', system-ui, -apple-system, sans-serif", fontSize: 10, color: 'var(--muted)', letterSpacing: 1.4, marginBottom: 8 }}>EMBARQUES FINALIZADOS</div>
                     {finalizedShipments.length === 0 ? (
                       <div style={{ background: '#FAFAF8', border: '1px dashed #D8CFC6', borderRadius: 10, padding: 16, color: '#9a8778', fontSize: 12 }}>Todavía no finalizaste embarques entregados.</div>
                     ) : finalizedShipments.map((s) => renderShipmentCard(s, true))}
