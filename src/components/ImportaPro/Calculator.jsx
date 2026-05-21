@@ -461,116 +461,106 @@ export default function Calculator() {
               <span className="card-title">Logística e importación</span>
               <button className="btn-text" onClick={() => setActiveSection('ncm')}>Buscar NCM →</button>
             </div>
-            <CalcSection id="calc-flete" color="#4a8ac4" label="Flete internacional">
-              <div style={{ display:'flex', gap:8, marginBottom:12, flexWrap:'wrap' }}>
-                {[
-                  ['manual', 'Carga manual'],
-                  ['fob36', 'Contenedor completo (36% FOB)'],
-                ].map(([mode, label]) => (
-                  <button
-                    key={mode}
-                    type="button"
-                    onClick={() => setInputs({ fleteMode: mode })}
-                    style={{
-                      padding:'8px 12px',
-                      borderRadius:'var(--radius)',
-                      border:`1.5px solid ${inputs.fleteMode===mode ? 'var(--accent)' : 'var(--border-2)'}`,
-                      background: inputs.fleteMode===mode ? 'var(--accent)' : 'transparent',
-                      color: inputs.fleteMode===mode ? '#fff' : 'var(--text-2)',
-                      fontFamily:'var(--font)',
-                      fontSize:13,
-                      fontWeight: inputs.fleteMode===mode ? 600 : 500,
-                      cursor:'pointer',
-                      transition:'all 0.15s',
-                    }}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-              <div className="form-grid-2">
-                <div className="field"><label>{inputs.fleteMode === 'fob36' ? 'Flete total estimado' : 'Flete total'} <span className="unit">USD</span></label>
-                  <input type="number" id="p-flete" value={inputs.fleteMode === 'fob36' ? rd(c.flete, 2) : inputs.flete} min="0"
-                    readOnly={inputs.fleteMode === 'fob36'}
-                    style={{ color: inputs.fleteMode === 'fob36' ? 'var(--text-3)' : 'var(--text)' }}
-                    onChange={e => setInputs({ flete: parseFloat(e.target.value)||0 })} /></div>
-                <div className="field"><label>Seguro <span className="unit">%</span></label>
-                  <input type="number" id="p-seguro-pct" value={inputs.seguroPct} step="0.1" min="0"
-                    onChange={e => setInputs({ seguroPct: parseFloat(e.target.value)||0 })} /></div>
-              </div>
-              <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 8, padding: '7px 10px', background: 'var(--bg-3)', borderRadius: 6, borderLeft: '3px solid #4a8ac4' }}>
-                {inputs.fleteMode === 'fob36'
-                  ? `Modo contenedor completo activo: el flete por unidad se calcula automaticamente como 36% del FOB. Flete unitario actual: U$S ${rd(c.fleteUnit, 2)}.`
-                  : 'Ingresá el flete total del embarque y la calculadora lo prorratea por unidad.'}
-              </div>
-            </CalcSection>
-            <CalcSection id="calc-despacho" color="#6b9b8b" label="Despacho y flete interno" style={{ marginTop: 10 }}>
-              <div className="form-grid-2">
-                <div className="field">
-                  <label>Despachante / aduana <span className="unit">USD total</span></label>
-                  <input type="number" id="p-despachante" value={inputs.despachante ?? inputs.aduana ?? 0} min="0"
-                    onChange={e => setInputs({ despachante: parseFloat(e.target.value)||0 })} />
+            {/* 2-col grid: [Flete | Despacho] / [Trader | Aranceles] */}
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, alignItems:'start' }}>
+
+              {/* Col 1 fila 1: Flete */}
+              <CalcSection id="calc-flete" color="#4a8ac4" label="Flete internacional">
+                <div style={{ display:'flex', gap:6, marginBottom:10, flexWrap:'wrap' }}>
+                  {[['manual','Carga manual'],['fob36','36% FOB']].map(([mode, label]) => (
+                    <button key={mode} type="button" onClick={() => setInputs({ fleteMode: mode })}
+                      style={{ padding:'6px 10px', borderRadius:'var(--radius)', border:`1.5px solid ${inputs.fleteMode===mode?'var(--accent)':'var(--border-2)'}`, background:inputs.fleteMode===mode?'var(--accent)':'transparent', color:inputs.fleteMode===mode?'#fff':'var(--text-2)', fontFamily:'var(--font)', fontSize:12, fontWeight:inputs.fleteMode===mode?600:500, cursor:'pointer', transition:'all 0.15s' }}>
+                      {label}
+                    </button>
+                  ))}
                 </div>
-                <div className="field">
-                  <label>Flete interno / puerto <span className="unit">USD total</span></label>
-                  <input type="number" id="p-flete-interno" value={inputs.fleteInterno || 0} min="0"
-                    onChange={e => setInputs({ fleteInterno: parseFloat(e.target.value)||0 })} />
+                <div className="form-grid-2">
+                  <div className="field">
+                    <label>{inputs.fleteMode==='fob36'?'Flete estimado':'Flete total'} <span className="unit">USD</span></label>
+                    <input type="number" id="p-flete" value={inputs.fleteMode==='fob36'?rd(c.flete,2):inputs.flete} min="0"
+                      readOnly={inputs.fleteMode==='fob36'} style={{ color:inputs.fleteMode==='fob36'?'var(--text-3)':'var(--text)' }}
+                      onChange={e => setInputs({ flete: parseFloat(e.target.value)||0 })} />
+                  </div>
+                  <div className="field">
+                    <label>Seguro <span className="unit">%</span></label>
+                    <input type="number" id="p-seguro-pct" value={inputs.seguroPct} step="0.1" min="0"
+                      onChange={e => setInputs({ seguroPct: parseFloat(e.target.value)||0 })} />
+                  </div>
                 </div>
-              </div>
-              <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 8, padding: '7px 10px', background: 'var(--bg-3)', borderRadius: 6, borderLeft: '3px solid #6b9b8b' }}>
-                Honorarios del despachante + aranceles pagados en aduana + transporte puerto → depósito. Se prorratean por unidad.
-              </div>
-            </CalcSection>
-            <CalcSection id="calc-trader" color="#7ba3d4" label="Comisión trader China" style={{ marginTop: 10 }}>
-              <div className="form-grid-2">
-                <div className="field">
-                  <label>Comisión trader <span className="unit">% sobre FOB</span></label>
-                  <input type="number" id="p-trader-pct" value={inputs.traderPct} step="0.5" min="0" max="20"
-                    onChange={e => setInputs({ traderPct: parseFloat(e.target.value)||0 })} />
+                {inputs.fleteMode==='fob36' && (
+                  <div style={{ fontSize:10, color:'var(--text-3)', marginTop:6, padding:'5px 8px', background:'var(--bg-3)', borderRadius:5, borderLeft:'3px solid #4a8ac4' }}>
+                    Flete unitario: U$S {rd(c.fleteUnit,2)}
+                  </div>
+                )}
+              </CalcSection>
+
+              {/* Col 2 fila 1: Despacho */}
+              <CalcSection id="calc-despacho" color="#6b9b8b" label="Despacho y flete interno">
+                <div className="form-grid-2">
+                  <div className="field">
+                    <label>Despachante / aduana <span className="unit">USD total</span></label>
+                    <input type="number" id="p-despachante" value={inputs.despachante ?? inputs.aduana ?? 0} min="0"
+                      onChange={e => setInputs({ despachante: parseFloat(e.target.value)||0 })} />
+                  </div>
+                  <div className="field">
+                    <label>Flete interno / puerto <span className="unit">USD total</span></label>
+                    <input type="number" id="p-flete-interno" value={inputs.fleteInterno||0} min="0"
+                      onChange={e => setInputs({ fleteInterno: parseFloat(e.target.value)||0 })} />
+                  </div>
                 </div>
-                <div className="field">
-                  <label>Total trader <span className="unit">USD (lote completo)</span></label>
-                  <input type="number" id="p-trader-usd" value={rd(c.traderUnit * c.qty, 2)} readOnly style={{ color: 'var(--text-3)' }} />
+                <div style={{ fontSize:10, color:'var(--text-3)', marginTop:6, padding:'5px 8px', background:'var(--bg-3)', borderRadius:5, borderLeft:'3px solid #6b9b8b' }}>
+                  Despachante + aranceles + transporte puerto → depósito. Prorrateado por unidad.
                 </div>
-              </div>
-              <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 8, padding: '7px 10px', background: 'var(--bg-3)', borderRadius: 6, borderLeft: '3px solid #7ba3d4' }}>
-                Gestiona fabricantes, calidad y despacho en origen. Rango habitual: 4 – 8 % del FOB.
-              </div>
-            </CalcSection>
-            <CalcSection id="calc-aranceles" color="#c0392b" label={`Aranceles Argentina${c.di >= 35 ? ' ⚠' : ''}`} style={{ marginTop: 10 }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                  <button
-                    onClick={() => setActiveSection('ncm')}
-                    style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 12px', borderRadius: 20,
-                      border: '1px solid #c0392b50', background: '#c0392b12', color: '#c0392b',
-                      fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font)', transition: 'all 0.15s' }}
-                    onMouseEnter={e => { e.currentTarget.style.background = '#c0392b'; e.currentTarget.style.color = '#fff'; }}
-                    onMouseLeave={e => { e.currentTarget.style.background = '#c0392b12'; e.currentTarget.style.color = '#c0392b'; }}
-                  >
-                    🔍 Consultar NCM
-                  </button>
+              </CalcSection>
+
+              {/* Col 1 fila 2: Trader */}
+              <CalcSection id="calc-trader" color="#7ba3d4" label="Comisión trader China">
+                <div className="form-grid-2">
+                  <div className="field">
+                    <label>Comisión <span className="unit">% sobre FOB</span></label>
+                    <input type="number" id="p-trader-pct" value={inputs.traderPct} step="0.5" min="0" max="20"
+                      onChange={e => setInputs({ traderPct: parseFloat(e.target.value)||0 })} />
+                  </div>
+                  <div className="field">
+                    <label>Total trader <span className="unit">USD (lote)</span></label>
+                    <input type="number" id="p-trader-usd" value={rd(c.traderUnit*c.qty,2)} readOnly style={{ color:'var(--text-3)' }} />
+                  </div>
                 </div>
-                <div>
-                  <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-3)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 7 }}>Derecho de importación</div>
+                <div style={{ fontSize:10, color:'var(--text-3)', marginTop:6, padding:'5px 8px', background:'var(--bg-3)', borderRadius:5, borderLeft:'3px solid #7ba3d4' }}>
+                  Rango habitual: 4–8% del FOB.
+                </div>
+              </CalcSection>
+
+              {/* Col 2 fila 2: Aranceles */}
+              <CalcSection id="calc-aranceles" color="#c0392b" label={`Aranceles Argentina${c.di>=35?' ⚠':''}`}>
+                <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+                  <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:6 }}>
+                    <div style={{ fontSize:10, fontWeight:600, color:'var(--text-3)', letterSpacing:'0.06em', textTransform:'uppercase' }}>Derecho de importación</div>
+                    <button onClick={() => setActiveSection('ncm')}
+                      style={{ display:'flex', alignItems:'center', gap:4, padding:'3px 10px', borderRadius:20, border:'1px solid #c0392b50', background:'#c0392b12', color:'#c0392b', fontSize:10, fontWeight:600, cursor:'pointer', fontFamily:'var(--font)', transition:'all 0.15s' }}
+                      onMouseEnter={e => { e.currentTarget.style.background='#c0392b'; e.currentTarget.style.color='#fff'; }}
+                      onMouseLeave={e => { e.currentTarget.style.background='#c0392b12'; e.currentTarget.style.color='#c0392b'; }}>
+                      🔍 NCM
+                    </button>
+                  </div>
                   <TaxToggle
-                    options={[{v:0,l:'0% — Exento'},{v:6,l:'6%'},{v:12,l:'12%'},{v:18,l:'18%'},{v:20,l:'20%'},{v:25,l:'25%'},{v:35,l:'35%'}]}
-                    value={inputs.di}
-                    onChange={v => setInputs({ di: v })}
+                    options={[{v:0,l:'0%'},{v:6,l:'6%'},{v:12,l:'12%'},{v:18,l:'18%'},{v:20,l:'20%'},{v:25,l:'25%'},{v:35,l:'35%'}]}
+                    value={inputs.di} onChange={v => setInputs({ di: v })}
                   />
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                  <div>
-                    <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-3)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 7 }}>IVA importación</div>
-                    <TaxToggle options={[{v:10.5,l:'10.5%'},{v:21,l:'21%'}]} value={inputs.ivaImp} onChange={v => setInputs({ ivaImp: v })} />
+                  <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
+                    <div>
+                      <div style={{ fontSize:10, fontWeight:600, color:'var(--text-3)', letterSpacing:'0.06em', textTransform:'uppercase', marginBottom:6 }}>IVA importación</div>
+                      <TaxToggle options={[{v:10.5,l:'10.5%'},{v:21,l:'21%'}]} value={inputs.ivaImp} onChange={v => setInputs({ ivaImp: v })} />
+                    </div>
+                    <div>
+                      <div style={{ fontSize:10, fontWeight:600, color:'var(--text-3)', letterSpacing:'0.06em', textTransform:'uppercase', marginBottom:6 }}>Tasa estadística</div>
+                      <TaxToggle options={[{v:0,l:'0%'},{v:3,l:'3%'}]} value={inputs.te} onChange={v => setInputs({ te: v })} />
+                    </div>
                   </div>
-                  <div>
-                    <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-3)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 7 }}>Tasa estadística</div>
-                    <TaxToggle options={[{v:0,l:'0%'},{v:3,l:'3%'}]} value={inputs.te} onChange={v => setInputs({ te: v })} />
-                  </div>
                 </div>
-              </div>
-            </CalcSection>
+              </CalcSection>
+
+            </div>
           </div>
 
         </div>
