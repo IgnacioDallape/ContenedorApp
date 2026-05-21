@@ -579,7 +579,7 @@ export default function Calculator() {
         <div className="card dist-card" style={{ marginTop:'1.5rem' }}>
           <div className="card-header"><span className="card-title">Resultado y distribución de ganancia</span></div>
 
-          <div className="dist-main-grid" style={{ display:'grid', gridTemplateColumns:'1fr 220px minmax(0, 1.08fr)', gap:34, alignItems:'start' }}>
+          <div className="dist-main-grid" style={{ display:'grid', gridTemplateColumns:'1fr minmax(0, 1fr)', gap:40, alignItems:'start' }}>
 
             {/* LEFT: Desglose completo del costo */}
             <div style={{ paddingLeft: 6 }}>
@@ -631,89 +631,27 @@ export default function Calculator() {
               </div>
             </div>
 
-            {/* CENTER: Donut interactivo */}
-            <InteractiveDonut
-              slices={[
-                { label:'FOB',           pct: c.fob/tot*100,                         color:'#1a4f8a', usd: c.fob,                                sectionId:'calc-fob'      },
-                { label:'Flete int.',    pct: (c.fleteUnit+c.seguroUnit)/tot*100,    color:'#4a8ac4', usd: c.fleteUnit+c.seguroUnit,              sectionId:'calc-flete'    },
-                { label:'Despachante',   pct: c.despachanteUnit/tot*100,             color:'#6b9b8b', usd: c.despachanteUnit,                     sectionId:'calc-despacho' },
-                { label:'Flete interno', pct: c.fleteInternoUnit/tot*100,            color:'#5b8b7b', usd: c.fleteInternoUnit,                    sectionId:'calc-despacho' },
-                { label:'Trader',        pct: c.traderUnit/tot*100,                  color:'#7ba3d4', usd: c.traderUnit,                          sectionId:'calc-trader'   },
-                { label:'Impuestos',     pct: (c.diUnit+c.ivaUnit+c.teUnit)/tot*100, color:'#c0392b', usd: c.diUnit+c.ivaUnit+c.teUnit,           sectionId:'calc-aranceles'},
-              ]}
-              centerLabel="Costo total"
-              centerValue={`U$S ${rd(c.costoUSD,2)}`}
-            />
-
-            {/* RIGHT: Distribución de ganancia */}
-            <div>
-              {/* Controles */}
-              <div className="dist-chip-row" style={{ display:'flex', gap:8, marginBottom:14, flexWrap:'wrap' }}>
-                {[
-                  { label:'Reinversión',    id:'dist-reinversion', value:distReinv, color:'var(--accent)',
-                    onChange: v => { const clamped = Math.min(100, Math.max(0, v)); setDistReinv(clamped); setDistGan(g => Math.min(g, 100 - clamped)); } },
-                  { label:'Retiro personal', id:'dist-ganancia',   value:distGan,   color:'var(--green)',
-                    onChange: v => { const clamped = Math.min(100, Math.max(0, v)); setDistGan(clamped);   setDistReinv(r => Math.min(r, 100 - clamped)); } },
-                ].map(({ label, id, value, color, onChange }) => (
-                  <div className="dist-chip" key={id} style={{ display:'flex', alignItems:'center', gap:6, background:'var(--bg-3)', border:'1px solid var(--border)', borderRadius:8, padding:'7px 12px', flex:1 }}>
-                    <span style={{ width:7, height:7, borderRadius:2, background:color, flexShrink:0 }}/>
-                    <span style={{ fontSize:13, color:'var(--text-2)', fontWeight:500, flex:1, whiteSpace:'nowrap' }}>{label}</span>
-                    <input type="number" id={id} value={value} min="0" max="100" step="5"
-                      style={{ width:52, textAlign:'center', padding:'2px 6px', border:'1px solid var(--border)', borderRadius:5, fontFamily:'var(--font)', fontSize:14, fontWeight:700, color:'var(--text)', background:'var(--bg)', outline:'none' }}
-                      onChange={e => onChange(parseFloat(e.target.value)||0)} />
-                    <span style={{ fontSize:13, color:'var(--text-3)' }}>%</span>
-                  </div>
-                ))}
-                <div style={{ display:'flex', alignItems:'center', gap:6, background:'var(--bg-3)', border:'1px solid var(--border)', borderRadius:8, padding:'7px 12px' }}>
-                  <span style={{ width:7, height:7, borderRadius:2, background:'var(--amber)', flexShrink:0 }}/>
-                  <span style={{ fontSize:13, color:'var(--text-2)', fontWeight:500 }}>Disponible</span>
-                  <span style={{ fontSize:14, fontWeight:700, color:'var(--text)' }}>{rd(distLibre,1)}%</span>
+            {/* RIGHT: Donut con protagonismo */}
+            <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:10, paddingTop:4 }}>
+              <div style={{ textAlign:'center', marginBottom:2 }}>
+                <div style={{ fontSize:11, fontWeight:700, color:'var(--text-3)', textTransform:'uppercase', letterSpacing:'0.09em' }}>Composición del costo</div>
+                <div style={{ fontSize:13, color:'var(--text-2)', marginTop:3 }}>
+                  {c.qty} u · FOB <strong>U$S {rd(c.fob,2)}</strong> c/u · Total {ars(c.costoARS * c.qty)}
                 </div>
               </div>
-
-              {/* Canal cards */}
-              <div style={{ display:'flex', flexDirection:'column', gap:10, maxHeight: canales.length > 3 ? 420 : 'none', overflowY: canales.length > 3 ? 'auto' : 'visible', paddingRight: canales.length > 3 ? 4 : 0 }}>
-                {canales.map((ch, i) => {
-                  const COLORS = ['var(--accent)','var(--green)','var(--amber)','#7ba3d4','#6b9b8b'];
-                  const color = COLORS[i % COLORS.length];
-                  const lbl = ch.nombre;
-                  return ({ ch, lbl, color });
-                }).map(({ ch, lbl, color }, i) => {
-                  const ganNeta = chanGan(ch);
-                  return (
-                    <div key={i} style={{ background:'var(--bg-3)', borderRadius:'var(--radius-lg)', padding:'12px 14px', border:`1px solid ${ganNeta < 0 && ch?.precio > 0 ? '#c0392b60' : 'var(--border)'}`, borderTop:`3px solid ${ganNeta < 0 && ch?.precio > 0 ? '#c0392b' : color}` }}>
-                      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom: ganNeta < 0 && ch?.precio > 0 ? 4 : 6 }}>
-                        <div style={{ fontSize:12, fontWeight:700, textTransform:'uppercase', letterSpacing:'0.08em', color: ganNeta < 0 && ch?.precio > 0 ? '#c0392b' : color }}>{lbl}</div>
-                        <div style={{ fontSize:12, color:'var(--text-3)' }}>Ganancia neta: <strong style={{ color: ganNeta < 0 && ch?.precio > 0 ? '#c0392b' : 'var(--text)', fontSize:17 }}>{ars(ganNeta)}</strong></div>
-                      </div>
-                      {ganNeta < 0 && ch?.precio > 0 && (
-                        <div style={{ fontSize:12, color:'#c0392b', fontWeight:600, background:'#c0392b12', borderRadius:4, padding:'3px 8px', marginBottom:6 }}>
-                          ⚠ Precio de venta por debajo del costo — perdés {ars(Math.abs(ganNeta))} por unidad
-                        </div>
-                      )}
-                      <div style={{ display:'flex', height:4, borderRadius:3, overflow:'hidden', gap:1, marginBottom:10 }}>
-                        <div style={{ flex:distReinv||0.5, background:'var(--accent)', borderRadius:2 }}/>
-                        <div style={{ flex:distGan||0.5, background:'var(--green)', borderRadius:2 }}/>
-                        <div style={{ flex:Math.max(distLibre,0.5), background:'var(--amber)', borderRadius:2 }}/>
-                      </div>
-                      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:5 }}>
-                        <div style={{ background:'var(--accent-dim)', borderRadius:'var(--radius)', padding:'6px 8px' }}>
-                          <div style={{ fontSize:11, fontWeight:600, color:'var(--accent)', letterSpacing:'0.05em', textTransform:'uppercase', marginBottom:2 }}>Reinversión {distReinv}%</div>
-                          <div style={{ fontSize:13, fontWeight:700, color:'var(--accent)' }}>{ars(ganNeta*distReinv/100)}</div>
-                        </div>
-                        <div style={{ background:'var(--green-dim)', borderRadius:'var(--radius)', padding:'6px 8px' }}>
-                          <div style={{ fontSize:11, fontWeight:600, color:'var(--green)', letterSpacing:'0.05em', textTransform:'uppercase', marginBottom:2 }}>Retiro {distGan}%</div>
-                          <div style={{ fontSize:13, fontWeight:700, color:'var(--green)' }}>{ars(ganNeta*distGan/100)}</div>
-                        </div>
-                        <div style={{ background:'var(--amber-dim)', borderRadius:'var(--radius)', padding:'6px 8px' }}>
-                          <div style={{ fontSize:11, fontWeight:600, color:'var(--amber)', letterSpacing:'0.05em', textTransform:'uppercase', marginBottom:2 }}>Disponible {rd(distLibre,1)}%</div>
-                          <div style={{ fontSize:13, fontWeight:700, color:'var(--amber)' }}>{ars(ganNeta*distLibre/100)}</div>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+              <InteractiveDonut
+                slices={[
+                  { label:'FOB',           pct: c.fob/tot*100,                          color:'#1a4f8a', usd: c.fob,                                sectionId:'calc-fob'      },
+                  { label:'Flete int.',    pct: (c.fleteUnit+c.seguroUnit)/tot*100,     color:'#4a8ac4', usd: c.fleteUnit+c.seguroUnit,              sectionId:'calc-flete'    },
+                  { label:'Despachante',   pct: c.despachanteUnit/tot*100,              color:'#6b9b8b', usd: c.despachanteUnit,                     sectionId:'calc-despacho' },
+                  { label:'Flete interno', pct: c.fleteInternoUnit/tot*100,             color:'#5b8b7b', usd: c.fleteInternoUnit,                    sectionId:'calc-despacho' },
+                  { label:'Trader',        pct: c.traderUnit/tot*100,                   color:'#7ba3d4', usd: c.traderUnit,                          sectionId:'calc-trader'   },
+                  { label:'Impuestos',     pct: (c.diUnit+c.ivaUnit+c.teUnit)/tot*100,  color:'#c0392b', usd: c.diUnit+c.ivaUnit+c.teUnit,           sectionId:'calc-aranceles'},
+                ]}
+                centerLabel="Costo total"
+                centerValue={`U$S ${rd(c.costoUSD,2)}`}
+                large
+              />
             </div>
 
           </div>
@@ -786,9 +724,13 @@ function ResultGroup({ color, label, rows, subtotal }) {
   );
 }
 
-function InteractiveDonut({ slices, centerLabel, centerValue }) {
+function InteractiveDonut({ slices, centerLabel, centerValue, large = false }) {
   const [hovered, setHovered] = useState(null);
-  const R = 68, CX = 100, CY = 100, SW = 26;
+  const R  = large ? 92  : 68;
+  const SZ = large ? 280 : 200;
+  const CX = SZ / 2;
+  const CY = SZ / 2;
+  const SW = large ? 32  : 26;
   const circ = 2 * Math.PI * R;
   const GAP_DEG = 2.5;
   const centerParts = typeof centerValue === 'string' && centerValue.startsWith('U$S ')
@@ -848,9 +790,9 @@ function InteractiveDonut({ slices, centerLabel, centerValue }) {
   const hov = hovered !== null ? slices[hovered] : null;
 
   return (
-    <div style={{ display:'flex', flexDirection:'column', alignItems:'center' }}>
-      <div style={{ position:'relative', width:200, height:200 }}>
-        <svg width={200} height={200} style={{ overflow:'visible' }}>
+    <div style={{ display:'flex', flexDirection:'column', alignItems:'center', width:'100%' }}>
+      <div style={{ position:'relative', width:SZ, height:SZ }}>
+        <svg width={SZ} height={SZ} style={{ overflow:'visible' }}>
           {segs.map((seg, i) => {
             const active = hovered === i;
             const r = active ? R + 5 : R;
@@ -875,45 +817,47 @@ function InteractiveDonut({ slices, centerLabel, centerValue }) {
         </svg>
         <div style={{ position:'absolute', inset:0, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', pointerEvents:'none' }}>
           {hov ? (
-            <div style={{ width: 104, display:'flex', flexDirection:'column', alignItems:'center', gap:2, textAlign:'center' }}>
-              <div style={{ fontSize:9, fontWeight:700, color:'var(--text-3)', textTransform:'uppercase', letterSpacing:'0.07em', lineHeight:1.15 }}>{hov.label}</div>
-              <div style={{ fontSize:22, fontWeight:800, color: hov.color, fontFamily:"'DM Mono',monospace", lineHeight:1.05 }}>{rd(hov.pct,1)}%</div>
-              <div style={{ fontSize:10, color:'var(--text-3)', fontFamily:"'DM Mono',monospace", lineHeight:1.1 }}>U$S {rd(hov.usd,2)}</div>
+            <div style={{ width: large ? 130 : 104, display:'flex', flexDirection:'column', alignItems:'center', gap:2, textAlign:'center' }}>
+              <div style={{ fontSize: large ? 10 : 9, fontWeight:700, color:'var(--text-3)', textTransform:'uppercase', letterSpacing:'0.07em', lineHeight:1.15 }}>{hov.label}</div>
+              <div style={{ fontSize: large ? 30 : 22, fontWeight:800, color: hov.color, fontFamily:"'DM Mono',monospace", lineHeight:1.05 }}>{rd(hov.pct,1)}%</div>
+              <div style={{ fontSize: large ? 13 : 10, color:'var(--text-3)', fontFamily:"'DM Mono',monospace", lineHeight:1.1 }}>U$S {rd(hov.usd,2)}</div>
             </div>
           ) : (
-            <div style={{ width: 112, display:'flex', flexDirection:'column', alignItems:'center', gap:3, textAlign:'center' }}>
-              <div style={{ fontSize:9, fontWeight:700, color:'var(--text-3)', textTransform:'uppercase', letterSpacing:'0.07em', lineHeight:1.15 }}>{centerLabel}</div>
+            <div style={{ width: large ? 140 : 112, display:'flex', flexDirection:'column', alignItems:'center', gap: large ? 4 : 3, textAlign:'center' }}>
+              <div style={{ fontSize: large ? 10 : 9, fontWeight:700, color:'var(--text-3)', textTransform:'uppercase', letterSpacing:'0.07em', lineHeight:1.15 }}>{centerLabel}</div>
               {centerParts ? (
                 <>
-                  <div style={{ fontSize:11, fontWeight:700, color:'var(--text-3)', fontFamily:"'DM Mono',monospace", lineHeight:1 }}> {centerParts.currency} </div>
-                  <div style={{ fontSize:16, fontWeight:800, color:'var(--text)', fontFamily:"'DM Mono',monospace", lineHeight:1.05 }}>{centerParts.amount}</div>
+                  <div style={{ fontSize: large ? 13 : 11, fontWeight:700, color:'var(--text-3)', fontFamily:"'DM Mono',monospace", lineHeight:1 }}>{centerParts.currency}</div>
+                  <div style={{ fontSize: large ? 22 : 16, fontWeight:800, color:'var(--text)', fontFamily:"'DM Mono',monospace", lineHeight:1.05 }}>{centerParts.amount}</div>
                 </>
               ) : (
-                <div style={{ fontSize:16, fontWeight:800, color:'var(--text)', fontFamily:"'DM Mono',monospace", lineHeight:1.05 }}>{centerValue}</div>
+                <div style={{ fontSize: large ? 22 : 16, fontWeight:800, color:'var(--text)', fontFamily:"'DM Mono',monospace", lineHeight:1.05 }}>{centerValue}</div>
               )}
             </div>
           )}
         </div>
       </div>
       {/* Desglose en USD */}
-      <div style={{ width:'100%', maxWidth:200, marginTop:12, borderRadius:7, overflow:'hidden', border:'1px solid var(--border)' }}>
-        <div style={{ padding:'4px 10px', background:'var(--bg-3)', borderBottom:'1px solid var(--border)' }}>
-          <span style={{ fontSize:11, fontWeight:700, color:'var(--text-3)', textTransform:'uppercase', letterSpacing:'0.07em' }}>Desglose U$S</span>
+      <div style={{ width:'100%', maxWidth: large ? '100%' : 200, marginTop:16, borderRadius:8, overflow:'hidden', border:'1px solid var(--border)' }}>
+        <div style={{ padding: large ? '6px 14px' : '4px 10px', background:'var(--bg-3)', borderBottom:'1px solid var(--border)' }}>
+          <span style={{ fontSize: large ? 12 : 11, fontWeight:700, color:'var(--text-3)', textTransform:'uppercase', letterSpacing:'0.07em' }}>Desglose U$S</span>
         </div>
         {slices.map((s, i) => {
           const active = hovered === i;
+          const pct = rd(s.pct, 1);
           return (
             <div key={i}
               onMouseEnter={() => setHovered(i)}
               onMouseLeave={() => setHovered(null)}
               onClick={() => scrollToSection(s.sectionId)}
-              style={{ display:'flex', alignItems:'center', gap:6, padding:'5px 10px', cursor:'pointer',
+              style={{ display:'flex', alignItems:'center', gap:8, padding: large ? '8px 14px' : '5px 10px', cursor:'pointer',
                 background: active ? `${s.color}14` : 'var(--bg)',
                 borderLeft: `3px solid ${active ? s.color : 'transparent'}`,
                 borderBottom:'1px solid var(--border)', transition:'all 0.15s' }}>
-              <span style={{ width:6, height:6, borderRadius:1, background:s.color, flexShrink:0 }}/>
-              <span style={{ fontSize:12, color: active ? 'var(--text)' : 'var(--text-2)', flex:1, fontWeight: active ? 600 : 400, transition:'color 0.15s' }}>{s.label}</span>
-              <span style={{ fontSize:12, fontWeight: active ? 700 : 500, color: active ? s.color : 'var(--text-3)', fontFamily:"'DM Mono',monospace", transition:'color 0.15s' }}>
+              <span style={{ width: large ? 8 : 6, height: large ? 8 : 6, borderRadius:1, background:s.color, flexShrink:0 }}/>
+              <span style={{ fontSize: large ? 13 : 12, color: active ? 'var(--text)' : 'var(--text-2)', flex:1, fontWeight: active ? 600 : 400, transition:'color 0.15s' }}>{s.label}</span>
+              {large && <span style={{ fontSize:12, color:'var(--text-3)', fontFamily:"'DM Mono',monospace", minWidth:38, textAlign:'right' }}>{pct}%</span>}
+              <span style={{ fontSize: large ? 13 : 12, fontWeight: active ? 700 : 500, color: active ? s.color : 'var(--text-3)', fontFamily:"'DM Mono',monospace", transition:'color 0.15s' }}>
                 U$S {rd(s.usd, 2)}
               </span>
             </div>
