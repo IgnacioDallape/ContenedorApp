@@ -9,7 +9,7 @@ export default defineConfig({
     assetsDir: 'assets',
   },
   test: {
-    environment: 'node',
+    environment: 'jsdom',
     globals: true,
   },
 });

@@ -48,6 +48,14 @@ function pb_roundToGrid(value) {
   return Math.round(value / PB_GRID_RES) * PB_GRID_RES;
 }
 
+// Redondea HACIA ARRIBA al múltiplo de grid más cercano. Se usa para los
+// "right edges" en pb_collectAnchors: si una caja termina en una coordenada
+// no alineada (ej. z=51 con grid=2), el siguiente candidato de posición debe
+// ser z=52 — no z=50, que generaría un overlap de 1cm.
+function pb_ceilToGrid(value) {
+  return Math.ceil(value / PB_GRID_RES) * PB_GRID_RES;
+}
+
 function pb_getPlateauStats(hm, px, pz, dX, dZ) {
   const gx0 = Math.max(0, Math.floor(px / PB_GRID_RES));
   const gz0 = Math.max(0, Math.floor(pz / PB_GRID_RES));
@@ -134,12 +142,13 @@ function pb_collectAnchors(packed, palL, palW, ori) {
 
   for (const box of packed) {
     xs.add(pb_roundToGrid(box.x));
-    xs.add(pb_roundToGrid(box.x + box.dX));
+    // El borde derecho debe usar ceil para no solapar cajas con dims no-grid
+    xs.add(pb_ceilToGrid(box.x + box.dX));
     xs.add(pb_roundToGrid(box.x - ori.dX));
     xs.add(pb_roundToGrid(box.x + box.dX - ori.dX));
 
     zs.add(pb_roundToGrid(box.z));
-    zs.add(pb_roundToGrid(box.z + box.dZ));
+    zs.add(pb_ceilToGrid(box.z + box.dZ));
     zs.add(pb_roundToGrid(box.z - ori.dZ));
     zs.add(pb_roundToGrid(box.z + box.dZ - ori.dZ));
   }
