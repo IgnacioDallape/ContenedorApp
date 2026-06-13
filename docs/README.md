@@ -21,6 +21,7 @@ código y el `CLAUDE.md` se contradicen, **gana el código** y acá queda anotad
 | [`07-audit-findings.md`](07-audit-findings.md) | ⚠️ Discrepancias con docs viejos + bugs + tech debt priorizado |
 | [`08-engineering.md`](08-engineering.md) | Tooling, calidad, CI, code-splitting, convenciones |
 | [`09-i18n.md`](09-i18n.md) | Internacionalización (es/en/pt), cómo migrar y agregar idiomas |
+| [`10-engine-hardening.md`](10-engine-hardening.md) | Endurecimiento de motores + suites exhaustivas y fuzz, bugs arreglados |
 
 ## Cómo usar esto
 
