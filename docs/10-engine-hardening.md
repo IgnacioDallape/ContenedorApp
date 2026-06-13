@@ -43,8 +43,20 @@ y se arreglaron usando los tests como red. **169 → 202 tests.**
 - **Datos preservados**: ningún fix borra datos en silencio (las cajas afectadas
   van a reserva; los payloads se clampean, no se truncan productos).
 
-## Pendiente / candidatos a fase de mejora de motor
+## Mejoras de motor aplicadas (2ª fase)
 
-- Budget de tiempo en el motor de contenedor (el de pallet ya tiene `PB_CORE_BUDGET_*`).
-- Eliminar el overlap residual de 1cm con dims no-grid (geometría conservadora tipo
-  contenedor, que reserva ceil-to-grid).
+- ✅ **Overlap de cuantización eliminado**: `pb_runPacking` redondea las dims de
+  caja hacia arriba al grid (2cm) en la entrada. Con dims grilladas el motor no
+  produce overlaps (reserva un pelín más → gaps mínimos en lugar de solapar).
+  Costo: una caja se trata como ≤1cm más grande (conservador). Verificado con el
+  fuzz a tolerancia estricta 0.5cm.
+- ✅ **Backstop anti-cuelgue en el contenedor**: `runPacking` corta en 2500 unidades
+  y emite un warning `capacity-cap` (el motor no tiene budget de tiempo; esto evita
+  que un payload patológico congele el main thread).
+
+## Cobertura total de la app
+
+Además de los motores, se agregó cobertura de stores y componentes:
+`importaproStore` (productos, planes, orden, canales, TC), `containerStore`
+(alta, undo/redo, multi-container, clamp de carga), y **smoke tests de render** de
+todos los componentes salvo los 3D (que usan WebGL). Total: **234 tests**.
