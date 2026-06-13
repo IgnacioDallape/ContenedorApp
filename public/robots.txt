@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+
+# Las páginas de share son públicas por diseño pero son contenido por-usuario;
+# no aportan a SEO. Se permiten igual para que los previews de links funcionen.
