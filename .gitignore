@@ -1,5 +1,11 @@
 node_modules/
 dist/
+coverage/
 .claude/
 supabase/.temp/
 tmp_*.mjs
+
+# Entorno local — NO commitear secretos
+.env
+.env.*
+!.env.example
