@@ -26,8 +26,14 @@
 ## Estilo
 
 - ESLint + Prettier configurados (`npm run lint:fix`, `npm run format`).
-- Toda la UI visible en **español argentino** (vos, "cargá", "querés", "acá").
+- UI visible en **español argentino** (vos, "cargá", "querés", "acá").
 - Errores al usuario: amigables, no técnicos.
+
+## i18n
+
+- Texto nuevo de UI → usar `t('namespace.key')` (`useTranslation`) y agregar la
+  clave en los **3** locales (`src/i18n/locales/{es,en,pt}.json`). El test de
+  paridad falla si falta una clave o un `{{placeholder}}`. Ver [`docs/09-i18n.md`](docs/09-i18n.md).
 
 ## Tests
 

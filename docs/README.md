@@ -19,6 +19,8 @@ código y el `CLAUDE.md` se contradicen, **gana el código** y acá queda anotad
 | [`05-shell-infra.md`](05-shell-infra.md) | Boot, routing, AppShell, tema/CSS, SW, Vercel cron, build |
 | [`06-data-model.md`](06-data-model.md) | Tablas Supabase, stores Zustand, claves localStorage, globals `window` |
 | [`07-audit-findings.md`](07-audit-findings.md) | ⚠️ Discrepancias con docs viejos + bugs + tech debt priorizado |
+| [`08-engineering.md`](08-engineering.md) | Tooling, calidad, CI, code-splitting, convenciones |
+| [`09-i18n.md`](09-i18n.md) | Internacionalización (es/en/pt), cómo migrar y agregar idiomas |
 
 ## Cómo usar esto
 

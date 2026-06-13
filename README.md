@@ -14,7 +14,9 @@ a Argentina. Tres herramientas detrás de auth con planes:
 ## Stack
 
 React 18 · Vite 6 · Zustand 5 · Three.js · Supabase (auth + Postgres + Edge Functions) ·
-jsPDF · Vitest. JavaScript (sin TypeScript). UI en **español argentino**.
+jsPDF · i18next · Vitest. JavaScript (sin TypeScript). UI **multi-idioma** (es/en/pt,
+con auto-detección); el chrome ya está traducido y las herramientas se migran
+incrementalmente — ver [`docs/09-i18n.md`](docs/09-i18n.md).
 
 ## Quick start
 
@@ -54,7 +56,8 @@ secret) viven **sólo** en Supabase Edge Functions, nunca en el cliente.
 src/
   components/   UI por feature (ImportaPro, ContainerLoader, PalletBuilder, Auth, Billing, Share, Layout)
   stores/       Zustand (app, auth, container, importapro, pallet)
-  lib/          Motores de packing, formatters, pricing, export PDF, supabase
+  lib/          Motores de packing, formatters, pricing, export PDF, supabase, telemetry
+  i18n/         Config i18next + locales es/en/pt
   __tests__/    Vitest
 api/            Serverless (cron keepalive)
 supabase/       Migraciones + Edge Function del webhook de pagos (Lemon Squeezy)
