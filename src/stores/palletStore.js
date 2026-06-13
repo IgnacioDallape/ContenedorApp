@@ -87,23 +87,26 @@ function pb_getOrientations(unit, palL, palW) {
   // largo si su base está apoyada sobre el pallet (práctica logística real).
   const maxL = palL + PB_EDGE_OVERHANG + 0.1;
   const maxW = palW + PB_EDGE_OVERHANG + 0.1;
+  // Coerce a número y descartar dims inválidas (string→num; NaN/0/negativas → []).
+  const L = Number(unit.dims.L), W = Number(unit.dims.W), H = Number(unit.dims.H);
+  if (![L, W, H].every(d => Number.isFinite(d) && d > 0)) return [];
+
   if (unit.noRotate) {
-    const locked = { dX: unit.dims.L, dZ: unit.dims.W, dY: unit.dims.H };
+    const locked = { dX: L, dZ: W, dY: H };
     return locked.dX <= maxL && locked.dZ <= maxW ? [locked] : [];
   }
 
   const options = [
-    { dX: unit.dims.L, dZ: unit.dims.W, dY: unit.dims.H },
-    { dX: unit.dims.W, dZ: unit.dims.L, dY: unit.dims.H },
-    { dX: unit.dims.L, dZ: unit.dims.H, dY: unit.dims.W },
-    { dX: unit.dims.H, dZ: unit.dims.L, dY: unit.dims.W },
-    { dX: unit.dims.W, dZ: unit.dims.H, dY: unit.dims.L },
-    { dX: unit.dims.H, dZ: unit.dims.W, dY: unit.dims.L },
+    { dX: L, dZ: W, dY: H },
+    { dX: W, dZ: L, dY: H },
+    { dX: L, dZ: H, dY: W },
+    { dX: H, dZ: L, dY: W },
+    { dX: W, dZ: H, dY: L },
+    { dX: H, dZ: W, dY: L },
   ];
 
   const unique = new Map();
   for (const option of options) {
-    if (option.dX <= 0 || option.dZ <= 0 || option.dY <= 0) continue;
     if (option.dX > maxL || option.dZ > maxW) continue;
     const key = `${option.dX}|${option.dZ}|${option.dY}`;
     if (!unique.has(key)) unique.set(key, option);
@@ -3341,6 +3344,20 @@ function pb_dropFloaters(packed, palL, palW) {
 }
 
 export function pb_runPacking(products, palL, palW, maxH) {
+  // Guard de robustez: coerce dims a número y descarta productos con dims
+  // inválidas (0, negativas, NaN, Infinity) o qty inválida. Ambos motores (nuevo
+  // y viejo) reciben solo productos válidos → nunca se colocan cajas degeneradas.
+  products = (products || [])
+    .map(p => ({
+      ...p,
+      dims: { L: Number(p?.dims?.L), W: Number(p?.dims?.W), H: Number(p?.dims?.H) },
+      qty: Number.isFinite(p?.qty) ? Math.floor(p.qty) : 0,
+    }))
+    .filter(
+      p =>
+        p.qty > 0 &&
+        [p.dims.L, p.dims.W, p.dims.H].every(d => Number.isFinite(d) && d > 0)
+    );
   const totalUnits = products.reduce((s, p) => s + Math.max(0, p.qty || 0), 0);
   const budgetPerVariant = totalUnits > 140 ? 800 : totalUnits > 70 ? 1100 : 1600;
   // size-grouped: nueva variante que procesa cajas idénticas juntas, ayuda
@@ -3751,7 +3768,7 @@ const usePalletStore = create((set, get) => ({
   buildMode: 'auto',
 
   setPalletType(type) {
-    set({ palletType: type });
+    set({ palletType: PB_PALLET_TYPES[type] ? type : 'eua' });
   },
 
   setBuildMode(mode) {
@@ -3762,7 +3779,7 @@ const usePalletStore = create((set, get) => ({
   // unidad por unidad (con asistencia del motor: snap, gravedad, sugerencias).
   startManualEmpty() {
     const { palletType, maxHeight, products } = get();
-    const pt = PB_PALLET_TYPES[palletType];
+    const pt = PB_PALLET_TYPES[palletType] || PB_PALLET_TYPES.eua;
     const emptyResult = pb_finalizeResultMeta(
       {
         idx: 0,
@@ -3798,9 +3815,28 @@ const usePalletStore = create((set, get) => ({
   setMaxHeight(h) {
     const next = parseInt(h) || 180;
     // Propagar a TODOS los resultados existentes — el shell 3D y los validadores
-    // leen result.maxHeight, así que sin esto el slider no tendría efecto visible.
+    // leen result.maxHeight. Además, si se BAJA por debajo de cajas ya colocadas,
+    // esas cajas pasan a reserva (no se pierden) para que el pallet mostrado nunca
+    // viole su propia altura máxima.
     const { results } = get();
-    const updated = results.map(r => ({ ...r, maxHeight: next }));
+    const updated = results.map(r => {
+      const keep = [];
+      const overflow = [];
+      for (const b of r.boxes || []) {
+        if (b.y + b.dY > next + 0.5) overflow.push(b);
+        else keep.push(b);
+      }
+      if (!overflow.length) return { ...r, maxHeight: next };
+      const reserveBoxes = [
+        ...(r.reserveBoxes || []),
+        ...overflow.map(b => ({
+          ...b,
+          uid: String(b.uid).startsWith('reserve::') ? b.uid : `reserve::${b.uid}`,
+        })),
+      ];
+      const top = keep.reduce((m, b) => Math.max(m, b.y + b.dY), 0);
+      return { ...r, maxHeight: next, boxes: keep, reserveBoxes, totalHeight: top + PB_PALLET_BASE_H };
+    });
     set({ maxHeight: next, results: updated });
   },
 
@@ -3826,7 +3862,7 @@ const usePalletStore = create((set, get) => ({
   build() {
     const { products, palletType, maxHeight } = get();
     if (!products.length) return;
-    const pt = PB_PALLET_TYPES[palletType];
+    const pt = PB_PALLET_TYPES[palletType] || PB_PALLET_TYPES.eua;
     const palL = pt.L, palW = pt.W;
 
     const pallets = [];

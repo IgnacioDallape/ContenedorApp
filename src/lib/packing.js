@@ -286,7 +286,13 @@ function runPacking(products) {
   const units = [];
   for (const p of products) {
     placed[p.id] = 0;
-    for (let i = 0; i < p.qty; i++) {
+    // Guard de robustez: ignorar productos con dimensiones inválidas (0, negativas,
+    // NaN, Infinity) o cantidad inválida — nunca deben generar items degenerados.
+    const { L, W, H } = p.dims || {};
+    const dimsOk = [L, W, H].every(d => Number.isFinite(d) && d > 0);
+    const qtyN = Number.isFinite(p.qty) ? Math.floor(p.qty) : 0;
+    if (!dimsOk || qtyN <= 0) continue;
+    for (let i = 0; i < qtyN; i++) {
       const iid = `${p.id}_${i}`;
       // Instance-level locked orientation takes priority over product-level
       const oriSource = instanceLockedOri[iid] || p.lockedOri || null;
