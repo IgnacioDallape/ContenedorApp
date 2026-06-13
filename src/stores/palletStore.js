@@ -3344,13 +3344,17 @@ function pb_dropFloaters(packed, palL, palW) {
 }
 
 export function pb_runPacking(products, palL, palW, maxH) {
-  // Guard de robustez: coerce dims a número y descarta productos con dims
-  // inválidas (0, negativas, NaN, Infinity) o qty inválida. Ambos motores (nuevo
-  // y viejo) reciben solo productos válidos → nunca se colocan cajas degeneradas.
+  // Guard de robustez: descarta productos con dims inválidas (0, negativas, NaN,
+  // Infinity) o qty inválida, y REDONDEA las dims HACIA ARRIBA al grid (PB_GRID_RES).
+  // Alinear las dims a la grilla elimina el overlap de cuantización (~1cm) que
+  // aparecía con dims no múltiplo de 2: el motor reserva un pelín más de espacio
+  // (gaps mínimos) en lugar de solapar. Ambos motores (nuevo y viejo) reciben dims
+  // ya grilladas → resultado sin overlaps reales.
+  const _ceilGrid = n => Math.ceil(Number(n) / PB_GRID_RES) * PB_GRID_RES;
   products = (products || [])
     .map(p => ({
       ...p,
-      dims: { L: Number(p?.dims?.L), W: Number(p?.dims?.W), H: Number(p?.dims?.H) },
+      dims: { L: _ceilGrid(p?.dims?.L), W: _ceilGrid(p?.dims?.W), H: _ceilGrid(p?.dims?.H) },
       qty: Number.isFinite(p?.qty) ? Math.floor(p.qty) : 0,
     }))
     .filter(

@@ -308,6 +308,19 @@ function runPacking(products) {
     }
   }
 
+  // Backstop anti-cuelgue: el motor de contenedor no tiene budget de tiempo; un
+  // payload patológico (qty enorme, ej. share link malicioso) podría congelar el
+  // main thread. Cortamos en un máximo razonable y avisamos. (El form y el loader
+  // ya limitan a 500/producto; esto es la última red.)
+  const MAX_TOTAL_UNITS = 2500;
+  if (units.length > MAX_TOTAL_UNITS) {
+    warnings.push({
+      kind: 'capacity-cap',
+      message: `Se limitó el cálculo a ${MAX_TOTAL_UNITS} unidades (de ${units.length}) para no congelar la app.`,
+    });
+    units.length = MAX_TOTAL_UNITS;
+  }
+
   // BFD sort: pallets first, then boxes, larger volume first within type
   // Priority zone units go first — sorted by zone slot so same-zone units cluster
   units.sort((a, b) => {

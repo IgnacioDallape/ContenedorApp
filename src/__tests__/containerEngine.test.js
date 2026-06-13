@@ -189,3 +189,14 @@ describe('runPacking — regresión palletBase=0 (división por cero en heightma
     assertContainerInvariants(result.packed, 1200, 235, 239, 'palletBase0');
   });
 });
+
+// ── 10. Backstop anti-cuelgue: cap de unidades ─────────────────────────────
+describe('runPacking — cap de unidades (backstop anti-cuelgue)', () => {
+  it('una qty patológica se limita a 2500 y emite warning, sin colgar', () => {
+    // Contenedor chico → el scan por unidad es barato y el test corre rápido.
+    setContainerDimensions(50, 50, 50, (50 * 50 * 50) / 1e6);
+    const result = runPacking([box({ id: 'huge', qty: 4000, dims: { L: 40, W: 40, H: 40 } })]);
+    expect(result.warnings.some(w => w.kind === 'capacity-cap')).toBe(true);
+    expect(result.packed.length).toBeLessThanOrEqual(2500);
+  });
+});
