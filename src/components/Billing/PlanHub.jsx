@@ -1,37 +1,18 @@
+import { useTranslation } from 'react-i18next';
 import useAuthStore from '../../stores/authStore.js';
 
-const PLAN_COPY = {
-  none: {
-    eyebrow: 'Cuenta creada',
-    title: 'Tu cuenta ya esta lista. Falta activar un plan.',
-    body: 'Podes entrar a la app, pero para usar cualquier modulo primero tenes que elegir un plan y completar el pago.',
-  },
-  basic: {
-    eyebrow: 'Plan activo',
-    title: 'Estas en Basic.',
-    body: 'Ya podes usar los modulos de importacion. Para destrabar contenedor 3D o pallets, subi de plan cuando quieras.',
-  },
-  pro: {
-    eyebrow: 'Plan activo',
-    title: 'Estas en Pro.',
-    body: 'Tenes habilitados importacion y cargador 3D de contenedores.',
-  },
-  promax: {
-    eyebrow: 'Plan activo',
-    title: 'Estas en Pro Max.',
-    body: 'Tenes todos los modulos habilitados, incluido el armador de pallets.',
-  },
-};
-
+// Los precios (ARS) y los nombres de plan (Basic/Pro/Pro Max) son marca/negocio
+// y no se traducen; el detalle y la copy de estado sí, vía i18n (billing.*).
 const PLAN_BUTTONS = [
-  { key: 'basic', label: 'Basic', price: 'ARS 24.999', detail: 'Importacion + NCM + simulador' },
-  { key: 'pro', label: 'Pro', price: 'ARS 49.999', detail: 'Suma cargador 3D de contenedores' },
-  { key: 'promax', label: 'Pro Max', price: 'ARS 69.999', detail: 'Suma armador de pallets' },
+  { key: 'basic', label: 'Basic', price: 'ARS 24.999' },
+  { key: 'pro', label: 'Pro', price: 'ARS 49.999' },
+  { key: 'promax', label: 'Pro Max', price: 'ARS 69.999' },
 ];
 
 export default function PlanHub({ onCheckout }) {
+  const { t } = useTranslation();
   const { user, userPlan } = useAuthStore();
-  const copy = PLAN_COPY[userPlan] || PLAN_COPY.none;
+  const planKey = ['basic', 'pro', 'promax'].includes(userPlan) ? userPlan : 'none';
   const displayName = user?.user_metadata?.username || user?.email?.split('@')[0] || 'usuario';
 
   return (
@@ -49,10 +30,10 @@ export default function PlanHub({ onCheckout }) {
         }}
       >
         <h1 style={{ margin: 0, fontSize: 34, lineHeight: 1.1, color: 'var(--text)', fontFamily: 'var(--font-head, inherit)' }}>
-          {copy.title}
+          {t(`billing.status.${planKey}.title`)}
         </h1>
         <p style={{ margin: '12px auto 0', maxWidth: 760, color: 'var(--text-2, #6f5e4e)', fontSize: 15, lineHeight: 1.7 }}>
-          {displayName}, {copy.body}
+          {displayName}, {t(`billing.status.${planKey}.body`)}
         </p>
       </div>
 
@@ -83,13 +64,13 @@ export default function PlanHub({ onCheckout }) {
                 {plan.label}
               </div>
               <div style={{ fontSize: 34, lineHeight: 1, color: 'var(--text)' }}>{plan.price}</div>
-              <div style={{ color: 'var(--text-2, #6f5e4e)', fontSize: 14 }}>{plan.detail}</div>
+              <div style={{ color: 'var(--text-2, #6f5e4e)', fontSize: 14 }}>{t(`billing.plans.${plan.key}.detail`)}</div>
               <button
                 className={isCurrent ? 'btn-outline' : 'btn-primary'}
                 onClick={() => onCheckout(plan.label)}
                 style={{ marginTop: 'auto' }}
               >
-                {isCurrent ? 'Ver plan actual' : `Elegir ${plan.label}`}
+                {isCurrent ? t('billing.current') : t('billing.choose', { plan: plan.label })}
               </button>
             </div>
           );

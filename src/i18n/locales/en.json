@@ -1,0 +1,125 @@
+{
+  "app": {
+    "name": "ContenedorApp",
+    "tagline": "Imports + Container"
+  },
+  "common": {
+    "loading": "Loading...",
+    "menu": "Menu"
+  },
+  "nav": {
+    "groupImport": "Imports",
+    "groupPallet": "Pallet",
+    "groupContainer": "Container",
+    "mainMenu": "Main menu",
+    "requiresHigherPlan": "Requires a higher plan",
+    "home": "Home",
+    "calc": "Calculator",
+    "products": "My products",
+    "comparator": "Compare products",
+    "ncm": "HS code search",
+    "simulator": "Price simulator",
+    "prices": "Confirmed prices",
+    "settings": "Settings",
+    "container": "Load container",
+    "palletbuilder": "Pallet builder",
+    "shortCalc": "Calc",
+    "shortPrices": "Prices",
+    "shortContainer": "Cont",
+    "shortPallet": "Pallet"
+  },
+  "section": {
+    "home": "Home",
+    "calc": "Calculator",
+    "products": "My products",
+    "comparator": "Compare products",
+    "ncm": "HS code search",
+    "simulator": "Simulator",
+    "prices": "Confirmed prices",
+    "settings": "Settings",
+    "container": "Load container",
+    "palletbuilder": "Pallet builder"
+  },
+  "welcome": {
+    "greeting": "Welcome {{name}}",
+    "ready": "Ready to start importing?",
+    "currentPlan": "Current plan: {{plan}}",
+    "noPlan": "no plan"
+  },
+  "profile": {
+    "title": "My profile",
+    "email": "Email",
+    "name": "Name",
+    "phone": "Phone",
+    "save": "Save changes",
+    "saving": "Saving...",
+    "changePassword": "Change password",
+    "show": "Show",
+    "hide": "Hide",
+    "newPassword": "New password",
+    "confirmPassword": "Confirm password",
+    "updatePassword": "Update password",
+    "sendRecovery": "Send recovery email",
+    "sending": "Sending...",
+    "exchangeRate": "Exchange rate",
+    "myPlan": "My plan",
+    "logout": "Log out",
+    "updated": "Profile updated",
+    "saveError": "Error saving: {{error}}",
+    "recoverySent": "Password reset email sent to {{email}}",
+    "error": "Error: {{error}}",
+    "passwordTooShort": "The new password must be at least 6 characters",
+    "passwordMismatch": "Passwords do not match",
+    "passwordUpdated": "Password updated",
+    "passwordError": "Error changing password: {{error}}"
+  },
+  "settings": {
+    "title": "Settings",
+    "subtitle": "Exchange rate and general preferences",
+    "backToCalc": "Back to calculator",
+    "exchangeRate": "Exchange rate",
+    "myPlan": "My plan",
+    "updateBlue": "Update blue dollar",
+    "updatedAt": "Updated: {{date}}",
+    "notUpdated": "Not updated",
+    "fetchError": "Failed to fetch the exchange rate",
+    "language": "Language"
+  },
+  "billing": {
+    "choose": "Choose {{plan}}",
+    "current": "View current plan",
+    "status": {
+      "none": {
+        "title": "Your account is ready. You still need to activate a plan.",
+        "body": "You can enter the app, but to use any module you first need to choose a plan and complete the payment."
+      },
+      "basic": {
+        "title": "You're on Basic.",
+        "body": "You can already use the import modules. To unlock 3D container or pallets, upgrade whenever you want."
+      },
+      "pro": {
+        "title": "You're on Pro.",
+        "body": "You have imports and the 3D container loader enabled."
+      },
+      "promax": {
+        "title": "You're on Pro Max.",
+        "body": "You have every module enabled, including the pallet builder."
+      }
+    },
+    "plans": {
+      "basic": { "detail": "Imports + HS code + simulator" },
+      "pro": { "detail": "Adds the 3D container loader" },
+      "promax": { "detail": "Adds the pallet builder" }
+    }
+  },
+  "errors": {
+    "sectionTitle": "Something went wrong in this section",
+    "sectionBody": "The app is still working — only this view errored out. Try reloading or go back to the main menu.",
+    "retry": "Retry",
+    "reload": "Reload app",
+    "details": "Technical details"
+  },
+  "language": {
+    "label": "Language"
+  }
+}

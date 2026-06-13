@@ -1,0 +1,125 @@
+{
+  "app": {
+    "name": "ContenedorApp",
+    "tagline": "Importação + Contêiner"
+  },
+  "common": {
+    "loading": "Carregando...",
+    "menu": "Menu"
+  },
+  "nav": {
+    "groupImport": "Importação",
+    "groupPallet": "Pallet",
+    "groupContainer": "Contêiner",
+    "mainMenu": "Menu principal",
+    "requiresHigherPlan": "Requer um plano superior",
+    "home": "Início",
+    "calc": "Calculadora",
+    "products": "Meus produtos",
+    "comparator": "Comparar produtos",
+    "ncm": "Buscar NCM",
+    "simulator": "Simulador de preço",
+    "prices": "Preços confirmados",
+    "settings": "Configurações",
+    "container": "Carregar contêiner",
+    "palletbuilder": "Montador de pallets",
+    "shortCalc": "Calc",
+    "shortPrices": "Preços",
+    "shortContainer": "Cont",
+    "shortPallet": "Pallet"
+  },
+  "section": {
+    "home": "Início",
+    "calc": "Calculadora",
+    "products": "Meus produtos",
+    "comparator": "Comparar produtos",
+    "ncm": "Buscar NCM",
+    "simulator": "Simulador",
+    "prices": "Preços confirmados",
+    "settings": "Configurações",
+    "container": "Carregar contêiner",
+    "palletbuilder": "Montador de pallets"
+  },
+  "welcome": {
+    "greeting": "Bem-vindo {{name}}",
+    "ready": "Pronto para começar a importar?",
+    "currentPlan": "Plano atual: {{plan}}",
+    "noPlan": "sem plano"
+  },
+  "profile": {
+    "title": "Meu perfil",
+    "email": "Email",
+    "name": "Nome",
+    "phone": "Telefone",
+    "save": "Salvar alterações",
+    "saving": "Salvando...",
+    "changePassword": "Alterar senha",
+    "show": "Mostrar",
+    "hide": "Ocultar",
+    "newPassword": "Nova senha",
+    "confirmPassword": "Confirmar senha",
+    "updatePassword": "Atualizar senha",
+    "sendRecovery": "Enviar email de recuperação",
+    "sending": "Enviando...",
+    "exchangeRate": "Taxa de câmbio",
+    "myPlan": "Meu plano",
+    "logout": "Sair",
+    "updated": "Perfil atualizado",
+    "saveError": "Erro ao salvar: {{error}}",
+    "recoverySent": "Email de redefinição de senha enviado para {{email}}",
+    "error": "Erro: {{error}}",
+    "passwordTooShort": "A nova senha deve ter pelo menos 6 caracteres",
+    "passwordMismatch": "As senhas não coincidem",
+    "passwordUpdated": "Senha atualizada",
+    "passwordError": "Erro ao alterar a senha: {{error}}"
+  },
+  "settings": {
+    "title": "Configurações",
+    "subtitle": "Taxa de câmbio e preferências gerais",
+    "backToCalc": "Voltar à calculadora",
+    "exchangeRate": "Taxa de câmbio",
+    "myPlan": "Meu plano",
+    "updateBlue": "Atualizar dólar blue",
+    "updatedAt": "Atualizado: {{date}}",
+    "notUpdated": "Não atualizado",
+    "fetchError": "Falha ao obter a taxa de câmbio",
+    "language": "Idioma"
+  },
+  "billing": {
+    "choose": "Escolher {{plan}}",
+    "current": "Ver plano atual",
+    "status": {
+      "none": {
+        "title": "Sua conta já está pronta. Falta ativar um plano.",
+        "body": "Você pode entrar no app, mas para usar qualquer módulo primeiro precisa escolher um plano e concluir o pagamento."
+      },
+      "basic": {
+        "title": "Você está no Basic.",
+        "body": "Você já pode usar os módulos de importação. Para liberar contêiner 3D ou pallets, faça upgrade quando quiser."
+      },
+      "pro": {
+        "title": "Você está no Pro.",
+        "body": "Você tem importação e o carregador 3D de contêineres habilitados."
+      },
+      "promax": {
+        "title": "Você está no Pro Max.",
+        "body": "Você tem todos os módulos habilitados, incluindo o montador de pallets."
+      }
+    },
+    "plans": {
+      "basic": { "detail": "Importação + NCM + simulador" },
+      "pro": { "detail": "Adiciona o carregador 3D de contêineres" },
+      "promax": { "detail": "Adiciona o montador de pallets" }
+    }
+  },
+  "errors": {
+    "sectionTitle": "Algo deu errado nesta seção",
+    "sectionBody": "O app continua funcionando — apenas esta tela apresentou erro. Tente recarregar ou volte ao menu principal.",
+    "retry": "Tentar de novo",
+    "reload": "Recarregar app",
+    "details": "Detalhes técnicos"
+  },
+  "language": {
+    "label": "Idioma"
+  }
+}

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, lazy, Suspense } from 'react';
+import { useTranslation } from 'react-i18next';
 import useAuthStore from '../../stores/authStore.js';
 import useAppStore from '../../stores/appStore.js';
 import useImportaproStore from '../../stores/importaproStore.js';
@@ -19,11 +20,10 @@ import ErrorBoundary from './ErrorBoundary.jsx';
 const ContainerLoader = lazy(() => import('../ContainerLoader/ContainerLoader.jsx'));
 const PalletBuilder = lazy(() => import('../PalletBuilder/PalletBuilder.jsx'));
 
-const Loader = () => (
-  <div className="shell-loader">
-    Cargando...
-  </div>
-);
+const Loader = () => {
+  const { t } = useTranslation();
+  return <div className="shell-loader">{t('common.loading')}</div>;
+};
 
 function NavSvg({ children, strokeWidth = 1.8 }) {
   return (
@@ -117,7 +117,12 @@ const NAV_ICONS = {
 };
 
 function WelcomePanel({ label, userPlan }) {
-  const planLabel = userPlan === 'promax' ? 'Pro Max' : userPlan === 'pro' ? 'Pro' : userPlan === 'basic' ? 'Basic' : 'sin plan';
+  const { t } = useTranslation();
+  const planLabel =
+    userPlan === 'promax' ? 'Pro Max'
+    : userPlan === 'pro' ? 'Pro'
+    : userPlan === 'basic' ? 'Basic'
+    : t('welcome.noPlan');
 
   return (
     <div className="welcome-shell">
@@ -128,13 +133,13 @@ function WelcomePanel({ label, userPlan }) {
           </div>
         </div>
         <h1 className="welcome-title">
-          Bienvenido {label}
+          {t('welcome.greeting', { name: label })}
         </h1>
         <p className="welcome-copy">
-          ¿Listo para empezar a importar?
+          {t('welcome.ready')}
         </p>
         <div className="welcome-pill">
-          Plan actual: {planLabel}
+          {t('welcome.currentPlan', { plan: planLabel })}
         </div>
       </div>
     </div>
@@ -142,6 +147,7 @@ function WelcomePanel({ label, userPlan }) {
 }
 
 export default function AppShell() {
+  const { t } = useTranslation();
   const { user, userPlan } = useAuthStore();
   const { activeSection, setActiveSection, showToast } = useAppStore();
   const [upgradeModal, setUpgradeModal] = useState(null);
@@ -153,16 +159,16 @@ export default function AppShell() {
 
   const label = user?.user_metadata?.username || user?.email?.split('@')[0] || '-';
   const sectionNames = {
-    home: 'Inicio',
-    calc: 'Calculadora',
-    products: 'Mis productos',
-    comparator: 'Comparar productos',
-    ncm: 'Buscar NCM',
-    simulator: 'Simulador',
-    prices: 'Precios confirmados',
-    settings: 'Configuración',
-    container: 'Cargar contenedor',
-    palletbuilder: 'Armador de pallets',
+    home: t('section.home'),
+    calc: t('section.calc'),
+    products: t('section.products'),
+    comparator: t('section.comparator'),
+    ncm: t('section.ncm'),
+    simulator: t('section.simulator'),
+    prices: t('section.prices'),
+    settings: t('section.settings'),
+    container: t('section.container'),
+    palletbuilder: t('section.palletbuilder'),
   };
 
   useEffect(() => {
@@ -250,7 +256,7 @@ export default function AppShell() {
         className={`mnav-btn${active ? ' active' : ''}`}
         style={locked ? { opacity: 0.42 } : undefined}
         onClick={() => navigate(id)}
-        title={locked ? 'Requiere plan superior' : itemLabel}
+        title={locked ? t('nav.requiresHigherPlan') : itemLabel}
       >
         <span className="mnav-icon" style={{ position: 'relative', display: 'inline-block' }}>
           {icon}
@@ -272,13 +278,13 @@ export default function AppShell() {
             <path d="M4 12H20" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
             <path d="M4 17H20" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
           </svg>
-          <span>Menu</span>
+          <span>{t('common.menu')}</span>
         </button>
         <div className="mobile-topbar-brand">
           <div className="mobile-topbar-mark"><BrandMark size={22} /></div>
           <div>
             <div className="mobile-topbar-title">ImportaPro</div>
-            <div className="mobile-topbar-sub">{sectionNames[activeSection] || 'Inicio'}</div>
+            <div className="mobile-topbar-sub">{sectionNames[activeSection] || t('section.home')}</div>
           </div>
         </div>
         <div ref={profileMobileRef} style={{ position: 'relative' }}>
@@ -306,29 +312,29 @@ export default function AppShell() {
             <div className="mobile-topbar-mark"><BrandMark size={22} /></div>
             <div>
               <div className="mobile-topbar-title">ImportaPro</div>
-              <div className="mobile-topbar-sub">Menu principal</div>
+              <div className="mobile-topbar-sub">{t('nav.mainMenu')}</div>
             </div>
           </div>
           <button type="button" className="mobile-topbar-btn" onClick={() => setMobileMenuOpen(false)} aria-label="Cerrar menu">×</button>
         </div>
-        <div className="mobile-drawer-section">Importacion</div>
+        <div className="mobile-drawer-section">{t('nav.groupImport')}</div>
         <div className="mobile-drawer-items">
-          {navItem('home', NAV_ICONS.home, 'Inicio')}
-          {navItem('calc', NAV_ICONS.calc, 'Calculadora')}
-          {navItem('products', NAV_ICONS.products, 'Mis productos')}
-          {navItem('comparator', NAV_ICONS.comparator, 'Comparar productos')}
-          {navItem('ncm', NAV_ICONS.ncm, 'Buscar NCM')}
-          {navItem('simulator', NAV_ICONS.simulator, 'Simulador de precio')}
-          {navItem('prices', NAV_ICONS.prices, 'Precios confirmados')}
+          {navItem('home', NAV_ICONS.home, t('nav.home'))}
+          {navItem('calc', NAV_ICONS.calc, t('nav.calc'))}
+          {navItem('products', NAV_ICONS.products, t('nav.products'))}
+          {navItem('comparator', NAV_ICONS.comparator, t('nav.comparator'))}
+          {navItem('ncm', NAV_ICONS.ncm, t('nav.ncm'))}
+          {navItem('simulator', NAV_ICONS.simulator, t('nav.simulator'))}
+          {navItem('prices', NAV_ICONS.prices, t('nav.prices'))}
         </div>
-        <div className="mobile-drawer-section">Pallet</div>
+        <div className="mobile-drawer-section">{t('nav.groupPallet')}</div>
         <div className="mobile-drawer-items">
-          {navItem('palletbuilder', NAV_ICONS.palletbuilder, 'Armador de pallets')}
+          {navItem('palletbuilder', NAV_ICONS.palletbuilder, t('nav.palletbuilder'))}
         </div>
-        <div className="mobile-drawer-section">Contenedor</div>
+        <div className="mobile-drawer-section">{t('nav.groupContainer')}</div>
         <div className="mobile-drawer-items">
-          {navItem('container', NAV_ICONS.container, 'Cargar contenedor')}
-          {navItem('settings', NAV_ICONS.settings, 'Configuración')}
+          {navItem('container', NAV_ICONS.container, t('nav.container'))}
+          {navItem('settings', NAV_ICONS.settings, t('nav.settings'))}
         </div>
       </aside>
 
@@ -347,24 +353,24 @@ export default function AppShell() {
           </div>
           <div>
             <div className="brand-name">ImportaPro</div>
-            <div className="brand-sub">Importacion + Contenedor</div>
+            <div className="brand-sub">{t('app.tagline')}</div>
           </div>
         </div>
 
         <nav className="nav">
-          <div className="nav-section">Importacion</div>
-          {navItem('calc', NAV_ICONS.calc, 'Calculadora')}
-          {navItem('products', NAV_ICONS.products, 'Mis productos')}
-          {navItem('comparator', NAV_ICONS.comparator, 'Comparar productos')}
-          {navItem('ncm', NAV_ICONS.ncm, 'Buscar NCM')}
-          {navItem('simulator', NAV_ICONS.simulator, 'Simulador de precio')}
-          {navItem('prices', NAV_ICONS.prices, 'Precios confirmados')}
+          <div className="nav-section">{t('nav.groupImport')}</div>
+          {navItem('calc', NAV_ICONS.calc, t('nav.calc'))}
+          {navItem('products', NAV_ICONS.products, t('nav.products'))}
+          {navItem('comparator', NAV_ICONS.comparator, t('nav.comparator'))}
+          {navItem('ncm', NAV_ICONS.ncm, t('nav.ncm'))}
+          {navItem('simulator', NAV_ICONS.simulator, t('nav.simulator'))}
+          {navItem('prices', NAV_ICONS.prices, t('nav.prices'))}
 
-          <div className="nav-section">Pallet</div>
-          {navItem('palletbuilder', NAV_ICONS.palletbuilder, 'Armador de pallets')}
+          <div className="nav-section">{t('nav.groupPallet')}</div>
+          {navItem('palletbuilder', NAV_ICONS.palletbuilder, t('nav.palletbuilder'))}
 
-          <div className="nav-section">Contenedor</div>
-          {navItem('container', NAV_ICONS.container, 'Cargar contenedor')}
+          <div className="nav-section">{t('nav.groupContainer')}</div>
+          {navItem('container', NAV_ICONS.container, t('nav.container'))}
         </nav>
 
         <div className="sidebar-footer">
@@ -465,11 +471,11 @@ export default function AppShell() {
 
       <div className="mobile-nav">
         <div className="mobile-nav-inner">
-          {mobileNavButton('home', NAV_ICONS.home, 'Inicio')}
-          {mobileNavButton('calc', NAV_ICONS.calc, 'Calc')}
-          {mobileNavButton('prices', NAV_ICONS.prices, 'Precios')}
-          {mobileNavButton('container', NAV_ICONS.container, 'Cont')}
-          {mobileNavButton('palletbuilder', NAV_ICONS.palletbuilder, 'Pallet')}
+          {mobileNavButton('home', NAV_ICONS.home, t('nav.home'))}
+          {mobileNavButton('calc', NAV_ICONS.calc, t('nav.shortCalc'))}
+          {mobileNavButton('prices', NAV_ICONS.prices, t('nav.shortPrices'))}
+          {mobileNavButton('container', NAV_ICONS.container, t('nav.shortContainer'))}
+          {mobileNavButton('palletbuilder', NAV_ICONS.palletbuilder, t('nav.shortPallet'))}
         </div>
       </div>
 
