@@ -6,6 +6,25 @@ para entender el proyecto sin tener que explorarlo.
 
 ---
 
+> ## ⚠️ Fuente de verdad: `docs/` (auditada 2026-06-13)
+>
+> Este archivo tiene afirmaciones **desactualizadas/incorrectas**. Antes de confiar
+> en algo de acá, chequeá [`docs/`](docs/) — documentación verificada contra el
+> código real, con refs `archivo:línea`. Empezá por [`docs/README.md`](docs/README.md)
+> y [`docs/07-audit-findings.md`](docs/07-audit-findings.md).
+>
+> **Correcciones críticas** (detalle en `docs/07-audit-findings.md`):
+> 1. **SÍ hay pagos** — Lemon Squeezy (checkout + webhook), no "sin integración". → `docs/01-auth-billing.md`
+> 2. **NcmSearch NO usa IA** — filtro estático; `@anthropic-ai/sdk` es dependencia muerta. → `docs/02-importapro.md`
+> 3. **`saveJob/loadJob/togglePublic` están en `PalletBuilder.jsx`**, no en `palletStore`. → `docs/04-pallet-builder.md`
+> 4. **Container**: `MIN_SUPPORT_PERCENT=0.8`, `ALLOW_OVERHANG=false` (no 0.75/true). → `docs/03-container-loader.md`
+> 5. **`Cormorant Garamond` sigue vivo** en `styles.css:795` (la unificación a Inter no fue total).
+> 6. **`Catalog/Catalog.jsx` es código muerto** (nunca se importa).
+>
+> El resto del archivo queda como referencia histórica/contextual.
+
+---
+
 ## TL;DR (30 segundos)
 
 App React + Vite + Zustand + Three.js + Supabase. Sin TS. Un único deploy en
