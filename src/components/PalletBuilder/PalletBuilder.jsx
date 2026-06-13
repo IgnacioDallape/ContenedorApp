@@ -134,12 +134,19 @@ export default function PalletBuilder() {
     const weight = parseFloat(form.weight) || 0;
 
     if (!name) return showToast('Ingresá el nombre', 'error');
-    if (!L || !W || !H) return showToast('Ingresá las dimensiones', 'error');
+    if (!(L > 0) || !(W > 0) || !(H > 0)) return showToast('Ingresá dimensiones válidas (mayores a 0)', 'error');
     if (!qty || qty < 1) return showToast('Ingresá la cantidad', 'error');
     if (qty > 250) return showToast('Máximo 250 por producto', 'error');
 
-    const minDim = Math.min(L, W, H);
-    if (minDim > Math.max(pt.L, pt.W)) return showToast('La caja es más grande que el pallet', 'error');
+    // La caja entra sólo si sus dos dimensiones más chicas (su footprint más
+    // plano) caben en el pallet + overhang. Comparar sólo la menor era demasiado
+    // laxo (aceptaba cajas que después nunca se colocaban).
+    const sorted = [L, W, H].slice().sort((a, b) => a - b);
+    const palBig = Math.max(pt.L, pt.W) + 5; // +5 = overhang permitido (PB_EDGE_OVERHANG)
+    const palSmall = Math.min(pt.L, pt.W) + 5;
+    if (sorted[0] > palSmall || sorted[1] > palBig) {
+      return showToast('La caja no entra en el pallet en ninguna orientación', 'error');
+    }
 
     addOrUpdateProduct({
       name,
@@ -325,7 +332,8 @@ export default function PalletBuilder() {
         activeRes.maxHeight,
         selectedBox.x,
         selectedBox.z,
-        candidate
+        candidate,
+        { strict: buildMode === 'manual' }
       );
       if (placement.valid) {
         updateActiveResultBoxes(activeRes.boxes.map(box =>
@@ -375,7 +383,8 @@ export default function PalletBuilder() {
         activeRes.maxHeight,
         selectedBox.x,
         selectedBox.z,
-        candidate
+        candidate,
+        { strict: buildMode === 'manual' }
       );
       if (placement.valid) {
         updateActiveResultBoxes(activeRes.boxes.map(box =>
@@ -414,7 +423,8 @@ export default function PalletBuilder() {
       activeRes.maxHeight,
       selectedBox.x,
       selectedBox.z,
-      nextDims
+      nextDims,
+      { strict: buildMode === 'manual' }
     );
 
     if (!placement.valid) {
@@ -838,6 +848,9 @@ export default function PalletBuilder() {
 
   async function saveTracking() {
     const url = trackingDraft.trim();
+    if (url && !/^https?:\/\//i.test(url)) {
+      return showToast('El link debe empezar con http:// o https://', 'error');
+    }
     setCurrentJobTracking(url);
     setShowTrackingEditor(false);
     if (!currentJobId) return; // se persistirá al guardar

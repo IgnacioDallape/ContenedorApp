@@ -3844,7 +3844,9 @@ const usePalletStore = create((set, get) => ({
     const { products, editingId } = get();
     if (editingId != null) {
       set({
-        products: products.map(p => p.id === editingId ? { ...prod, id: editingId } : p),
+        // Merge sobre el producto existente para no perder campos que el form no
+        // reenvía al editar (ej. `color`, que si no quedaba undefined → caja gris).
+        products: products.map(p => p.id === editingId ? { ...p, ...prod, id: editingId } : p),
         editingId: null,
       });
     } else {

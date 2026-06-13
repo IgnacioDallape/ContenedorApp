@@ -141,3 +141,17 @@ describe('palletStore — modo manual', () => {
     assertPalletInvariants(r.boxes, r.palL, r.palW, r.maxHeight, 'manual');
   });
 });
+
+// ── 9. Store: editar producto no pierde el color ───────────────────────────
+describe('palletStore.addOrUpdateProduct — editar preserva el color', () => {
+  it('al editar un producto se mantiene su color asignado', () => {
+    usePalletStore.getState().addOrUpdateProduct({ name: 'X', dims: { L: 40, W: 40, H: 40 }, qty: 2 });
+    const created = usePalletStore.getState().products[0];
+    expect(created.color).toBeTruthy();
+    usePalletStore.getState().setEditingId(created.id);
+    usePalletStore.getState().addOrUpdateProduct({ name: 'X2', dims: { L: 50, W: 50, H: 50 }, qty: 3 });
+    const edited = usePalletStore.getState().products[0];
+    expect(edited.name).toBe('X2');
+    expect(edited.color).toBe(created.color);
+  });
+});

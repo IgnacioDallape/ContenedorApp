@@ -392,10 +392,20 @@ const useContainerStore = create((set, get) => {
   },
 
   loadShipmentData(data, options = {}) {
+    // Saneamiento defensivo: un payload (share link / job guardado) puede traer
+    // qty enorme o corrupta. Clampear qty (máx 500, igual que el form) evita que
+    // el motor —que no tiene budget de tiempo— cuelgue el main thread.
+    const sanitizeProducts = prods => (Array.isArray(prods) ? prods : []).map(p => ({
+      ...p,
+      qty: Math.max(0, Math.min(500, Number.isFinite(p?.qty) ? Math.floor(p.qty) : 0)),
+    }));
     const normalizedContainers = (Array.isArray(data?.containers) && data.containers.length > 0
       ? data.containers
       : [makeDefaultContainer(1)]
-    ).map((container, index) => normalizeContainer(container, index + 1));
+    ).map((container, index) => {
+      const c = normalizeContainer(container, index + 1);
+      return { ...c, products: sanitizeProducts(c.products) };
+    });
     const safeActiveIdx = Math.max(0, Math.min(options.activeContainerIdx ?? 0, normalizedContainers.length - 1));
     const active = normalizedContainers[safeActiveIdx];
     set({
