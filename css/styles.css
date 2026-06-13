@@ -792,7 +792,7 @@ canvas { display: block; width: 100%; height: auto; }
 .cap-modal { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:36px; width:440px; max-width:94vw; transform:translateY(24px); transition:transform 0.25s; text-align:center; }
 .cap-overlay.open .cap-modal { transform:translateY(0); }
 .cap-icon { font-size:48px; margin-bottom:14px; }
-.cap-title { font-family:'Cormorant Garamond',serif; font-size:24px; font-weight:500; color:var(--danger); margin-bottom:10px; }
+.cap-title { font-family:var(--font); font-size:24px; font-weight:600; color:var(--danger); margin-bottom:10px; }
 .cap-body { font-size:14px; color:var(--text2); line-height:1.7; margin-bottom:8px; }
 .cap-stats { background:rgba(184,92,92,0.07); border:1px solid rgba(184,92,92,0.2); border-radius:8px; padding:14px 18px; margin:16px 0; text-align:left; }
 .cap-stat-row { display:flex; justify-content:space-between; font-family:'Inter', system-ui, -apple-system, sans-serif; font-size:11px; padding:3px 0; }

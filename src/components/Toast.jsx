@@ -11,7 +11,7 @@ export default function Toast() {
           key={t.id}
           onClick={() => removeToast(t.id)}
           style={{
-            background: t.type === 'error' ? 'var(--danger, #c0392b)' : t.type === 'success' ? 'var(--green, #27ae60)' : 'rgba(58,48,40,0.92)',
+            background: t.type === 'error' ? 'var(--danger, #c0392b)' : t.type === 'success' ? 'var(--green, #27ae60)' : t.type === 'info' ? 'var(--accent, #1a4f8a)' : 'rgba(58,48,40,0.92)',
             color: '#fff',
             padding: '10px 20px',
             borderRadius: 8,

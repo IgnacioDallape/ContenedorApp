@@ -44,7 +44,6 @@ const useImportaproStore = create((set, get) => ({
   publicationOrderName: localStorage.getItem('importapro-publication-order-name') || '',
   canales: JSON.parse(JSON.stringify(DEFAULT_CANALES)),
   inputs: { ...DEFAULT_INPUTS },
-  apiKey: localStorage.getItem('importapro-apikey') || '',
   loadedProductName: null,
   tcUpdatedAt: null,
 
@@ -188,11 +187,6 @@ const useImportaproStore = create((set, get) => ({
 
   updateGlobalTC(value) {
     set(s => ({ inputs: { ...s.inputs, globalTC: value }, tcUpdatedAt: Date.now() }));
-  },
-
-  setApiKey(key) {
-    localStorage.setItem('importapro-apikey', key);
-    set({ apiKey: key });
   },
 }));
 
