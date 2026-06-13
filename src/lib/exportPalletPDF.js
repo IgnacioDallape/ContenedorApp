@@ -2,6 +2,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import QRCode from 'qrcode';
 import { PB_PALLET_TYPES } from './constants.js';
+import { posDescription, orientationDescription, pluralOri } from './palletGuide.js';
 
 function fmt(n, dec = 2) { return Number(n || 0).toLocaleString('es-AR', { minimumFractionDigits: dec, maximumFractionDigits: dec }); }
 function usd(n) { return 'U$S ' + fmt(n); }
@@ -258,48 +259,8 @@ export async function exportPalletPDF({ palletName, palletId, palletType, maxHei
   doc.text(ascii('Seguir los pasos en orden. Cada paso indica la posicion sobre el pallet.'), margin, gy); gy += 7;
   doc.setFont('helvetica', 'normal');
 
-  // Helpers para describir posición de una caja en lenguaje humano
-  function posDescription(box, palL, palW) {
-    const cx = box.x + box.dX / 2;
-    const cz = box.z + box.dZ / 2;
-    // Eje X (largo, 0 → palL): izquierda / centro / derecha
-    let xPart;
-    if (cx < palL * 0.33) xPart = 'izquierda';
-    else if (cx > palL * 0.67) xPart = 'derecha';
-    else xPart = 'centro';
-    // Eje Z (ancho, 0 → palW): trasera / central / delantera
-    let zPart;
-    if (cz < palW * 0.33) zPart = 'trasera';
-    else if (cz > palW * 0.67) zPart = 'delantera';
-    else zPart = 'central';
-    if (xPart === 'centro' && zPart === 'central') return 'el centro del pallet';
-    if (xPart === 'centro') return `la zona ${zPart}`;
-    if (zPart === 'central') return `la zona central ${xPart}`;
-    return `la esquina ${zPart} ${xPart}`;
-  }
-
-  // Devuelve "parada"/"acostada"/"de costado" o null si es cubo (sin orientación relevante)
-  function orientationDescription(box) {
-    const src = box.sourceDims || { L: box.dX, W: box.dZ, H: box.dY };
-    const dims = [src.L, src.W, src.H];
-    const maxD = Math.max(...dims);
-    const minD = Math.min(...dims);
-    if (Math.abs(maxD - minD) < 0.5) return null; // cubo: orientación irrelevante
-    const isStanding = Math.abs(box.dY - maxD) < 0.5;
-    const isLying = Math.abs(box.dY - minD) < 0.5;
-    if (isStanding) return 'parada';
-    if (isLying) return 'acostada';
-    return 'de costado';
-  }
-
-  // Pluraliza la orientación según cantidad
-  function pluralOri(ori, count) {
-    if (!ori) return null;
-    if (count <= 1) return ori;
-    if (ori === 'parada') return 'paradas';
-    if (ori === 'acostada') return 'acostadas';
-    return ori; // "de costado" no cambia
-  }
+  // posDescription / orientationDescription / pluralOri viven en ./palletGuide.js
+  // (extraídos para poder testearlos sin cargar jsPDF).
 
   let stepNum = 1;
 

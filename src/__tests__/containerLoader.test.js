@@ -34,6 +34,13 @@ beforeAll(() => {
 beforeEach(() => {
   // Reset container to 40ft estándar antes de cada test
   setContainerDimensions(1200, 235, 239, (1200 * 235 * 239) / 1e6);
+  // Reset de constraints físicos a defaults → aislamiento entre tests
+  setPackingPhysicalConstraints({
+    MIN_SUPPORT_PERCENT: 0.8,
+    ALLOW_OVERHANG: false,
+    ALLOW_AUXILIARY_SUPPORT: false,
+    CENTER_OF_GRAVITY_CHECK: true,
+  });
   global.window._instanceManualPos = {};
   global.window._instanceLockedOri = {};
   invalidatePackingCache();
@@ -79,10 +86,10 @@ describe('setContainerDimensions / getPackingPhysicalConstraints', () => {
     expect(c).not.toBeNull();
   });
 
-  it('setPackingPhysicalConstraints actualiza valores y los devuelve', () => {
-    setPackingPhysicalConstraints({ minSupportPercent: 0.5 });
-    const c = getPackingPhysicalConstraints();
-    expect(c.minSupportPercent).toBe(0.5);
+  it('setPackingPhysicalConstraints actualiza la key REAL MIN_SUPPORT_PERCENT', () => {
+    setPackingPhysicalConstraints({ MIN_SUPPORT_PERCENT: 0.5 });
+    expect(getPackingPhysicalConstraints().MIN_SUPPORT_PERCENT).toBe(0.5);
+    setPackingPhysicalConstraints({ MIN_SUPPORT_PERCENT: 0.8 }); // restaurar default
   });
 });
 
@@ -113,14 +120,15 @@ describe('runPacking — escenarios básicos en 40ft', () => {
     }
   });
 
-  it('boxes con qty:0 son ignoradas (result.placed.a = 0)', () => {
+  it('boxes con qty:0 son ignoradas (no generan unidades empacadas)', () => {
     const result = runPacking([
       box({ id: 'a', qty: 0 }),
       box({ id: 'b', qty: 3, dims: { L: 40, W: 30, H: 30 } }),
     ]);
-    // Producto con qty:0 no genera cajas empacadas
-    const aCount = result.packed.filter(p => p.id === 'a').length;
-    expect(aCount).toBe(0);
+    // Los items empacados usan productId (no id); 'a' no debe aparecer.
+    expect(result.packed.some(p => p.productId === 'a')).toBe(false);
+    expect(result.placed.a || 0).toBe(0);
+    expect(result.placed.b).toBe(3);
   });
 
   it('caja más grande que el container → rechazada', () => {
@@ -227,12 +235,13 @@ describe('validatePhysicalSupport', () => {
     expect(result.valid).toBe(false);
   });
 
-  it('item con apoyo parcial pequeño (10% solapamiento) → status no es "stable"', () => {
+  it('item con apoyo parcial pequeño (~4%) → valid:false sin soporte auxiliar', () => {
     const item = box({ qty: 1 });
     const lower = { x: 0, y: 0, z: 0, dX: 10, dY: 40, dZ: 10 };
     const upper = { x: 0, y: 40, z: 0, dX: 60, dY: 40, dZ: 40 };
     const result = validatePhysicalSupport(item, upper, [lower]);
-    // Apoyo de 10×10=100 sobre superficie de 60×40=2400 → ~4%, debe fallar
+    // Apoyo 10×10=100 sobre 60×40=2400 → ~4%; con ALLOW_AUXILIARY_SUPPORT=false debe rechazar
+    expect(result.valid).toBe(false);
     expect(result.status).not.toBe('stable');
   });
 });

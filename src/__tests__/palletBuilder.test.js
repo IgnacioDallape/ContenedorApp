@@ -15,6 +15,7 @@ import {
   PB_PALLET_BASE_H,
   PB_EDGE_OVERHANG,
 } from '../stores/palletStore.js';
+import { posDescription, orientationDescription } from '../lib/palletGuide.js';
 
 // pb_findAllValidPlacements espera (unit, packed, hm, palL, palW, maxH)
 // donde unit tiene dims:{L,W,H}, y hm es un heightmap.
@@ -228,13 +229,11 @@ describe('pb_validatePlacement / pb_validateSingleBoxMove', () => {
     expect(result.valid).toBe(false);
   });
 
-  it('caja que excede altura máxima → valid:false', () => {
-    const box = makeBox({ uid: 'b1', x: 0, y: 0, z: 0, dX: 40, dY: 40, dZ: 40 });
-    // Intentar poner en y=160 → top=200 > MAX_H=180
-    const result = pb_validatePlacement([box], box, PAL_L, PAL_W, 60, 0, 0,
-      { dX: 40, dY: 40, dZ: 40 }); // dims kept, just validate height
-    // Place at y=0 should be fine since dY=40 < 60
-    expect(result.valid).toBe(true);
+  it('caja que excede la altura máxima en su posición → valid:false', () => {
+    // Caja de 80cm de alto contra maxH=60 → no entra ni apoyada en el piso (top=80 > 60)
+    const box = makeBox({ uid: 'b1', x: 0, y: 0, z: 0, dX: 40, dY: 80, dZ: 40, sourceDims: { L: 40, W: 40, H: 80 } });
+    const result = pb_validatePlacement([box], box, PAL_L, PAL_W, 60, 0, 0, { dX: 40, dY: 80, dZ: 40 });
+    expect(result.valid).toBe(false);
   });
 
   it('pb_validateSingleBoxMove: box ausente → valid:false', () => {
@@ -333,15 +332,14 @@ describe('Constantes del motor', () => {
 // ─── 7. ORIENTACIONES ──────────────────────────────────────────────────────
 
 describe('Orientaciones del packing', () => {
-  it('caja rectangular empacada con la orientación más estable (mayor footprint en base)', () => {
-    // Caja 80×40×20 → footprint más grande es 80×40 → dY debería ser 20 (acostada)
+  it('caja rectangular se coloca acostada (footprint máximo, menor altura)', () => {
+    // Caja 80×40×20 → la orientación más estable es acostada: dY=20, footprint 80×40
     const products = [makeProduct({ qty: 1, dims: { L: 80, W: 40, H: 20 } })];
     const result = pb_runPacking(products, PAL_L, PAL_W, MAX_H);
     expect(result.length).toBe(1);
-    // La caja debería usar la orientación que maximiza el footprint
-    // dX*dZ debe ser el footprint mayor posible
     const b = result[0];
-    expect(b.dX * b.dZ).toBeGreaterThanOrEqual(20 * 40 - 0.1); // al menos no el peor caso
+    expect(b.dY).toBeLessThanOrEqual(20 + 0.5);
+    expect(b.dX * b.dZ).toBeGreaterThanOrEqual(80 * 40 - 0.5);
   });
 
   it('caja cuadrada tiene una sola orientación efectiva', () => {
@@ -393,32 +391,7 @@ describe('Casos borde', () => {
 
 // ─── 9. PDF GUIDE HELPERS (unit tests sin DOM) ─────────────────────────────
 
-describe('Guía PDF — orientationDescription y posDescription (reimpl.)', () => {
-  // Re-implementar los helpers para testearlos aislados del PDF
-  function posDescription(box, palL, palW) {
-    const cx = box.x + box.dX / 2;
-    const cz = box.z + box.dZ / 2;
-    let xPart = cx < palL * 0.33 ? 'izquierda' : cx > palL * 0.67 ? 'derecha' : 'centro';
-    let zPart = cz < palW * 0.33 ? 'trasera' : cz > palW * 0.67 ? 'delantera' : 'central';
-    if (xPart === 'centro' && zPart === 'central') return 'el centro del pallet';
-    if (xPart === 'centro') return `la zona ${zPart}`;
-    if (zPart === 'central') return `la zona central ${xPart}`;
-    return `la esquina ${zPart} ${xPart}`;
-  }
-
-  function orientationDescription(box) {
-    const src = box.sourceDims || { L: box.dX, W: box.dZ, H: box.dY };
-    const dims = [src.L, src.W, src.H];
-    const maxD = Math.max(...dims);
-    const minD = Math.min(...dims);
-    if (Math.abs(maxD - minD) < 0.5) return null;
-    const isStanding = Math.abs(box.dY - maxD) < 0.5;
-    const isLying = Math.abs(box.dY - minD) < 0.5;
-    if (isStanding) return 'parada';
-    if (isLying) return 'acostada';
-    return 'de costado';
-  }
-
+describe('Guía PDF — posDescription / orientationDescription (código real de palletGuide.js)', () => {
   // posDescription
   it('esquina trasera izquierda', () => {
     // cx=10 < 120*0.33=39.6 → izquierda; cz=5 < 100*0.33=33 → trasera
