@@ -3778,7 +3778,8 @@ function pb_runColumnPacking(products, palL, palW, maxH) {
     const oris = pb_getOrientations(p, palL, palW).filter(o => o.dY <= maxH + 0.1);
     if (!oris.length) continue; // ninguna orientación entra → no se puede colocar
     const ori = oris[0]; // pb_getOrientations ya ordena por footprint desc
-    const perCol = Math.floor((maxH + 0.1) / ori.dY);
+    // mustBeBase: una caja por columna (en el piso), nunca apilada.
+    const perCol = p.mustBeBase ? 1 : Math.floor((maxH + 0.1) / ori.dY);
     if (perCol < 1) continue;
     let remaining = qty;
     while (remaining > 0) {
@@ -3819,7 +3820,7 @@ function pb_runColumnPacking(products, palL, palW, maxH) {
         color: col.p.color, name: col.p.name, id: col.p.id,
         uid: `${col.p.id}::col::${uidc++}`,
         score: 0, weight: Number(col.p.weight || 0),
-        mustBeBase: false, noRotate: !!col.p.noRotate,
+        mustBeBase: !!col.p.mustBeBase, noRotate: !!col.p.noRotate,
         sourceDims: { ...col.p.dims },
       });
     }

@@ -248,28 +248,16 @@ function validatePhysicalSupport(item, position, placedItems) {
 // Si el pallet viene del pallet builder con cajas individuales, registra la altura
 // de cada columna de cajas en el heightmap (en vez de un bloque sólido).
 // Esto permite que cajas sueltas se apoyen en los huecos reales del pallet.
+// eslint-disable-next-line no-unused-vars
 function hmSetPallet(hm, px, pz, dX, dZ, baseY, totalDY, packedItems, palletBase) {
-  const PALLET_BASE_H = 14; // altura estructura del pallet en cm
-  if (!packedItems || !packedItems.length || !palletBase) {
-    // Sin info de cajas individuales — bloque sólido
-    hmSet(hm, px, pz, dX, dZ, baseY + totalDY);
-    return;
-  }
-  // Primero marcar toda la huella con la altura de la base del pallet
-  hmSet(hm, px, pz, dX, dZ, baseY + PALLET_BASE_H);
-  // Luego registrar cada caja individual con su altura real
-  const palL = palletBase.L;
-  const palW = palletBase.W;
-  const scaleX = dX / palL;
-  const scaleZ = dZ / palW;
-  for (const box of packedItems) {
-    const bpx = px + box.x * scaleX;
-    const bpz = pz + box.z * scaleZ;
-    const bdX = box.dX * scaleX;
-    const bdZ = box.dZ * scaleZ;
-    const topH = Math.round((baseY + PALLET_BASE_H + box.y + box.dY) * 100) / 100;
-    hmSet(hm, bpx, bpz, bdX, bdZ, topH);
-  }
+  // El pallet se trata como BLOQUE SÓLIDO en el heightmap (toda su huella a la
+  // altura total). Antes se marcaban los márgenes/valles internos a la altura de
+  // la base (14cm) usando packedItems, lo que dejaba a las cajas sueltas TREPAR
+  // por esas columnas casi vacías y quedar clipeadas DENTRO del bloque del pallet
+  // (el contenedor lo renderiza/empaqueta como bloque). Con bloque sólido las
+  // cajas sueltas se apoyan ARRIBA del pallet, nunca se meten adentro.
+  // (packedItems/palletBase siguen en la firma para compatibilidad y render.)
+  hmSet(hm, px, pz, dX, dZ, baseY + totalDY);
 }
 
 // ── TRUE BEST-FIT DECREASING PACKING ENGINE ──
