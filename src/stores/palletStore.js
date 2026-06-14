@@ -4,6 +4,11 @@ import { runPalletPacking } from '../lib/palletPacking.js';
 
 export const PB_GRID_RES = 2;
 const PB_HEIGHT_EPS = 0.1;
+// Tolerancia de "escalón" de apoyo: una caja que descansa en la superficie más
+// alta de su footprint igual cuenta como soporte las superficies vecinas hasta
+// 5cm más abajo. Permite apilar sobre columnas de altura levemente distinta —
+// la caja toca la más alta y queda estable sobre el conjunto. (Pedido del usuario.)
+const PB_SUPPORT_STEP = 5;
 const PB_CELL_AREA = PB_GRID_RES * PB_GRID_RES;
 export const PB_PALLET_BASE_H = 14;
 // Overhang permitido en los bordes del pallet (práctica logística real:
@@ -1991,8 +1996,14 @@ function pb_getLevelSupportRects(packed, y, palL, palW) {
     }];
   }
 
+  // Cuenta como soporte las superficies que tocan el nivel `y` (la caja descansa
+  // ahí) y también las que están hasta PB_SUPPORT_STEP (5cm) más abajo: así una
+  // caja puede apoyarse sobre columnas vecinas de altura levemente distinta.
   return packed
-    .filter(box => Math.abs((box.y + box.dY) - y) <= PB_HEIGHT_EPS)
+    .filter(box => {
+      const top = box.y + box.dY;
+      return top <= y + PB_HEIGHT_EPS && top >= y - PB_SUPPORT_STEP;
+    })
     .map(box => ({ x: box.x, z: box.z, dX: box.dX, dZ: box.dZ }));
 }
 
@@ -3422,6 +3433,14 @@ export function pb_runPacking(products, palL, palW, maxH) {
   // 1 caja inferior → se ve como pila normal, no como apex flotante).
   best = pb_alignLoneApex(best, palL, palW, maxH);
 
+  // Relleno final: apila las cajas que quedaron afuera sobre los huecos/tops del
+  // layout (scan completo + tolerancia de escalón de 5cm). Aditivo + competitivo:
+  // solo se queda si coloca MÁS cajas → nunca empeora.
+  if (best.length < totalUnits) {
+    const filled = pb_fillGaps(best, products, palL, palW, maxH);
+    if (filled.length > best.length) best = filled;
+  }
+
   return best;
 }
 
@@ -3804,6 +3823,81 @@ function pb_runColumnPacking(products, palL, palW, maxH) {
         sourceDims: { ...col.p.dims },
       });
     }
+  }
+  return out;
+}
+
+// Scan de grilla COMPLETO para una unidad: prueba toda posición (px,pz) y cada
+// orientación que entra en altura, calcula la Y de apoyo (top más alto bajo el
+// footprint), valida soporte (con la tolerancia de escalón de 5cm de
+// pb_getLevelSupportRects) y no-overlap, y elige la posición más baja. Encuentra
+// piso/huecos abiertos Y tops de columnas de altura levemente distinta.
+function pb_placeByFullScan(unit, packed, palL, palW, maxH) {
+  const oris = pb_getOrientations(unit, palL, palW).filter(o => o.dY <= maxH + 0.1);
+  if (!oris.length) return null;
+  const G = PB_GRID_RES;
+  const oh = PB_EDGE_OVERHANG;
+  let best = null;
+  for (const ori of oris) {
+    for (let px = 0; px + ori.dX <= palL + oh + 0.1; px += G) {
+      for (let pz = 0; pz + ori.dZ <= palW + oh + 0.1; pz += G) {
+        let y = 0;
+        for (const b of packed) {
+          if (px < b.x + b.dX - 0.01 && px + ori.dX > b.x + 0.01 &&
+              pz < b.z + b.dZ - 0.01 && pz + ori.dZ > b.z + 0.01) {
+            if (b.y + b.dY > y) y = b.y + b.dY;
+          }
+        }
+        if (y + ori.dY > maxH + 0.1) continue;
+        if (unit.mustBeBase && y > PB_HEIGHT_EPS) continue;
+        if (y > PB_HEIGHT_EPS) {
+          const supRects = pb_getLevelSupportRects(packed, y, palL, palW);
+          if (!pb_supportForRect({ x: px, z: pz, dX: ori.dX, dZ: ori.dZ }, supRects).supported) continue;
+        }
+        let overlap = false;
+        for (const b of packed) {
+          if (px < b.x + b.dX - 0.5 && px + ori.dX > b.x + 0.5 &&
+              pz < b.z + b.dZ - 0.5 && pz + ori.dZ > b.z + 0.5 &&
+              y < b.y + b.dY - 0.5 && y + ori.dY > b.y + 0.5) { overlap = true; break; }
+        }
+        if (overlap) continue;
+        const score = y * 10000 + pz * 100 + px;
+        if (!best || score < best.score) best = { px, pz, y, ori, score };
+      }
+    }
+  }
+  return best;
+}
+
+// Apila las unidades que NO entraron sobre el layout `packed`, en huecos/tops
+// válidos (scan completo + tolerancia de escalón). Aditivo: nunca mueve ni quita
+// cajas existentes. Clave para mezclas: las cajas que sobran se apoyan sobre las
+// columnas ya armadas en lugar de quedar afuera.
+function pb_fillGaps(packed, products, palL, palW, maxH) {
+  const placedById = {};
+  for (const b of packed) placedById[b.id] = (placedById[b.id] || 0) + 1;
+  const leftovers = [];
+  for (const p of products) {
+    const want = Number.isFinite(p.qty) ? Math.floor(p.qty) : 0;
+    const remaining = Math.max(0, want - (placedById[p.id] || 0));
+    for (let i = 0; i < remaining; i++) leftovers.push({ ...p, uid: `${p.id}::fill::${i}` });
+  }
+  if (!leftovers.length) return packed;
+  leftovers.sort((a, b) => b.dims.L * b.dims.W * b.dims.H - a.dims.L * a.dims.W * a.dims.H);
+  const out = packed.map(b => ({ ...b }));
+  const deadline = Date.now() + 2000;
+  for (const unit of leftovers) {
+    if (Date.now() >= deadline) break;
+    const spot = pb_placeByFullScan(unit, out, palL, palW, maxH);
+    if (!spot) continue;
+    out.push({
+      x: spot.px, y: spot.y, z: spot.pz,
+      dX: spot.ori.dX, dY: spot.ori.dY, dZ: spot.ori.dZ,
+      color: unit.color, name: unit.name, id: unit.id, uid: unit.uid,
+      score: 0, weight: Number(unit.weight || 0),
+      mustBeBase: !!unit.mustBeBase, noRotate: !!unit.noRotate,
+      sourceDims: { ...unit.dims },
+    });
   }
   return out;
 }
