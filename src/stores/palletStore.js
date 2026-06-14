@@ -3385,6 +3385,11 @@ export function pb_runPacking(products, palL, palW, maxH) {
   const layerResult = normalize(pb_runLayerPacking(products, palL, palW, maxH));
   if (pb_isBetterLayout(layerResult, best)) best = layerResult;
 
+  // Candidato por columnas (mejora mezclas de tamaños). Competitivo: solo gana si
+  // mete más cajas / es mejor → nunca empeora el resultado.
+  const columnResult = normalize(pb_runColumnPacking(products, palL, palW, maxH));
+  if (pb_isBetterLayout(columnResult, best)) best = columnResult;
+
   for (const variant of containerVariants) {
     const variantDeadline = Date.now() + budgetPerVariant;
     const result = normalize(pb_runPackingContainerLike(products, palL, palW, maxH, variant, variantDeadline));
@@ -3735,6 +3740,72 @@ function pb_runPackingContainerLike(products, palL, palW, maxH, variant = 'auto'
   }
 
   return packed;
+}
+
+// Packing POR COLUMNAS (clave para mezclas de tamaños): apila cajas idénticas en
+// columnas verticales (apoyo perfecto: mismo footprint sobre mismo footprint), y
+// después acomoda los footprints de las columnas en el piso con un packer 2D
+// bottom-left. Así las cajas "regulares" (cubos) compiten por piso como columnas
+// enteras en vez de quedar sin superficie de apoyo arriba de cajas angostas.
+// Se usa como CANDIDATO competitivo en pb_runPacking (solo gana si mete más cajas).
+function pb_runColumnPacking(products, palL, palW, maxH) {
+  // 1. Construir columnas por producto (orientación de mayor footprint = más
+  //    estable y más cajas por columna).
+  const columns = [];
+  for (const p of products) {
+    const qty = Math.max(0, Math.floor(Number(p.qty) || 0));
+    if (qty <= 0) continue;
+    // Solo orientaciones que ENTRAN en altura (dY ≤ maxH); de esas, mayor footprint.
+    const oris = pb_getOrientations(p, palL, palW).filter(o => o.dY <= maxH + 0.1);
+    if (!oris.length) continue; // ninguna orientación entra → no se puede colocar
+    const ori = oris[0]; // pb_getOrientations ya ordena por footprint desc
+    const perCol = Math.floor((maxH + 0.1) / ori.dY);
+    if (perCol < 1) continue;
+    let remaining = qty;
+    while (remaining > 0) {
+      const n = Math.min(perCol, remaining);
+      columns.push({ dX: ori.dX, dZ: ori.dZ, dY: ori.dY, n, p });
+      remaining -= n;
+    }
+  }
+  if (!columns.length) return [];
+
+  // 2. Packing 2D bottom-left de los footprints de columna sobre el piso.
+  //    Más grandes primero; cada una en la posición más al fondo-izquierda libre.
+  columns.sort((a, b) => b.dX * b.dZ - a.dX * a.dZ || Math.max(b.dX, b.dZ) - Math.max(a.dX, a.dZ));
+  const placedRects = [];
+  const out = [];
+  const G = PB_GRID_RES;
+  const oh = PB_EDGE_OVERHANG;
+  let uidc = 0;
+
+  for (const col of columns) {
+    let spot = null;
+    for (let pz = 0; pz + col.dZ <= palW + oh + 0.1 && !spot; pz += G) {
+      for (let px = 0; px + col.dX <= palL + oh + 0.1; px += G) {
+        let ok = true;
+        for (const r of placedRects) {
+          if (px < r.x + r.dX - 0.5 && px + col.dX > r.x + 0.5 &&
+              pz < r.z + r.dZ - 0.5 && pz + col.dZ > r.z + 0.5) { ok = false; break; }
+        }
+        if (ok) { spot = { x: px, z: pz }; break; }
+      }
+    }
+    if (!spot) continue; // la columna no entra en el piso
+    placedRects.push({ x: spot.x, z: spot.z, dX: col.dX, dZ: col.dZ });
+    for (let k = 0; k < col.n; k++) {
+      out.push({
+        x: spot.x, y: k * col.dY, z: spot.z,
+        dX: col.dX, dY: col.dY, dZ: col.dZ,
+        color: col.p.color, name: col.p.name, id: col.p.id,
+        uid: `${col.p.id}::col::${uidc++}`,
+        score: 0, weight: Number(col.p.weight || 0),
+        mustBeBase: false, noRotate: !!col.p.noRotate,
+        sourceDims: { ...col.p.dims },
+      });
+    }
+  }
+  return out;
 }
 
 function pb_runReorderVariant(products, palL, palW, maxH, variant = 'auto') {

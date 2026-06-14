@@ -155,3 +155,19 @@ describe('palletStore.addOrUpdateProduct — editar preserva el color', () => {
     expect(edited.color).toBe(created.color);
   });
 });
+
+// ── 10. Packing por columnas: mejora mezclas de tamaños ────────────────────
+describe('pb_runPacking — mezcla de tamaños (caso real)', () => {
+  it('los 5 productos del caso real entran ≥22 cajas en EUA (mejora vs 20)', () => {
+    const products = [
+      makeProduct({ id: 'alf2', dims: { L: 60, W: 40, H: 50 }, qty: 7, weight: 38 }),
+      makeProduct({ id: 'fundas', dims: { L: 80, W: 30, H: 30 }, qty: 5, weight: 50 }),
+      makeProduct({ id: 'faja1', dims: { L: 40, W: 40, H: 40 }, qty: 6, weight: 7 }),
+      makeProduct({ id: 'faja2', dims: { L: 40, W: 40, H: 40 }, qty: 5, weight: 7 }),
+      makeProduct({ id: 'alf1', dims: { L: 22, W: 22, H: 22 }, qty: 6, weight: 1 }),
+    ];
+    const result = pb_runPacking(products, 120, 100, 180);
+    expect(result.length).toBeGreaterThanOrEqual(22);
+    assertPalletInvariants(result, 120, 100, 180, 'real-mix');
+  });
+});
