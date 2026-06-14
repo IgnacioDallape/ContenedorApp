@@ -342,11 +342,15 @@ export default function ContainerLoader() {
 
     const vol = (product.dims.L * product.dims.W * product.dims.H) / 1e6;
     const existingColor = loadedProducts.find(p => p.name === product.name && p.type === product.type)?.color;
-    const newProdBase = { ...product, vol, color: existingColor || COLORS[loadedProducts.length % COLORS.length], priorityZone: null, packedItems: null, palletBase: null };
+    // Preservar packedItems/palletBase: un pallet importado del Pallet Builder
+    // los necesita para empacarse y dibujarse como pallet armado (antes se anulaban
+    // y el pallet se perdía / se trataba como caja genérica).
+    const newProdBase = { ...product, vol, color: existingColor || COLORS[loadedProducts.length % COLORS.length], priorityZone: null, packedItems: product.packedItems || null, palletBase: product.palletBase || null };
 
     // Save current state and get all containers
     const synced = syncActiveContainer();
     let remaining = product.qty;
+    let destIdx = activeContainerIdx; // a qué contenedor saltar al final (donde quedó la carga)
 
     // Helper: simulate packing on a container's existing products + N units of new product
     function testFit(existingProds, qty, ctype) {
@@ -383,6 +387,7 @@ export default function ContainerLoader() {
       if (fits <= 0) return c;
       const toAdd = Math.min(fits, remaining);
       remaining -= toAdd;
+      destIdx = i;
       const existingProd = c.products.find(p => p.name === product.name && p.type === product.type);
       if (existingProd) {
         return { ...c, products: c.products.map(p => p === existingProd ? { ...p, qty: p.qty + toAdd } : p) };
@@ -411,6 +416,7 @@ export default function ContainerLoader() {
         instanceLockedOri: {},
       });
       remaining -= toAdd;
+      destIdx = newContainers.length - 1; // saltar al contenedor nuevo donde quedó
       created++;
     }
 
@@ -418,9 +424,19 @@ export default function ContainerLoader() {
     const activeCt = CONTAINER_TYPES[activeType];
     setContainerDimensions(activeCt.L, activeCt.W, activeCt.H, activeCt.vol);
 
-    loadShipmentData({ id: currentShipmentId, name: currentShipmentName, containers: newContainers });
+    // Cargar el embarque YA mostrando el contenedor destino (antes volvía al 0, lleno).
+    loadShipmentData(
+      { id: currentShipmentId, name: currentShipmentName, containers: newContainers },
+      { activeContainerIdx: destIdx }
+    );
     const label = product.type === 'pallet' ? 'pallets' : 'cajas';
-    showToast(`✓ ${product.qty} ${label} distribuidas en ${newContainers.length} contenedor${newContainers.length > 1 ? 'es' : ''}`, 'success');
+    const distributed = product.qty - remaining;
+    if (distributed > 0) {
+      showToast(`✓ ${distributed} ${label} en ${newContainers.length} contenedor${newContainers.length > 1 ? 'es' : ''}`, 'success');
+    }
+    if (remaining > 0) {
+      showToast(`No se pudieron ubicar ${remaining} ${label} (no entran en un contenedor)`, 'error');
+    }
   }
 
   // ── Change type of active container + pull products from others to fill new space ──

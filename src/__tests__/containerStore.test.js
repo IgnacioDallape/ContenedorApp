@@ -84,4 +84,12 @@ describe('containerStore — loadShipmentData clampea qty', () => {
     });
     expect(st().loadedProducts[0].qty).toBe(500);
   });
+
+  it('respeta options.activeContainerIdx (el overflow salta al contenedor destino)', () => {
+    st().loadShipmentData(
+      { containers: [{ type: '20ft', products: [] }, { type: '40ft', products: [] }] },
+      { activeContainerIdx: 1 }
+    );
+    expect(st().activeContainerIdx).toBe(1);
+  });
 });

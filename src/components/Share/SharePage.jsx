@@ -211,6 +211,7 @@ export default function SharePage({ shipmentId }) {
                 <div style={{ fontWeight: 600, color: '#5a4a3e' }}>Contenedor {ci + 1} — {ct?.label || cont.type}</div>
                 <div style={{ fontSize: 11, fontFamily: "'Inter', system-ui, -apple-system, sans-serif", color: '#8D7966' }}>{fmt(cVol)} m³ · {pct}% ocupación</div>
               </div>
+              <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                 <thead>
                   <tr style={{ borderBottom: '1px solid #E8E0D8' }}>
@@ -236,6 +237,7 @@ export default function SharePage({ shipmentId }) {
                   ))}
                 </tbody>
               </table>
+              </div>
             </div>
           );
         })}
