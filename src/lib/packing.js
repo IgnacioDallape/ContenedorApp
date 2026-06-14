@@ -513,8 +513,21 @@ function runPacking(products) {
               score = 1000000000 + px * 1000 + pz * 10 + (h + ori.dY) + oriPenalty;
             }
           } else {
-            // Boxes: BFD — minimize resulting height, fill X before Z
-            score = (h + ori.dY) * 10000000 + px * 100 + pz;
+            // Boxes: BFD — minimizar la altura resultante SIEMPRE domina (×1e7),
+            // así el apilado/soporte queda intacto.
+            const heightTerm = (h + ori.dY) * 10000000;
+            if (CONT_L > 1300) {
+              // Semis: a igual altura, preferir posiciones cercanas al centro X
+              // → carga del centro hacia los extremos (balance de ejes), igual que
+              // ya hacen los pallets en semis. El coeficiente (×100) es despreciable
+              // frente a la altura, así que no compite con el llenado de piso.
+              const boxCx = px + ori.dX / 2;
+              const distCenterX = Math.abs(boxCx - CONT_L / 2);
+              score = heightTerm + distCenterX * 100 + pz;
+            } else {
+              // 20ft / 40ft / 40HC: original (llena desde x=0, después Z).
+              score = heightTerm + px * 100 + pz;
+            }
           }
           if (score < bestScore) {
             bestScore = score;

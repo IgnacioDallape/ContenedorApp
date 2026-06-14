@@ -310,3 +310,26 @@ describe('Estructura del resultado de runPacking', () => {
     expect(result.placed.b).toBe(2);
   });
 });
+
+// ── 9. SEMI — carga del centro hacia los extremos ──────────────────────────
+describe('runPacking — semi carga centro-afuera (balance de ejes)', () => {
+  it('semi155: el centro de masa en X queda cerca del centro del semi', () => {
+    setContainerDimensions(1550, 244, 270, (1550 * 244 * 270) / 1e6);
+    invalidatePackingCache();
+    const result = runPacking([box({ qty: 20, dims: { L: 60, W: 40, H: 40 } })]);
+    expect(result.packed.length).toBeGreaterThan(10);
+    const centerX = 1550 / 2;
+    const cmX = result.packed.reduce((s, p) => s + (p.x + p.dX / 2), 0) / result.packed.length;
+    // Carga balanceada: el centro de masa cae dentro del 15% del largo respecto del centro.
+    expect(Math.abs(cmX - centerX)).toBeLessThan(1550 * 0.15);
+  });
+
+  it('40ft NO carga centro-afuera (sigue desde un extremo)', () => {
+    setContainerDimensions(1200, 235, 239, (1200 * 235 * 239) / 1e6);
+    invalidatePackingCache();
+    const result = runPacking([box({ qty: 20, dims: { L: 60, W: 40, H: 40 } })]);
+    const cmX = result.packed.reduce((s, p) => s + (p.x + p.dX / 2), 0) / result.packed.length;
+    // Carga desde x=0 → el centro de masa queda en la primera mitad.
+    expect(cmX).toBeLessThan(1200 / 2);
+  });
+});
