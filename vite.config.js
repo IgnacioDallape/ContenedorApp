@@ -46,6 +46,10 @@ export default defineConfig({
     globals: true,
     setupFiles: ['./src/__tests__/setup.js'],
     css: false,
+    // Suite con motores de packing pesados (+ fuzz): bajo paralelismo algunos
+    // tests rozan el default de 5s. 15s da margen sin enmascarar cuelgues reales.
+    // (Los tests de fuzz igual fijan su propio timeout de 60s.)
+    testTimeout: 15000,
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html'],
