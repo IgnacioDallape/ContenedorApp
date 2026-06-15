@@ -125,7 +125,7 @@
   /* Inset CONSISTENTE a 1rem: el dropdown y la fila de Reordenar viven dentro de
      <main> (que en mobile suma su propio padding), mientras el topbar está a nivel
      .cl-section → quedaban doble-indentados ("descuadrado"). Igualamos todo a 1rem. */
-  #section-container .cl-topbar-row { padding: 1.8rem 1rem 0.8rem !important; }
+  #section-container .cl-topbar-row { padding: 2.4rem 1rem 0.9rem !important; margin-top: 0.4rem !important; }
   #section-container .layout > main.main { padding-left: 1rem !important; padding-right: 1rem !important; }
   #section-container .cl-cont-select-mobile,
   #section-container .cl-reorder-row,
@@ -158,10 +158,10 @@
   #section-container .cl-actionbar {
     width: 100%;
     display: grid !important;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr 1fr 1fr;
     gap: 8px;
   }
-  #section-container .cl-actionbar .cl-add-wrap { width: 100%; }
+  #section-container .cl-actionbar .cl-add-wrap { grid-column: 1 / -1; width: 100%; }
   #section-container .cl-actionbar .cl-add-wrap > .btn-primary,
   #section-container .cl-actionbar > .cl-topbtn {
     width: 100% !important;
@@ -351,22 +351,79 @@
 
 /* ── ZONAS más DISCRETAS (feature intacta, solo menos protagonismo) ───── */
 .cl-section .cl-zone-controls {
-  background: rgba(255, 255, 255, 0.88) !important;
+  background: rgba(255, 255, 255, 0.72) !important;
   border: 1px solid var(--border) !important;
   border-radius: var(--radius) !important;
-  padding: 4px 7px !important;
-  gap: 4px !important;
-  box-shadow: var(--shadow) !important;
+  padding: 2px 5px !important;
+  gap: 3px !important;
+  box-shadow: none !important;
   backdrop-filter: none !important;
+  opacity: 0.55;
+  transition: opacity 0.15s;
 }
-.cl-section .cl-zone-controls > span { font-size: 8px !important; color: var(--text-3) !important; }
-.cl-section .cl-zone-controls button { padding: 2px 7px !important; font-size: 10px !important; }
+.cl-section .cl-zone-controls:hover { opacity: 1; }
+.cl-section .cl-zone-controls > span { font-size: 7px !important; color: var(--text-3) !important; }
+.cl-section .cl-zone-controls button { padding: 1px 5px !important; font-size: 9px !important; }
 /* indicador "ZONAS ACTIVAS" → petróleo neutro */
 .cl-section .cl-zone-indicator span {
   background: var(--accent-dim) !important;
   border-color: var(--accent) !important;
   color: var(--accent) !important;
 }
+
+/* ── Botón "Reordenar" + menú de zona (tabla de productos) ────────────── */
+.cl-section .cl-reorder-prod-btn {
+  padding: 6px 12px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border-2);
+  background: var(--surface);
+  color: var(--text-2);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.cl-section .cl-reorder-prod-btn:hover:not(:disabled) { background: var(--bg-3); color: var(--text); }
+.cl-section .cl-reorder-prod-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.cl-section .cl-reorder-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 41;
+  min-width: 160px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-md);
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.cl-section .cl-reorder-menu-title {
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-3);
+  font-weight: 600;
+  padding: 4px 8px 2px;
+}
+.cl-section .cl-reorder-menu button {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  text-align: left;
+  padding: 8px 10px;
+  border: none;
+  background: transparent;
+  border-radius: 4px;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-size: 12px;
+  color: var(--text);
+  cursor: pointer;
+}
+.cl-section .cl-reorder-menu button:hover { background: var(--bg-3); }
 .cl-section .cl-add-overlay { position: fixed; inset: 0; z-index: 40; }
 .cl-section .cl-add-menu {
   position: absolute;

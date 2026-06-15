@@ -196,6 +196,7 @@ export default function ContainerLoader() {
   const [sharingShipmentId, setSharingShipmentId] = useState(null);
   const [showCurrentStatusPicker, setShowCurrentStatusPicker] = useState(false);
   const [showAddMenu, setShowAddMenu] = useState(false);
+  const [reorderMenuFor, setReorderMenuFor] = useState(null);
   const [dragTabIdx,    setDragTabIdx]    = useState(null);
   const [dragOverTabIdx, setDragOverTabIdx] = useState(null);
   const [showWeightMap, setShowWeightMap] = useState(false);
@@ -1793,22 +1794,19 @@ export default function ContainerLoader() {
             <div style={{ overflowX: 'auto' }}>
               <table>
                 <thead>
-                  <tr><th>Producto</th><th>Tipo</th><th>Dims (cm)</th><th>Cant.</th><th>Peso/u</th><th>Peso Total</th><th>Volumen</th><th>% Cont.</th><th>Precio/u</th><th>Subtotal</th><th>Acciones</th><th /></tr>
+                  <tr><th>Producto</th><th>Tipo</th><th>Cant.</th><th>Peso</th><th>Total</th><th>Reordenar</th><th /></tr>
                 </thead>
                 <tbody>
                   {loadedProducts.length === 0 ? (
-                    <tr><td colSpan="12"><div className="empty-state"><div className="empty-icon">📋</div><div className="empty-text">Agregá productos para ver el desglose</div></div></td></tr>
+                    <tr><td colSpan="7"><div className="empty-state"><div className="empty-icon">📋</div><div className="empty-text">Agregá productos para ver el desglose</div></div></td></tr>
                   ) : (
                     <>
                       {loadedProducts.map(p => {
-                        const vt = p.vol * p.qty;
                         const wt = (p.weight || 0) * p.qty;
-                        const zoneIdx = p.priorityZoneSlot != null ? p.priorityZoneSlot : -1;
                         return (
                           <tr key={p.id}>
                             <td><span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: 2, background: p.color, marginRight: 8, verticalAlign: 'middle' }} />{p.name}</td>
                             <td>{p.type === 'box' ? 'Caja' : 'Pallet'}</td>
-                            <td className="td-mono">{p.dims.L}x{p.dims.W}x{p.dims.H}</td>
                             <td className="td-mono">
                               <input type="number" min="1" max="500"
                                 key={`${p.id}_${p.qty}`}
@@ -1818,24 +1816,29 @@ export default function ContainerLoader() {
                                 onKeyDown={e => { if (e.key === 'Enter') { const v = Math.max(1, Math.min(500, parseInt(e.target.value) || 1)); updateProductQty(p.id, v); e.target.blur(); } }}
                               />
                             </td>
-                            <td className="td-mono">{p.weight > 0 ? p.weight.toFixed(2)+' kg' : '-'}</td>
-                            <td className="td-mono" style={{ color: wt > 0 ? 'var(--text)' : 'var(--muted)' }}>{wt > 0 ? wt.toFixed(1)+' kg' : '-'}</td>
-                            <td className="td-mono">{vt.toFixed(3)} m3</td>
-                            <td className="td-pct" style={{ color: p.color }}>{(vt/CONTAINER_VOL*100).toFixed(1)}%</td>
-                            <td className="td-price">${p.price.toFixed(2)}</td>
+                            <td className="td-mono" style={{ color: wt > 0 ? 'var(--text)' : 'var(--muted)' }}>{wt > 0 ? wt.toFixed(1) + ' kg' : '-'}</td>
                             <td className="td-price">${fmt(p.price * p.qty)}</td>
                             <td>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                                <button onClick={() => { if (!ensureEditable('reordenar la carga')) return; reorderOneProduct(p.id); }} disabled={!canEditShipment} style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid rgba(141,121,102,0.2)', background: 'rgba(141,121,102,0.06)', color: 'var(--c1)', fontFamily: "'Inter', system-ui, -apple-system, sans-serif", fontSize: 10, cursor: canEditShipment ? 'pointer' : 'not-allowed', opacity: canEditShipment ? 1 : 0.45, whiteSpace: 'nowrap' }}>Reordenar</button>
-                                <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-                                  {[0, 1, 2].map(i => {
-                                    const isActive = zoneIdx === i;
-                                    return (
-                                      <button key={i} onClick={() => { if (!ensureEditable('asignar zona prioritaria')) return; setSelectedZoneSlot(i); moveProductToZone(p.id); }} disabled={!canEditShipment} title={`Mover a zona ${i + 1}`} style={{ width: 30, height: 28, borderRadius: 8, border: `1px solid ${ZONE_COLORS_HEX[i]}`, background: isActive ? ZONE_COLORS_HEX[i] : `${ZONE_COLORS_HEX[i]}18`, color: isActive ? '#fff' : ZONE_COLORS_HEX[i], fontFamily: "'Inter', system-ui, -apple-system, sans-serif", fontSize: 10, fontWeight: 700, cursor: canEditShipment ? 'pointer' : 'not-allowed', opacity: canEditShipment ? 1 : 0.45 }}>Z{i + 1}</button>
-                                    );
-                                  })}
-                                  <button onClick={() => { if (!ensureEditable('quitar prioridad de zona')) return; if (zoneIdx >= 0) setPriorityZone(zoneIdx, null); }} disabled={!canEditShipment || zoneIdx < 0} title="Quitar zona prioritaria" style={{ width: 34, height: 28, borderRadius: 8, border: '1px solid var(--border)', background: 'transparent', color: 'var(--muted)', fontFamily: "'Inter', system-ui, -apple-system, sans-serif", fontSize: 10, cursor: canEditShipment && zoneIdx >= 0 ? 'pointer' : 'not-allowed', opacity: canEditShipment && zoneIdx >= 0 ? 1 : 0.35 }}>Sin</button>
-                                </div>
+                              <div style={{ position: 'relative', display: 'inline-block' }}>
+                                <button className="cl-reorder-prod-btn" disabled={!canEditShipment}
+                                  onClick={() => { if (!ensureEditable('reordenar la carga')) return; setReorderMenuFor(reorderMenuFor === p.id ? null : p.id); }}>
+                                  Reordenar ▾
+                                </button>
+                                {reorderMenuFor === p.id && (
+                                  <>
+                                    <div onClick={() => setReorderMenuFor(null)} style={{ position: 'fixed', inset: 0, zIndex: 40 }} />
+                                    <div className="cl-reorder-menu">
+                                      <div className="cl-reorder-menu-title">¿En qué zona?</div>
+                                      <button onClick={() => { reorderOneProduct(p.id); setReorderMenuFor(null); }}>Sin zona (auto)</button>
+                                      {[0, 1, 2].map(i => (
+                                        <button key={i} onClick={() => { if (!ensureEditable('asignar zona prioritaria')) return; setSelectedZoneSlot(i); moveProductToZone(p.id); setReorderMenuFor(null); }}>
+                                          <span style={{ width: 9, height: 9, borderRadius: '50%', background: ZONE_COLORS_HEX[i], display: 'inline-block', marginRight: 8, flexShrink: 0 }} />
+                                          Zona {i + 1}
+                                        </button>
+                                      ))}
+                                    </div>
+                                  </>
+                                )}
                               </div>
                             </td>
                             <td><button className="btn-remove" onClick={() => removeProduct(p.id)}>X</button></td>
@@ -1843,15 +1846,10 @@ export default function ContainerLoader() {
                         );
                       })}
                       <tr className="total-row">
-                        <td colSpan="4">TOTAL</td>
-                        <td>—</td>
+                        <td colSpan="3">TOTAL</td>
                         <td>{totalWeight > 0 ? totalWeight.toFixed(1)+' kg' : '—'}</td>
-                        <td>{totalVol.toFixed(3)} m³</td>
-                        <td>{pctVol.toFixed(1)}%</td>
-                        <td>—</td>
                         <td>${fmt(totalValue)}</td>
-                        <td />
-                        <td>—</td>
+                        <td colSpan="2" />
                       </tr>
                     </>
                   )}
