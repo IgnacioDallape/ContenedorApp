@@ -633,7 +633,12 @@ function runPacking(products) {
     // Fill complete pairs
     while (colIdx < pairsNeeded && px + Math.min(A.dX, B.dX) <= CONT_L + FIT_EPS) {
       const pair = colIdx % 2 === 0 ? [B, A] : [A, B];
-      const colWidth = pair[0].dX;
+      // Ancho de la columna = el MAYOR de los dos pallets del par. Antes usaba el
+      // ancho del PRIMER pallet, así que cuando el segundo era más ancho, la
+      // siguiente columna arrancaba demasiado a la izquierda y se solapaba/
+      // desalineaba (el "cuadrado roto" con huecos). Con el máximo, las columnas
+      // quedan alineadas y el patrón de molinete (punta/costado, invertido) sale limpio.
+      const colWidth = Math.max(pair[0].dX, pair[1].dX);
       if (px + colWidth > CONT_L + FIT_EPS) break;
       let pz = 0;
       for (const ori of pair) {
