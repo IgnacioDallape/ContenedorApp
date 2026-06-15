@@ -1479,10 +1479,10 @@ export default function ContainerLoader() {
                 <div style={{ display: 'flex', gap: 6, alignItems: 'flex-start', marginBottom: 8 }}>
                   <textarea
                     value={shipmentNotes}
-                    onChange={e => setShipmentNotes(e.target.value)}
+                    onChange={e => { setShipmentNotes(e.target.value); e.target.style.height = 'auto'; e.target.style.height = Math.min(e.target.scrollHeight, 150) + 'px'; }}
                     placeholder="📝 Notas del embarque..."
                     rows={1}
-                    style={{ flex: 1, padding: '7px 12px', border: '1px solid var(--border)', borderRadius: 7, fontFamily: "'Inter', system-ui, -apple-system, sans-serif", fontSize: 12, background: 'var(--surface)', color: 'var(--text)', boxSizing: 'border-box', resize: 'vertical', lineHeight: 1.5, opacity: 0.85 }}
+                    style={{ flex: 1, padding: '8px 12px', border: '1px solid var(--border)', borderRadius: 7, fontFamily: "'Inter', system-ui, -apple-system, sans-serif", fontSize: 12, background: 'var(--surface)', color: 'var(--text)', boxSizing: 'border-box', resize: 'none', lineHeight: 1.4, opacity: 0.9, minHeight: 36, maxHeight: 150, overflow: 'hidden' }}
                   />
                   <div style={{ display: 'none' }}>
                     <button
