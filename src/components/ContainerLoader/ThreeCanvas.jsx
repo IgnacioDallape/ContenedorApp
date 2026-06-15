@@ -124,7 +124,7 @@ function ThreeCanvas({ onSelectInstance, onSetZone, onClearZone, readOnly = fals
     scene.fog = new THREE.Fog(0xEDE6DA, 2000, 4000);
 
     const camera = new THREE.PerspectiveCamera(35, W / H, 1, 8000);
-    camera.position.set(CONT_L * 0.8, CONT_H * 2.2, CONT_W * 2.5);
+    camera.position.set(CONT_L * 0.94, CONT_H * 3.0, CONT_W * 3.4);
     camera.lookAt(CONT_L / 2, CONT_H * 0.4, CONT_W / 2);
 
     scene.add(new THREE.AmbientLight(0xFFEDD8, 0.55));
@@ -316,7 +316,7 @@ function ThreeCanvas({ onSelectInstance, onSetZone, onClearZone, readOnly = fals
     if (!t) return;
     const maxD = currentContainerType === '20ft' ? 1650 : currentContainerType.startsWith('semi') ? 3600 : 2700;
     t.controls.maxDistance = maxD;
-    t.camera.position.set(CONT_L * 0.8, CONT_H * 2.2, CONT_W * 2.5);
+    t.camera.position.set(CONT_L * 0.94, CONT_H * 3.0, CONT_W * 3.4);
     t.camera.lookAt(CONT_L / 2, CONT_H * 0.4, CONT_W / 2);
     t.controls.target.set(CONT_L / 2, CONT_H * 0.4, CONT_W / 2);
     t.controls.update();
