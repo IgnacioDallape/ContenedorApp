@@ -195,6 +195,7 @@ export default function ContainerLoader() {
   const [currentShipmentPublic, setCurrentShipmentPublic] = useState(false);
   const [sharingShipmentId, setSharingShipmentId] = useState(null);
   const [showCurrentStatusPicker, setShowCurrentStatusPicker] = useState(false);
+  const [showAddMenu, setShowAddMenu] = useState(false);
   const [dragTabIdx,    setDragTabIdx]    = useState(null);
   const [dragOverTabIdx, setDragOverTabIdx] = useState(null);
   const [showWeightMap, setShowWeightMap] = useState(false);
@@ -1106,6 +1107,93 @@ export default function ContainerLoader() {
         weightLimit={weightLimit}
         totalValue={totalValue}
       />
+
+      {/* Topbar: "+ Añadir Cajas / Pallet" abre el form en un dropdown. La sidebar
+          original queda oculta por CSS; la lista de productos vive en la tabla
+          "Desglose de Carga" de más abajo (que ya permite editar cant./eliminar). */}
+      <div className="cl-actionbar">
+        <div className="cl-add-wrap">
+          <button className="btn-primary" onClick={() => setShowAddMenu(v => !v)} disabled={!canEditShipment}
+            style={{ opacity: canEditShipment ? 1 : 0.55, cursor: canEditShipment ? 'pointer' : 'not-allowed' }}>
+            + Añadir Cajas / Pallet
+          </button>
+          {showAddMenu && (
+            <>
+              <div className="cl-add-overlay" onClick={() => setShowAddMenu(false)} />
+              <div className="cl-add-menu">
+                <div className="cl-add-menu-title">Agregar producto</div>
+                <div className="form-group">
+                  <label>Nombre del producto</label>
+                  <input type="text" value={prodName} placeholder="Ej: Zapatillas Running" autoComplete="off" onChange={e => { setFormError(''); setProdName(e.target.value); }} />
+                </div>
+                <div className="form-group">
+                  <label>Tipo de unidad</label>
+                  <div className="type-tabs">
+                    <button className={`type-tab${formType === 'box' ? ' active-box' : ''}`} onClick={() => setFormType('box')}>📦 Caja</button>
+                    <button className={`type-tab${formType === 'pallet' ? ' active-pallet' : ''}`} onClick={() => setFormType('pallet')}>🟫 Pallet</button>
+                  </div>
+                </div>
+                {formType === 'box' && (
+                  <div className="form-group">
+                    <label>Dimensiones de la caja (cm)</label>
+                    <div className="row3">
+                      <div><label style={{ fontSize: 10 }}>Largo</label><input type="number" value={boxL} placeholder="60" min="1" onChange={e => setBoxL(e.target.value)} /></div>
+                      <div><label style={{ fontSize: 10 }}>Ancho</label><input type="number" value={boxW} placeholder="40" min="1" onChange={e => setBoxW(e.target.value)} /></div>
+                      <div><label style={{ fontSize: 10 }}>Alto</label><input type="number" value={boxH} placeholder="30" min="1" onChange={e => setBoxH(e.target.value)} /></div>
+                    </div>
+                  </div>
+                )}
+                {formType === 'pallet' && (
+                  <>
+                    <div className="form-group">
+                      <label>Tipo de pallet</label>
+                      <select value={palletType} onChange={e => setPalletType(e.target.value)}>
+                        <option value="euro">Euro Pallet — 120×80 cm</option>
+                        <option value="eua">Pallet EUA — 120×100 cm</option>
+                      </select>
+                    </div>
+                    <div className="form-group">
+                      <label>Altura con carga (cm)</label>
+                      <div className="slider-wrap">
+                        <input type="range" min="30" max="220" value={palletHeight} onChange={e => setPalletHeight(parseInt(e.target.value))} style={{ flex: 1, accentColor: 'var(--accent)' }} />
+                        <span className="slider-val">{palletHeight} cm</span>
+                      </div>
+                    </div>
+                  </>
+                )}
+                <div className="row2">
+                  <div className="form-group">
+                    <label>Cantidad</label>
+                    <input type="number" value={qty} placeholder="10" min="1" onChange={e => setQty(e.target.value)} />
+                  </div>
+                  <div className="form-group">
+                    <label>USD / unidad</label>
+                    <input type="number" value={price} placeholder="0.00" min="0" step="0.01" onChange={e => setPrice(e.target.value)} />
+                  </div>
+                </div>
+                <div className="form-group">
+                  <label>Peso por unidad (kg) <span style={{ color: 'var(--text-3)', fontSize: 9 }}>opcional</span></label>
+                  <input type="number" value={weight} placeholder="0.00" min="0" step="0.1" onChange={e => setWeight(e.target.value)} />
+                </div>
+                <div className="form-group">
+                  <label>Notas <span style={{ color: 'var(--text-3)', fontSize: 9 }}>opcional</span></label>
+                  <input type="text" value={prodNotes} placeholder="Ej: frágil, este lado arriba..." onChange={e => setProdNotes(e.target.value)} />
+                </div>
+                {formError && (
+                  <div style={{ color: 'var(--red)', fontSize: 11, marginBottom: 8, padding: '6px 10px', background: 'var(--red-dim)', borderRadius: 6, border: '1px solid var(--red)' }}>
+                    ⚠ {formError}
+                  </div>
+                )}
+                <button className="btn-primary" onClick={handleAddProduct} disabled={!canEditShipment}
+                  style={{ width: '100%', opacity: canEditShipment ? 1 : 0.55, cursor: canEditShipment ? 'pointer' : 'not-allowed' }}>
+                  + Agregar al contenedor
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+
       <div className="stats-strip" style={{ display: 'none' }}>
         <div className="stat-item">
           <div className="stat-label">Volumen Usado</div>

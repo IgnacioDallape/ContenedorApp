@@ -131,3 +131,65 @@
   color: var(--text-2) !important;
 }
 .cl-section .layout > main.main tbody tr:hover td { background: var(--bg-3) !important; }
+
+/* ════════════════════════════════════════════════════════════════════
+   FULL-WIDTH (maqueta): la sidebar de form se oculta — el form vive ahora
+   en el dropdown "+ Añadir Cajas / Pallet" del topbar, y la gestión de
+   productos (cant./eliminar/zonas) vive en la tabla "Desglose de Carga".
+   El 3D y la tabla pasan a ocupar todo el ancho.
+   ════════════════════════════════════════════════════════════════════ */
+.cl-section .layout {
+  display: block !important;
+  width: 100%;
+  margin-left: 0;
+}
+.cl-section .layout > aside.sidebar { display: none !important; }
+.cl-section .layout > main.main {
+  width: 100% !important;
+  margin-left: 0 !important;
+}
+@media (max-width: 980px) {
+  #section-container .layout > aside.sidebar { display: none !important; }
+  #section-container .layout > main.main { width: 100% !important; margin-left: 0 !important; }
+}
+
+/* ── TOPBAR de acción + dropdown "Añadir Cajas / Pallet" ──────────────── */
+.cl-section .cl-actionbar {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+  padding: 0 1.7rem;
+  margin: 2px 0 14px;
+}
+.cl-section .cl-add-wrap { position: relative; }
+.cl-section .cl-actionbar .btn-primary {
+  padding: 9px 16px !important;
+  font-size: 0.9rem !important;
+}
+.cl-section .cl-add-overlay { position: fixed; inset: 0; z-index: 40; }
+.cl-section .cl-add-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 41;
+  width: 380px;
+  max-width: 92vw;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  padding: 1.2rem 1.3rem;
+  max-height: 78vh;
+  overflow-y: auto;
+  text-align: left;
+}
+.cl-section .cl-add-menu-title {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 14px;
+}
+.cl-section .cl-add-menu .form-group { margin-bottom: 12px; }
+.cl-section .cl-add-menu .form-group:last-of-type { margin-bottom: 14px; }
