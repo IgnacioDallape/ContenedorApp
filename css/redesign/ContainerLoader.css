@@ -125,7 +125,7 @@
   /* Inset CONSISTENTE a 1rem: el dropdown y la fila de Reordenar viven dentro de
      <main> (que en mobile suma su propio padding), mientras el topbar está a nivel
      .cl-section → quedaban doble-indentados ("descuadrado"). Igualamos todo a 1rem. */
-  #section-container .cl-topbar-row { padding-left: 1rem !important; padding-right: 1rem !important; }
+  #section-container .cl-topbar-row { padding: 1.8rem 1rem 0.8rem !important; }
   #section-container .layout > main.main { padding-left: 1rem !important; padding-right: 1rem !important; }
   #section-container .cl-cont-select-mobile,
   #section-container .cl-reorder-row,
