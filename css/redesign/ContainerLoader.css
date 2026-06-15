@@ -56,6 +56,13 @@
 .cl-section .stats-strip .stat-progress,
 .cl-section .stats-strip .stat-progress-weight { display: none !important; }
 
+/* La fila de arriba era muy alta: la descripción larga de 2 líneas (.stat-sub)
+   hacía crecer cada card. La ocultamos (el chip del head ya da el dato) y
+   apretamos el padding → la fila baja a ~la mitad de alto. */
+#section-container .cl-topbar-row .stat-sub { display: none !important; }
+#section-container .cl-topbar-row .stat-item { padding: 0.45rem 0.8rem !important; }
+#section-container .cl-topbar-row .stat-head { margin-bottom: 2px !important; }
+
 /* ── CONTAINER TYPE SELECTOR — fila compacta de toggles rectangulares ─── */
 .cl-section .cont-type-btn {
   border-radius: var(--radius) !important;
