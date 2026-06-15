@@ -1095,7 +1095,8 @@ export default function ContainerLoader() {
   return (
     <div className="cl-section active" id="section-container" style={{ width: '100%', overflow: 'hidden' }}>
 
-      {/* Stats strip */}
+      {/* Stats + acciones en una sola fila (stats izquierda, botones derecha) */}
+      <div className="cl-topbar-row">
       <StatsStrip
         totalVol={totalVol}
         ct={ct}
@@ -1192,39 +1193,18 @@ export default function ContainerLoader() {
             </>
           )}
         </div>
+        <button className="btn-primary cl-topbtn" onClick={handleSaveShipment}>⤓ Guardar embarque</button>
+        <button className="btn-primary cl-topbtn" onClick={handleLoadShipments}>Mis embarques</button>
+        <button className="btn-primary cl-topbtn" disabled={loadedProducts.length === 0}
+          onClick={async () => {
+            const containers = syncActiveContainer();
+            const views = canvasRef.current ? await canvasRef.current.captureViews() : [];
+            await exportShipmentPDF({ containers, currentContainerType, views, shipmentName: currentShipmentName, shipmentId: currentShipmentId });
+          }}>⤓ PDF</button>
+      </div>
       </div>
 
-      <div className="stats-strip" style={{ display: 'none' }}>
-        <div className="stat-item">
-          <div className="stat-label">Volumen Usado</div>
-          <div className="stat-value">{totalVol.toFixed(2)}</div>
-          <div className="stat-sub">m³ de {ct.vol.toFixed(2)} disponibles</div>
-        </div>
-        <div className="stat-item">
-          <div className="stat-label">Ocupación</div>
-          <div className="stat-value">{pctVol.toFixed(1)}%</div>
-          <div className="stat-sub">del contenedor {ct.label}</div>
-        </div>
-        <div className="stat-item">
-          <div className="stat-label">Unidades Totales</div>
-          <div className="stat-value">{totalUnits}</div>
-          <div className="stat-sub">cajas / pallets</div>
-        </div>
-        <div className="stat-item">
-          <div className="stat-label">Peso Total</div>
-          <div className="stat-value" style={{ fontSize: 24, color: weightOver ? 'var(--danger)' : '' }}>
-            {totalWeight >= 1000 ? (totalWeight/1000).toFixed(2)+' t' : totalWeight.toFixed(0)}
-          </div>
-          <div className="stat-sub" style={{ color: weightOver ? 'var(--danger)' : '' }}>
-            {weightOver ? `⚠ Supera límite ${(weightLimit/1000).toFixed(0)}.000 kg` : `kg · límite ~${(weightLimit/1000).toFixed(0)}.000 kg`}
-          </div>
-        </div>
-        <div className="stat-item">
-          <div className="stat-label">Valor Total USD</div>
-          <div className="stat-value" style={{ fontSize: 24 }}>${fmt(totalValue)}</div>
-          <div className="stat-sub">mercadería</div>
-        </div>
-      </div>
+      {/* (stats-strip viejo duplicado eliminado — las stats viven en <StatsStrip/> de arriba) */}
 
       <div className="layout">
         {/* ── Left sidebar: product form + list ── */}
@@ -1436,14 +1416,7 @@ export default function ContainerLoader() {
                   + Nuevo contenedor
                 </button>
               </div>
-              <button onClick={handleSaveShipment}
-                style={{ padding: '6px 14px', fontSize: 11, fontFamily: "'Inter', system-ui, -apple-system, sans-serif", letterSpacing: '0.5px', borderRadius: 6, cursor: 'pointer', border: '1.5px solid var(--c1)', color: 'var(--c1)', background: 'transparent', whiteSpace: 'nowrap' }}>
-                💾 Guardar embarque
-              </button>
-              <button onClick={handleLoadShipments}
-                style={{ padding: '6px 14px', fontSize: 11, fontFamily: "'Inter', system-ui, -apple-system, sans-serif", letterSpacing: '0.5px', borderRadius: 6, cursor: 'pointer', border: '1px solid var(--border)', color: 'var(--muted)', background: 'transparent', whiteSpace: 'nowrap' }}>
-                📂 Mis embarques
-              </button>
+              {/* Guardar embarque / Mis embarques movidos a la barra de acciones de arriba */}
                 {(currentShipmentId || loadedProducts.length > 0) && (
                   <div style={{ position: 'relative', flexShrink: 0 }}>
                   <button
@@ -1517,18 +1490,7 @@ export default function ContainerLoader() {
                     Desactivar link
                   </button>
                 )}
-                <button
-                  onClick={async () => {
-                    const containers = syncActiveContainer();
-                  const views = canvasRef.current ? await canvasRef.current.captureViews() : [];
-                  await exportShipmentPDF({ containers, currentContainerType, views, shipmentName: currentShipmentName, shipmentId: currentShipmentId });
-                  }}
-                  disabled={loadedProducts.length === 0}
-                  title="Exportar PDF"
-                  style={{ padding: '6px 11px', fontSize: 10, fontFamily: "'Inter', system-ui, -apple-system, sans-serif", letterSpacing: '0.4px', borderRadius: 8, cursor: loadedProducts.length === 0 ? 'not-allowed' : 'pointer', border: '1px solid var(--border)', color: loadedProducts.length === 0 ? 'var(--muted)' : 'var(--text)', background: 'transparent', opacity: loadedProducts.length === 0 ? 0.45 : 1, lineHeight: 1, display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }}>
-                  <span style={{ fontSize: 11 }}>🧾</span>
-                  <span>PDF</span>
-                </button>
+                {/* PDF movido a la barra de acciones de arriba */}
             </div>
 
             {/* Shipment notes inline + status button */}

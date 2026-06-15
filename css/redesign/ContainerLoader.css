@@ -153,20 +153,45 @@
   #section-container .layout > main.main { width: 100% !important; margin-left: 0 !important; }
 }
 
-/* ── TOPBAR de acción + dropdown "Añadir Cajas / Pallet" ──────────────── */
-.cl-section .cl-actionbar {
+/* ── TOPBAR: stats (izquierda) + acciones (derecha) en UNA fila ───────── */
+#section-container .cl-topbar-row {
   display: flex;
-  justify-content: flex-end;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 1.5rem 1.7rem 0;
+}
+#section-container .cl-topbar-row .stats-strip {
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(128px, 1fr)) !important;
+  gap: 10px !important;
+  flex: 1 1 420px;
+  max-width: 560px;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+#section-container .cl-actionbar {
+  display: flex !important;
   align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
   gap: 8px;
-  padding: 0 1.7rem;
-  margin: 2px 0 14px;
+  padding: 0 !important;
+  margin: 0 !important;
+  flex: 0 1 auto;
 }
 .cl-section .cl-add-wrap { position: relative; }
-.cl-section .cl-actionbar .btn-primary {
-  padding: 9px 16px !important;
-  font-size: 0.9rem !important;
+#section-container .cl-actionbar .btn-primary,
+#section-container .cl-topbtn {
+  width: auto !important;
+  min-width: 0 !important;
+  padding: 9px 14px !important;
+  font-size: 0.85rem !important;
+  white-space: nowrap;
+  border-radius: var(--radius) !important;
 }
+#section-container .cl-topbtn:disabled { opacity: 0.5 !important; cursor: not-allowed !important; }
 .cl-section .cl-add-overlay { position: fixed; inset: 0; z-index: 40; }
 .cl-section .cl-add-menu {
   position: absolute;
