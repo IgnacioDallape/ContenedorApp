@@ -1114,9 +1114,10 @@ export default function ContainerLoader() {
           "Desglose de Carga" de más abajo (que ya permite editar cant./eliminar). */}
       <div className="cl-actionbar">
         <div className="cl-add-wrap">
-          <button className="btn-primary" onClick={() => setShowAddMenu(v => !v)} disabled={!canEditShipment}
+          <button className="btn-primary cl-topbtn" onClick={() => setShowAddMenu(v => !v)} disabled={!canEditShipment}
             style={{ opacity: canEditShipment ? 1 : 0.55, cursor: canEditShipment ? 'pointer' : 'not-allowed' }}>
-            + Añadir Cajas / Pallet
+            <svg className="cl-btn-ico" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round"/></svg>
+            Añadir Cajas / Pallet
           </button>
           {showAddMenu && (
             <>
@@ -1193,14 +1194,20 @@ export default function ContainerLoader() {
             </>
           )}
         </div>
-        <button className="btn-primary cl-topbtn" onClick={handleSaveShipment}>⤓ Guardar embarque</button>
+        <button className="btn-primary cl-topbtn" onClick={handleSaveShipment}>
+          <svg className="cl-btn-ico" viewBox="0 0 24 24" fill="none"><path d="M12 4v10m0 0 4-4m-4 4-4-4M5 19h14" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"/></svg>
+          Guardar embarque
+        </button>
         <button className="btn-primary cl-topbtn" onClick={handleLoadShipments}>Mis embarques</button>
         <button className="btn-primary cl-topbtn" disabled={loadedProducts.length === 0}
           onClick={async () => {
             const containers = syncActiveContainer();
             const views = canvasRef.current ? await canvasRef.current.captureViews() : [];
             await exportShipmentPDF({ containers, currentContainerType, views, shipmentName: currentShipmentName, shipmentId: currentShipmentId });
-          }}>⤓ PDF</button>
+          }}>
+          <svg className="cl-btn-ico" viewBox="0 0 24 24" fill="none"><path d="M12 4v10m0 0 4-4m-4 4-4-4M5 19h14" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"/></svg>
+          PDF
+        </button>
       </div>
       </div>
 
@@ -1532,7 +1539,8 @@ export default function ContainerLoader() {
 
             <div className="cl-reorder-row">
             <button className="reorder-btn" onClick={() => { if (!ensureEditable('reordenar la carga')) return; reorderCargo(); }} disabled={!canEditShipment} style={{ opacity: canEditShipment ? 1 : 0.5, cursor: canEditShipment ? 'pointer' : 'not-allowed' }}>
-              <span className="spin">⟳</span> Reordenar carga optimizada →
+              Reordenar carga optimizada
+              <svg className="cl-btn-ico" viewBox="0 0 24 24" fill="none"><path d="M5 12h14m-6-6 6 6-6 6" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"/></svg>
             </button>
             <div className="cl-cont-chips">
               <span className="cl-cont-chips-label">Contenedor</span>

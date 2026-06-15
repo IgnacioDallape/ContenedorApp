@@ -7,6 +7,10 @@
    Scope: SIEMPRE bajo .cl-section para no tocar la nav global.
    ════════════════════════════════════════════════════════════════════ */
 
+/* Token de la referencia para estados activos (tint petróleo claro) + ícono. */
+.cl-section { --accent-soft: #e6eef0; }
+.cl-section .cl-btn-ico { width: 14px; height: 14px; flex-shrink: 0; }
+
 /* ── STATS STRIP → 3 tarjetas planas (Peso · Ocupación · Valor) ───────── */
 .cl-section .stats-strip {
   background: transparent !important;
@@ -64,27 +68,31 @@
 .cl-section .cont-type-btn:hover { border-color: var(--accent) !important; color: var(--accent) !important; }
 .cl-section .cont-type-btn.active {
   border-color: var(--accent) !important;
-  background: var(--accent-dim) !important;
+  background: var(--accent-soft) !important;
   color: var(--accent) !important;
 }
 .cl-section .cont-type-btn small { color: var(--text-3) !important; }
 
 /* ── REORDER BUTTON — outline petróleo ───────────────────────────────── */
 .cl-section .reorder-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 8px !important;
   width: auto !important;
   max-width: max-content !important;
-  padding: 8px 14px !important;
-  font-size: 0.85rem !important;
+  min-height: 38px !important;
+  padding: 0 14px !important;
+  font-size: 0.9rem !important;
   margin: 0 1.7rem 12px !important;
   border-radius: var(--radius) !important;
-  border: 1px solid var(--accent) !important;
-  background: transparent !important;
-  color: var(--accent) !important;
+  border: 1px solid var(--border-2) !important;
+  background: var(--surface) !important;
+  color: var(--text-2) !important;
   text-transform: none !important;
-  letter-spacing: 0 !important;
+  letter-spacing: 0.04em !important;
   font-weight: 600 !important;
 }
-.cl-section .reorder-btn:hover { background: var(--accent-dim) !important; }
+.cl-section .reorder-btn:hover { background: var(--bg-3) !important; color: var(--text) !important; }
 
 /* Selector de TIPO de contenedor: grilla pareja de 5, SIN el label "Contenedor"
    (el diseño no lo muestra ahí — el label vive en los chips de la fila de Reordenar). */
@@ -189,10 +197,10 @@
 }
 #section-container .cl-topbar-row .stats-strip {
   display: grid !important;
-  grid-template-columns: repeat(3, minmax(128px, 1fr)) !important;
+  grid-template-columns: repeat(3, minmax(140px, 1fr)) !important;
   gap: 10px !important;
-  flex: 1 1 420px;
-  max-width: 560px;
+  flex: 1 1 440px;
+  max-width: 600px;
   padding: 0 !important;
   margin: 0 !important;
 }
@@ -209,10 +217,17 @@
 .cl-section .cl-add-wrap { position: relative; }
 #section-container .cl-actionbar .btn-primary,
 #section-container .cl-topbtn {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 8px !important;
   width: auto !important;
   min-width: 0 !important;
-  padding: 9px 14px !important;
-  font-size: 0.85rem !important;
+  min-height: 38px !important;
+  padding: 0 14px !important;
+  font-size: 0.9rem !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.04em !important;
+  text-transform: none !important;
   white-space: nowrap;
   border-radius: var(--radius) !important;
 }
@@ -257,7 +272,7 @@
 }
 .cl-section .cl-cont-chip.active {
   border-color: var(--accent);
-  background: var(--accent-dim);
+  background: var(--accent-soft);
   color: var(--accent);
 }
 .cl-section .cl-cont-chip-dot {
