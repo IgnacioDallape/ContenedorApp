@@ -80,8 +80,28 @@
   border: 1px solid var(--accent) !important;
   background: transparent !important;
   color: var(--accent) !important;
+  text-transform: none !important;
+  letter-spacing: 0 !important;
+  font-weight: 600 !important;
 }
 .cl-section .reorder-btn:hover { background: var(--accent-dim) !important; }
+
+/* Selector de TIPO de contenedor: grilla pareja de 5, SIN el label "Contenedor"
+   (el diseño no lo muestra ahí — el label vive en los chips de la fila de Reordenar). */
+.cl-section .container-selector {
+  display: grid !important;
+  grid-template-columns: repeat(5, 1fr) !important;
+  gap: 8px !important;
+  align-items: stretch !important;
+  margin: 0 1.7rem 12px !important;
+  padding: 0 !important;
+  background: transparent !important;
+  border: none !important;
+}
+.cl-section .container-selector-label { display: none !important; }
+@media (max-width: 720px) {
+  .cl-section .container-selector { grid-template-columns: repeat(2, 1fr) !important; }
+}
 
 /* ── WARNING BAR — rojo plano ────────────────────────────────────────── */
 .cl-section .warning-bar {
