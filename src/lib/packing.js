@@ -546,11 +546,11 @@ function runPacking(products) {
 
   for (const u of pinnedUnits) placeUnit(u, instanceManualPos[u.instanceId]);
 
-  // ── INTERLOCKING COLUMN LAYOUT for rectangular pallets ──
-  // Pattern: each column has 2 pallets in depth (Z), alternating orientation order per column
-  // Col type A: pallet_frente(dX=L,dZ=W) then pallet_costado(dX=W,dZ=L)
-  // Col type B: pallet_costado(dX=W,dZ=L) then pallet_frente(dX=L,dZ=W) — reversed
-  // This creates an interlocking pattern that fills space optimally
+  // ── PATRÓN MOLINETE (pinwheel) para pallets rectangulares ──
+  // 4 pallets rotados 90° entre sí que SE TOCAN formando un bloque de (L+W)×(L+W)
+  // con sólo un huequito cuadrado (L-W)×(L-W) en el centro. Los bloques se tilean
+  // a lo largo del contenedor sin dejar espacio entre pallets. (Los semis usan el
+  // layout de-punta centro-afuera, más abajo.)
 
   const palletGroupsMap = {};
   for (const u of freeUnits) {
@@ -623,42 +623,42 @@ function runPacking(products) {
     // Check that 2 pallets in depth fit strictly within container width
     if (A.dZ + B.dZ > CONT_W + FIT_EPS) continue;
 
-    // Build placement list: columns alternating (B,A) and (A,B) along X
-    // For odd qty: fill complete pairs first, then add 1 single at the end
+    // Patrón MOLINETE: bloques de 4 pallets que rotan 90° y SE TOCAN. Cada bloque
+    // ocupa (L+W)×(L+W) y deja sólo un huequito cuadrado (L-W)×(L-W) en el centro.
+    // Disposición de cada bloque (origen en px, A=de-costado dX=L, B=de-punta dX=W):
+    //   P4 de-punta(B) arriba-izq   P3 de-costado(A) arriba-der
+    //   P1 de-costado(A) abajo-izq   P2 de-punta(B) abajo-der
+    // Se tilean a lo largo de X sin espacio entre bloques (P2/P3 llegan a px+L+W,
+    // el siguiente bloque arranca justo ahí).
     const placements = [];
-    let px = 0, colIdx = 0;
-    const pairsNeeded = Math.floor(group.length / 2);
-    const hasExtra = group.length % 2 === 1;
+    const L = s.dims.L;
+    const W = s.dims.W;
+    const blockSpan = L + W;
+    let px = 0;
 
-    // Fill complete pairs
-    while (colIdx < pairsNeeded && px + Math.min(A.dX, B.dX) <= CONT_L + FIT_EPS) {
-      const pair = colIdx % 2 === 0 ? [B, A] : [A, B];
-      // Ancho de la columna = el MAYOR de los dos pallets del par. Antes usaba el
-      // ancho del PRIMER pallet, así que cuando el segundo era más ancho, la
-      // siguiente columna arrancaba demasiado a la izquierda y se solapaba/
-      // desalineaba (el "cuadrado roto" con huecos). Con el máximo, las columnas
-      // quedan alineadas y el patrón de molinete (punta/costado, invertido) sale limpio.
-      const colWidth = Math.max(pair[0].dX, pair[1].dX);
-      if (px + colWidth > CONT_L + FIT_EPS) break;
-      let pz = 0;
-      for (const ori of pair) {
-        if (pz + ori.dZ <= CONT_W + FIT_EPS) {
-          placements.push({ px, pz, ori });
-          pz += ori.dZ;
-        }
-      }
-      px += colWidth;
-      colIdx++;
+    // Bloques completos de 4 (el molinete real)
+    while (placements.length + 4 <= group.length && px + blockSpan <= CONT_L + FIT_EPS) {
+      placements.push({ px, pz: 0, ori: A }); // P1 abajo-izq  (de-costado)
+      placements.push({ px: px + L, pz: 0, ori: B }); // P2 abajo-der  (de-punta)
+      placements.push({ px: px + W, pz: L, ori: A }); // P3 arriba-der (de-costado)
+      placements.push({ px, pz: W, ori: B }); // P4 arriba-izq (de-punta)
+      px += blockSpan;
     }
 
-    // Add single extra pallet at the end (use B orientation — narrower, fits easier)
-    if (hasExtra && placements.length < group.length) {
-      const extraOri = B; // narrow orientation for the last single
-      if (px + extraOri.dX <= CONT_L + FIT_EPS && extraOri.dZ <= CONT_W + FIT_EPS) {
-        placements.push({ px, pz: 0, ori: extraOri });
-      } else if (px + A.dX <= CONT_L + FIT_EPS && A.dZ <= CONT_W + FIT_EPS) {
-        placements.push({ px, pz: 0, ori: A });
+    // Sobrantes (1-3 pallets que no completan un molinete): columna al final,
+    // de-costado (2 en profundidad) si entra, si no de-punta (más angosta).
+    let rem = group.length - placements.length;
+    while (rem > 0) {
+      const ori =
+        px + A.dX <= CONT_L + FIT_EPS ? A : px + B.dX <= CONT_L + FIT_EPS ? B : null;
+      if (!ori) break;
+      let pz = 0;
+      while (rem > 0 && pz + ori.dZ <= CONT_W + FIT_EPS) {
+        placements.push({ px, pz, ori });
+        pz += ori.dZ;
+        rem--;
       }
+      px += ori.dX;
     }
 
     // Place units at these positions

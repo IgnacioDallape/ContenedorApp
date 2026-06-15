@@ -334,23 +334,18 @@ describe('runPacking — semi carga centro-afuera (balance de ejes)', () => {
   });
 });
 
-// ── 10. Interlocking de pallets: patrón alternado ALINEADO (sin desorden) ───
-describe('runPacking — interlocking de pallets alineado y limpio', () => {
-  it('pallets 120×100 en 40ft: patrón alternado en columnas alineadas, sin overlap', () => {
+// ── 10. Patrón MOLINETE (pinwheel): pallets tight, sólo hueco central ───────
+describe('runPacking — molinete de pallets (tight, sin espacio entre pallets)', () => {
+  it('pallets 120×100 en 40ft: bloques de 4 que se tocan, sólo huequito central', () => {
     setContainerDimensions(1200, 235, 239, (1200 * 235 * 239) / 1e6);
     invalidatePackingCache();
     const r = runPacking([
       { id: 'pal', name: 'P', type: 'pallet', dims: { L: 120, W: 100, H: 150 }, qty: 12, weight: 150, color: '#a07' },
     ]).packed;
     expect(r.length).toBeGreaterThanOrEqual(8);
-    // Interlocking real: aparecen las DOS orientaciones (de-punta y de-costado).
+    // Molinete real: aparecen las DOS orientaciones (de-punta y de-costado).
     const oris = new Set(r.map(b => `${b.dX}x${b.dZ}`));
     expect(oris.size).toBe(2);
-    // Columnas ALINEADAS: cada x es múltiplo del ancho de columna (120) → sin el
-    // escalonado desprolijo que dejaba el "cuadrado roto".
-    for (const b of r) {
-      expect(Math.abs(b.x - Math.round(b.x / 120) * 120)).toBeLessThan(0.6);
-    }
     // Sin solapamiento entre pallets.
     for (let i = 0; i < r.length; i++) {
       for (let j = i + 1; j < r.length; j++) {
@@ -360,5 +355,14 @@ describe('runPacking — interlocking de pallets alineado y limpio', () => {
         expect(ox > 0.5 && oz > 0.5).toBe(false);
       }
     }
+    // TIGHT: el área cubierta dentro del bounding box debe ser ≥90% → sin gaps
+    // grandes entre pallets, sólo los huequitos cuadrados del centro de cada molinete.
+    const minX = Math.min(...r.map(p => p.x));
+    const maxX = Math.max(...r.map(p => p.x + p.dX));
+    const minZ = Math.min(...r.map(p => p.z));
+    const maxZ = Math.max(...r.map(p => p.z + p.dZ));
+    const covered = r.reduce((s, p) => s + p.dX * p.dZ, 0);
+    const fill = covered / ((maxX - minX) * (maxZ - minZ));
+    expect(fill).toBeGreaterThan(0.9);
   });
 });
