@@ -1384,38 +1384,9 @@ export default function ContainerLoader() {
               </div>
             </div>
 
-            {/* Container tabs */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
-              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', flex: 1 }}>
-                {shipmentContainers.map((c, i) => {
-                  const contVol = c.products.reduce((s, p) => s + p.vol * p.qty, 0);
-                  const ctype = CONTAINER_TYPES[c.type] || ct;
-                  const cpct  = (contVol / ctype.vol * 100).toFixed(0);
-                  const isActive = i === activeContainerIdx;
-                  const isDragging = dragTabIdx === i;
-                  const isDragOver = dragOverTabIdx === i && dragTabIdx !== i;
-                  return (
-                    <button key={c.id}
-                      draggable
-                      onDragStart={e => { e.dataTransfer.effectAllowed = 'move'; setDragTabIdx(i); }}
-                      onDragOver={e => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setDragOverTabIdx(i); }}
-                      onDrop={e => { e.preventDefault(); handleTabDrop(dragTabIdx, i); setDragTabIdx(null); setDragOverTabIdx(null); }}
-                      onDragEnd={() => { setDragTabIdx(null); setDragOverTabIdx(null); }}
-                      onClick={() => switchToContainer(i)}
-                      style={{ padding: '6px 14px', fontSize: 11, fontFamily: "'Inter', system-ui, -apple-system, sans-serif", letterSpacing: '0.5px', borderRadius: 6, cursor: isDragging ? 'grabbing' : 'grab', border: `1.5px solid ${isDragOver ? 'var(--c1)' : isActive ? 'var(--c1)' : 'var(--border)'}`, background: isActive ? 'var(--c1)' : isDragOver ? 'var(--c1)22' : 'transparent', color: isActive ? 'var(--c5)' : 'var(--muted)', fontWeight: isActive ? 700 : 400, display: 'flex', alignItems: 'center', gap: 4, opacity: isDragging ? 0.4 : 1, transition: 'border-color 0.15s, background 0.15s, opacity 0.15s', outline: isDragOver ? '2px solid var(--c1)' : 'none', outlineOffset: 1 }}>
-                      <span style={{ opacity: 0.5, fontSize: 10, letterSpacing: 0 }}>⠿</span>
-                      🚢 Cont. {c.id} <span style={{ opacity: 0.7 }}>{cpct}%</span>
-                      {shipmentContainers.length > 1 && (
-                        <span onClick={e => { e.stopPropagation(); if (!ensureEditable('editar este embarque')) return; if (!removeContainer(i)) showToast('No podés eliminar el único contenedor', 'error'); }} style={{ marginLeft: 3, opacity: canEditShipment ? 0.6 : 0.3, fontSize: 12, cursor: canEditShipment ? 'pointer' : 'not-allowed' }}>×</span>
-                      )}
-                    </button>
-                  );
-                })}
-                <button onClick={() => { if (!ensureEditable('editar este embarque')) return; addNewContainer(); }} disabled={!canEditShipment}
-                  style={{ padding: '6px 12px', fontSize: 11, fontFamily: "'Inter', system-ui, -apple-system, sans-serif", borderRadius: 6, cursor: canEditShipment ? 'pointer' : 'not-allowed', border: '1.5px dashed var(--border)', background: 'transparent', color: 'var(--muted)', opacity: canEditShipment ? 1 : 0.45 }}>
-                  + Nuevo contenedor
-                </button>
-              </div>
+            {/* Fila de estado del embarque (los chips de contenedor se movieron a la
+                fila de "Reordenar", abajo de los tabs, como en el diseño). */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 10, justifyContent: 'flex-end' }}>
               {/* Guardar embarque / Mis embarques movidos a la barra de acciones de arriba */}
                 {(currentShipmentId || loadedProducts.length > 0) && (
                   <div style={{ position: 'relative', flexShrink: 0 }}>
@@ -1559,9 +1530,40 @@ export default function ContainerLoader() {
               ))}
             </div>
 
+            <div className="cl-reorder-row">
             <button className="reorder-btn" onClick={() => { if (!ensureEditable('reordenar la carga')) return; reorderCargo(); }} disabled={!canEditShipment} style={{ opacity: canEditShipment ? 1 : 0.5, cursor: canEditShipment ? 'pointer' : 'not-allowed' }}>
-              <span className="spin">⟳</span> Reordenar Carga Optimizada
+              <span className="spin">⟳</span> Reordenar carga optimizada →
             </button>
+            <div className="cl-cont-chips">
+              <span className="cl-cont-chips-label">Contenedor</span>
+              {shipmentContainers.map((c, i) => {
+                const ctype = CONTAINER_TYPES[c.type] || ct;
+                const isActive = i === activeContainerIdx;
+                const isDragging = dragTabIdx === i;
+                const isDragOver = dragOverTabIdx === i && dragTabIdx !== i;
+                return (
+                  <button key={c.id}
+                    draggable
+                    onDragStart={e => { e.dataTransfer.effectAllowed = 'move'; setDragTabIdx(i); }}
+                    onDragOver={e => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setDragOverTabIdx(i); }}
+                    onDrop={e => { e.preventDefault(); handleTabDrop(dragTabIdx, i); setDragTabIdx(null); setDragOverTabIdx(null); }}
+                    onDragEnd={() => { setDragTabIdx(null); setDragOverTabIdx(null); }}
+                    onClick={() => switchToContainer(i)}
+                    className={`cl-cont-chip${isActive ? ' active' : ''}`}
+                    style={{ cursor: isDragging ? 'grabbing' : 'grab', opacity: isDragging ? 0.4 : 1, outline: isDragOver ? '2px solid var(--accent)' : 'none', outlineOffset: 1 }}>
+                    <span className="cl-cont-chip-dot" />
+                    Cont {c.id} · {ctype.label}
+                    {shipmentContainers.length > 1 && (
+                      <span onClick={e => { e.stopPropagation(); if (!ensureEditable('editar este embarque')) return; if (!removeContainer(i)) showToast('No podés eliminar el único contenedor', 'error'); }} style={{ marginLeft: 4, opacity: 0.6, fontSize: 13, cursor: 'pointer' }}>×</span>
+                    )}
+                  </button>
+                );
+              })}
+              <button onClick={() => { if (!ensureEditable('editar este embarque')) return; addNewContainer(); }} disabled={!canEditShipment} className="cl-cont-chip cl-cont-chip-add">
+                + Contenedor
+              </button>
+            </div>
+            </div>
 
             {!canEditShipment && (
               <div style={{ marginTop: 10, marginBottom: 8, padding: '10px 12px', borderRadius: 10, border: '1px solid rgba(122,92,138,0.2)', background: 'linear-gradient(135deg, rgba(243,238,248,0.95), rgba(248,244,238,0.96))', color: '#6C587C', display: 'flex', alignItems: 'center', gap: 10 }}>
