@@ -7,6 +7,24 @@ import { _sb } from '../../lib/supabase.js';
 import PalletThreeCanvas from './PalletThreeCanvas.jsx';
 import '../../../css/redesign/PalletBuilder.css';
 
+// Íconos de línea del toolbar (mismos paths que la referencia del diseño).
+const PB_ICO = {
+  link: ['M9 15l6-6', 'M10 6l1-1a3.5 3.5 0 0 1 5 5l-1 1', 'M14 18l-1 1a3.5 3.5 0 0 1-5-5l1-1'],
+  folder: ['M4 7a1 1 0 0 1 1-1h4l2 2h8a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7Z'],
+  save: ['M5 4h11l3 3v13H5V4Z', 'M8 4v5h7V4', 'M8 14h8v6H8z'],
+  share: ['M9 12a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0Z', 'M20 6a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0Z', 'M20 18a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0Z', 'm9.2 10.8 6.6-3.6', 'm9.2 13.2 6.6 3.6'],
+  download: ['M12 4v10m0 0 4-4m-4 4-4-4M5 19h14'],
+};
+function PbIco({ name }) {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}>
+      {(PB_ICO[name] || []).map((d, i) => (
+        <path key={i} d={d} stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+      ))}
+    </svg>
+  );
+}
+
 const PRODUCT_DEFAULTS = {
   name: '', L: '', W: '', H: '', qty: '', weight: '', mustBeBase: false, noRotate: false, imgUrl: null,
 };
@@ -1048,16 +1066,16 @@ export default function PalletBuilder() {
               onClick={() => setShowStatusPicker(v => !v)}
               title={currentJobStatusCfg.label}
               style={{
-                padding: '6px 12px', fontSize: 10, fontFamily: "'Inter', system-ui, -apple-system, sans-serif", letterSpacing: '0.4px',
+                padding: '0.45rem 0.7rem', fontSize: '0.85rem', fontFamily: "'Inter', system-ui, -apple-system, sans-serif",
                 borderRadius: 'var(--radius)', cursor: 'pointer',
-                border: `1px solid ${currentJobStatusCfg.color}55`,
-                background: currentJobStatusCfg.bg, color: currentJobStatusCfg.color,
-                display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap', fontWeight: 700,
+                border: '1px solid var(--border-2)',
+                background: 'var(--surface)', color: 'var(--text-2)',
+                display: 'flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap', fontWeight: 600,
               }}
             >
-              <span>{currentJobStatusCfg.icon}</span>
+              <span style={{ width: 8, height: 8, borderRadius: '50%', background: currentJobStatusCfg.color, flexShrink: 0 }} />
               <span>{currentJobStatusCfg.label}</span>
-              <span style={{ opacity: 0.6 }}>▾</span>
+              <span style={{ color: 'var(--text-3)', fontSize: 10 }}>▾</span>
             </button>
             {showStatusPicker && (
               <div className="pb-status-menu" style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, zIndex: 50, background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: 6, boxShadow: 'var(--shadow-md)', display: 'grid', gap: 3, minWidth: 220 }}>
@@ -1098,7 +1116,7 @@ export default function PalletBuilder() {
               display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap', fontWeight: 600,
             }}
           >
-            🔗 {currentJobTracking ? 'Link seguimiento' : 'Sin link'}
+            <PbIco name="link" /> {currentJobTracking ? 'Link seguimiento' : 'Sin link'}
           </button>
 
           {/* Toggle modo Auto / Manual */}
@@ -1113,7 +1131,7 @@ export default function PalletBuilder() {
                 color: buildMode === 'auto' ? '#fff' : 'var(--text-3)',
               }}
               title="El motor arma los pallets automáticamente"
-            >🤖 Auto</button>
+            >Auto</button>
             <button
               type="button"
               onClick={() => setBuildMode('manual')}
@@ -1124,7 +1142,7 @@ export default function PalletBuilder() {
                 color: buildMode === 'manual' ? '#fff' : 'var(--text-3)',
               }}
               title="Vos armás el pallet con asistencia del motor (snap, gravedad, sugerencias)"
-            >✋ Manual</button>
+            >Manual</button>
           </div>
 
           <div style={{ display: 'flex', gap: 6, marginLeft: 'auto', flexWrap: 'wrap' }}>
@@ -1133,20 +1151,20 @@ export default function PalletBuilder() {
                 + Nuevo
               </button>
             )}
-            <button type="button" className="pb-toolbar-btn" onClick={handleLoadList} style={{ padding: '6px 12px', fontSize: 11, borderRadius: 'var(--radius)', border: '1px solid var(--border-2)', background: 'var(--surface)', color: 'var(--text)', cursor: 'pointer', fontFamily: "'Inter', system-ui, -apple-system, sans-serif", fontWeight: 600 }}>
-              📂 Cargar
+            <button type="button" className="pb-toolbar-btn" onClick={handleLoadList} style={{ padding: '6px 12px', fontSize: 11, borderRadius: 'var(--radius)', border: '1px solid var(--border-2)', background: 'var(--surface)', color: 'var(--text)', cursor: 'pointer', fontFamily: "'Inter', system-ui, -apple-system, sans-serif", fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <PbIco name="folder" /> Cargar
             </button>
-            <button type="button" onClick={openSaveModal} disabled={!products.length} style={{ padding: '6px 14px', fontSize: 11, borderRadius: 'var(--radius)', border: '1px solid var(--accent)', background: 'var(--accent)', color: '#fff', cursor: products.length ? 'pointer' : 'default', fontFamily: "'Inter', system-ui, -apple-system, sans-serif", fontWeight: 700, opacity: products.length ? 1 : 0.5 }}>
-              💾 Guardar
+            <button type="button" onClick={openSaveModal} disabled={!products.length} style={{ padding: '6px 12px', fontSize: 11, borderRadius: 'var(--radius)', border: '1px solid var(--border-2)', background: 'var(--surface)', color: 'var(--text)', cursor: products.length ? 'pointer' : 'default', fontFamily: "'Inter', system-ui, -apple-system, sans-serif", fontWeight: 600, opacity: products.length ? 1 : 0.5, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <PbIco name="save" /> Guardar
             </button>
             <button
               type="button"
               onClick={handleSharePallet}
               disabled={!results.length || isSharing}
               title="Genera un link público de solo-lectura"
-              style={{ padding: '6px 12px', fontSize: 11, borderRadius: 'var(--radius)', border: `1px solid ${currentJobIsPublic ? 'var(--green)' : 'var(--border-2)'}`, background: currentJobIsPublic ? 'var(--green-dim)' : 'var(--surface)', color: currentJobIsPublic ? 'var(--green)' : 'var(--text)', cursor: (results.length && !isSharing) ? 'pointer' : 'default', fontFamily: "'Inter', system-ui, -apple-system, sans-serif", fontWeight: 700, opacity: results.length ? 1 : 0.5 }}
+              style={{ padding: '6px 12px', fontSize: 11, borderRadius: 'var(--radius)', border: `1px solid ${currentJobIsPublic ? 'var(--green)' : 'var(--border-2)'}`, background: currentJobIsPublic ? 'var(--green-dim)' : 'var(--surface)', color: currentJobIsPublic ? 'var(--green)' : 'var(--text)', cursor: (results.length && !isSharing) ? 'pointer' : 'default', fontFamily: "'Inter', system-ui, -apple-system, sans-serif", fontWeight: 600, opacity: results.length ? 1 : 0.5, display: 'flex', alignItems: 'center', gap: 6 }}
             >
-              {isSharing ? '🔗 ...' : (currentJobIsPublic ? '🔗 Link activo' : '🔗 Compartir')}
+              <PbIco name="share" /> {isSharing ? '...' : (currentJobIsPublic ? 'Link activo' : 'Compartir')}
             </button>
             <button
               type="button"
@@ -1154,9 +1172,9 @@ export default function PalletBuilder() {
               onClick={handleExportPDF}
               disabled={!results.length || isExportingPDF}
               title="Genera un PDF con fotos, productos, precios y guía de carga"
-              style={{ padding: '6px 12px', fontSize: 11, borderRadius: 'var(--radius)', border: '1px solid var(--border-2)', background: 'var(--surface)', color: 'var(--text)', cursor: (results.length && !isExportingPDF) ? 'pointer' : 'default', fontFamily: "'Inter', system-ui, -apple-system, sans-serif", fontWeight: 700, opacity: results.length ? 1 : 0.5 }}
+              style={{ padding: '6px 12px', fontSize: 11, borderRadius: 'var(--radius)', border: '1px solid var(--border-2)', background: 'var(--surface)', color: 'var(--text)', cursor: (results.length && !isExportingPDF) ? 'pointer' : 'default', fontFamily: "'Inter', system-ui, -apple-system, sans-serif", fontWeight: 600, opacity: results.length ? 1 : 0.5, display: 'flex', alignItems: 'center', gap: 6 }}
             >
-              {isExportingPDF ? '📄 ...' : '📄 PDF'}
+              <PbIco name="download" /> {isExportingPDF ? '...' : 'PDF'}
             </button>
           </div>
         </div>
