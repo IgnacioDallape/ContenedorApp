@@ -1519,6 +1519,15 @@ export default function ContainerLoader() {
             })()}
 
             {/* Container type selector */}
+            {/* Mobile: el selector de tipo se vuelve un dropdown nativo (mismo handler) */}
+            <select className="cl-cont-select-mobile" value={currentContainerType} disabled={!canEditShipment}
+              onChange={e => { if (!ensureEditable('editar este embarque')) return; handleChangeContainerType(e.target.value); }}>
+              <option value="20ft">20' Dry — 5.9×2.35×2.39m</option>
+              <option value="40ft">40' Dry — 12.0×2.35×2.39m</option>
+              <option value="40hc">40' HC — 12.0×2.35×2.69m</option>
+              <option value="semi145">Semi 14.5m — 14.5×2.44×2.70m</option>
+              <option value="semi155">Semi 15.5m — 15.5×2.44×2.70m</option>
+            </select>
             <div className="container-selector">
               <span className="container-selector-label">Contenedor</span>
               {[

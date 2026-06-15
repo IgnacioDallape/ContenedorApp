@@ -114,8 +114,24 @@
   border: none !important;
 }
 .cl-section .container-selector-label { display: none !important; }
+
+/* Mobile: el selector de TIPO de contenedor pasa a un dropdown nativo
+   (los 5 cards apilados ocupaban demasiado alto en el celular). */
+.cl-section .cl-cont-select-mobile { display: none; }
 @media (max-width: 720px) {
-  .cl-section .container-selector { grid-template-columns: repeat(2, 1fr) !important; }
+  .cl-section .container-selector { display: none !important; }
+  .cl-section .cl-cont-select-mobile {
+    display: block;
+    margin: 0 1.7rem 12px;
+    padding: 11px 12px;
+    border: 1px solid var(--border-2);
+    border-radius: var(--radius);
+    background: var(--surface);
+    color: var(--text);
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    font-size: 0.92rem;
+    font-weight: 600;
+  }
 }
 
 /* ── WARNING BAR — rojo plano ────────────────────────────────────────── */
