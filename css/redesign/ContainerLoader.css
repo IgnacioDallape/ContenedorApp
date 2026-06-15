@@ -60,7 +60,7 @@
    hacía crecer cada card. La ocultamos (el chip del head ya da el dato) y
    apretamos el padding → la fila baja a ~la mitad de alto. */
 #section-container .cl-topbar-row .stat-sub { display: none !important; }
-#section-container .cl-topbar-row .stat-item { padding: 0.45rem 0.8rem !important; }
+#section-container .cl-topbar-row .stat-item { padding: 0.45rem 0.8rem 0.8rem !important; }
 #section-container .cl-topbar-row .stat-head { margin-bottom: 2px !important; }
 
 /* ── CONTAINER TYPE SELECTOR — fila compacta de toggles rectangulares ─── */
