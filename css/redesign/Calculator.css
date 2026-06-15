@@ -1,0 +1,41 @@
+/* ════════════════════════════════════════════════════════════════════
+   Redesign — Calculator (ImportaPro "Minimal / Petróleo")
+   Solo presentación. La lógica vive en el componente.
+   Cargado vía import en Calculator.jsx (Vite bundle).
+   ════════════════════════════════════════════════════════════════════ */
+
+/* Hint informativo bajo el toggle de moneda (rates en vivo) */
+.currency-hint {
+  font-size: 0.78rem;
+  color: var(--text-3);
+  margin-top: 8px;
+  line-height: 1.5;
+}
+.currency-hint strong { color: var(--green); font-weight: 600; }
+
+/* Badge NCM rectangular (esquina del panel Aranceles) — minimal, no pill */
+.calc-ncm-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  border-radius: 4px;
+  border: 1px solid var(--red-dim, rgba(180,35,24,0.25));
+  background: var(--red-dim, rgba(180,35,24,0.08));
+  color: var(--red, #b42318);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  font-family: var(--font);
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.calc-ncm-badge:hover {
+  background: var(--red, #b42318);
+  border-color: var(--red, #b42318);
+  color: #fff;
+}
+
+/* Toggle de moneda con 4 opciones (ARS/USD/CNY/EUR) — chips parejos */
+.currency-toggle.cur-4 .ctog-btn { padding-left: 4px; padding-right: 4px; }

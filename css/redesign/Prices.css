@@ -1,0 +1,122 @@
+/* ────────────────────────────────────────────────────────────
+   Precios confirmados — rediseño "ImportaPro Minimal / Petróleo"
+   Overrides puntuales para igualar la maqueta del kit sin tocar
+   lógica. Solo presentación. Scope: #section-prices.
+   ──────────────────────────────────────────────────────────── */
+
+/* ── Stats grid: superficies planas, acento petróleo (sin RGBA cálidos) ── */
+#section-prices .prices-stat-card {
+  background: var(--surface) !important;
+  border: 1px solid var(--border) !important;
+  border-left: 3px solid var(--accent) !important;
+  border-radius: 6px !important;
+  box-shadow: none !important;
+}
+#section-prices .prices-stat-card.is-green { border-left-color: var(--green) !important; }
+#section-prices .prices-stat-card.is-amber { border-left-color: var(--amber) !important; }
+
+#section-prices .prices-stat-label {
+  font-size: 0.62rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-3);
+}
+#section-prices .prices-stat-value {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-size: 2rem;
+  font-weight: 600;
+  line-height: 1;
+  margin-top: 8px;
+}
+
+/* ── Carrito + cierre: tarjetas planas blancas (sin gradientes cálidos) ── */
+#section-prices .prices-order-card,
+#section-prices .prices-summary-card {
+  background: var(--surface) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 6px !important;
+}
+#section-prices .prices-order-card {
+  border-left: 3px solid var(--accent) !important;
+}
+
+/* ── Steppers: 34×34, hairline, esquina chica (maqueta) ── */
+#section-prices .prices-stepper-btn {
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border-radius: 4px !important;
+  display: grid;
+  place-items: center;
+  font-size: 16px;
+  line-height: 1;
+}
+
+/* ── Footer del plan: superficie plana, borde petróleo arriba ── */
+#section-prices .prices-plan-footer {
+  background: var(--surface) !important;
+}
+
+/* ── Tabla de canales: cabecera eyebrow, filas hairline ── */
+#section-prices .prices-channel-table thead th {
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 0.66rem !important;
+  color: var(--text-3) !important;
+  font-weight: 600 !important;
+}
+
+/* ── Barra de pedido fija abajo (maqueta del kit) ── */
+#section-prices .prices-order-bar {
+  position: fixed;
+  left: var(--sidebar-w, 240px);
+  right: 0;
+  bottom: 0;
+  z-index: 30;
+  background: var(--bg-2);
+  border-top: 1px solid var(--border);
+  box-shadow: 0 -4px 18px rgba(16, 24, 40, 0.06);
+  padding: 0.9rem 2rem;
+}
+#section-prices .prices-order-bar-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  max-width: 1180px;
+  margin: 0 auto;
+}
+#section-prices .prices-order-bar-summary {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+#section-prices .prices-order-bar-eyebrow {
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-3);
+}
+#section-prices .prices-order-bar-text {
+  font-size: 0.95rem;
+  color: var(--text-2);
+}
+#section-prices .prices-order-bar-text strong { color: var(--text); }
+#section-prices .prices-order-bar-text .accent { color: var(--accent); }
+#section-prices .prices-order-bar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Deja aire al final para que la barra fija no tape el último plan. */
+#section-prices .prices-bottom-spacer { height: 84px; }
+
+@media (max-width: 760px) {
+  #section-prices .prices-order-bar { left: 0; padding: 0.75rem 1rem; }
+}

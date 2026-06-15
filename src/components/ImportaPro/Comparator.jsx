@@ -3,9 +3,10 @@ import useImportaproStore from '../../stores/importaproStore.js';
 import useAppStore from '../../stores/appStore.js';
 import { ars, rd } from '../../lib/formatters.js';
 import { calcCostos } from './Calculator.jsx';
+import '../../../css/redesign/Comparator.css';
 
-const SLOT_COLORS = ['#4a7dc1', '#27ae60'];
-const CANAL_COLORS_LIST = ['var(--accent)', '#27ae60', 'var(--amber)', '#7ba3d4', '#6b9b8b'];
+const SLOT_COLORS = ['#2f6fb0', '#2f9e6a'];
+const CANAL_COLORS_LIST = ['var(--accent)', '#2f9e6a', 'var(--amber)', '#5b9bd5', '#2f6fb0'];
 
 function chanGanNeta(ch, costoARS) {
   if (!ch || !ch.precio) return null;
@@ -16,12 +17,14 @@ function chanGanNeta(ch, costoARS) {
 function CompBadge({ better }) {
   return better ? (
     <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 4,
-      background: '#27ae6015', color: '#27ae60', border: '1px solid #27ae6030', whiteSpace: 'nowrap' }}>
+      background: 'var(--green-dim)', color: 'var(--green)', border: '1px solid rgba(6,118,71,0.25)', whiteSpace: 'nowrap',
+      textTransform: 'uppercase', letterSpacing: '0.05em' }}>
       ▲ mejor
     </span>
   ) : (
     <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 4,
-      background: '#c0392b10', color: '#c0392b', border: '1px solid #c0392b25', whiteSpace: 'nowrap' }}>
+      background: 'var(--red-dim)', color: 'var(--red)', border: '1px solid rgba(180,35,24,0.25)', whiteSpace: 'nowrap',
+      textTransform: 'uppercase', letterSpacing: '0.05em' }}>
       ▼ peor
     </span>
   );
@@ -40,15 +43,15 @@ function ProductCard({ slotIdx, product, onSelect, savedProducts, c }) {
   return (
     <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 12 }}>
       {/* Selector */}
-      <div style={{ background: 'var(--bg-3)', border: `2px solid ${color}`, borderRadius: 12, padding: '12px 16px' }}>
-        <div style={{ fontSize: 11, fontWeight: 700, color, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>
+      <div className="comparator-product-selector" style={{ background: 'var(--surface)', border: `1.5px solid ${color}`, borderRadius: 6, padding: '12px 14px' }}>
+        <div style={{ fontSize: '0.7rem', fontWeight: 700, color, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
           Producto {slotIdx + 1}
         </div>
         <select
           value={product?.nombre || ''}
           onChange={e => onSelect(savedProducts.find(p => p.nombre === e.target.value) || null)}
-          style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: `1.5px solid ${color}50`,
-            background: 'var(--bg)', color: 'var(--text)', fontFamily: 'var(--font)', fontSize: 14, cursor: 'pointer', outline: 'none' }}
+          style={{ width: '100%', padding: '9px 12px', borderRadius: 4, border: '1px solid var(--border-2)',
+            background: 'var(--surface)', color: 'var(--text)', fontFamily: 'var(--font)', fontSize: 14, fontWeight: 600, cursor: 'pointer', outline: 'none' }}
         >
           <option value="">— Elegí un producto —</option>
           {savedProducts.map(p => (
@@ -60,28 +63,28 @@ function ProductCard({ slotIdx, product, onSelect, savedProducts, c }) {
       {c && product ? (
         <>
           {/* Costo principal */}
-          <div style={{ background: 'var(--bg-3)', border: '1px solid var(--border)', borderRadius: 12, padding: '16px 18px' }}>
-            <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>
+          <div className="comparator-cost-card" style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 6, padding: '1.1rem 1.2rem' }}>
+            <div style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>
               Costo por unidad
             </div>
-            <div style={{ fontSize: 32, fontWeight: 800, color: 'var(--text)', fontFamily: "'Inter', system-ui, -apple-system, sans-serif", lineHeight: 1.1 }}>
+            <div style={{ fontSize: '2rem', fontWeight: 700, color: 'var(--text)', fontFamily: "'Inter', system-ui, -apple-system, sans-serif", lineHeight: 1.1 }}>
               {ars(c.costoARS)}
             </div>
-            <div style={{ fontSize: 13, color: 'var(--text-3)', marginTop: 3 }}>
+            <div style={{ fontSize: '0.85rem', color: 'var(--text-3)', marginTop: 6 }}>
               U$S {rd(c.costoUSD, 2)} · lote {product.qty} u · total {ars(c.costoARS * c.qty)}
             </div>
 
             {/* Composition bar */}
-            <div style={{ display: 'flex', height: 6, borderRadius: 4, overflow: 'hidden', marginTop: 14, gap: 1 }}>
+            <div className="comparator-distribution-bar" style={{ display: 'flex', height: 7, borderRadius: 3, overflow: 'hidden', marginTop: 12, gap: 1 }}>
               {bars.map((b, i) => (
-                <div key={i} style={{ flex: Math.max(b.pct, 0.5), background: b.color, borderRadius: 2 }}
+                <div key={i} style={{ flex: Math.max(b.pct, 0.5), background: b.color }}
                   title={`${b.label}: ${rd(b.pct, 1)}%`} />
               ))}
             </div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 10px', marginTop: 7 }}>
+            <div className="comparator-distribution-legend" style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 10px', marginTop: 9, fontSize: '0.72rem' }}>
               {bars.map((b, i) => (
-                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'var(--text-3)' }}>
-                  <span style={{ width: 7, height: 7, borderRadius: 1, background: b.color, flexShrink: 0 }} />
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 5, color: 'var(--text-2)' }}>
+                  <span style={{ width: 8, height: 8, borderRadius: 2, background: b.color, flexShrink: 0 }} />
                   {b.label} <strong style={{ color: 'var(--text-2)' }}>{rd(b.pct, 1)}%</strong>
                 </div>
               ))}
@@ -89,31 +92,31 @@ function ProductCard({ slotIdx, product, onSelect, savedProducts, c }) {
           </div>
 
           {/* Desglose */}
-          <div style={{ background: 'var(--bg-3)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
+          <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 6, overflow: 'hidden' }}>
             {[
-              { label: 'FOB',                       val: `U$S ${rd(c.fob, 3)}`,                                  color: '#4a7dc1' },
-              { label: 'Flete + seguro',             val: `U$S ${rd(c.fleteUnit + c.seguroUnit, 2)}`,             color: '#4a8ac4' },
-              { label: 'Despacho + flete int.',      val: `U$S ${rd(c.despachanteUnit + c.fleteInternoUnit, 2)}`, color: '#6b9b8b' },
-              { label: `Trader (${c.traderPct}%)`,   val: `U$S ${rd(c.traderUnit, 3)}`,                          color: '#7ba3d4' },
-              { label: `D.I. (${c.di}%)`,            val: `U$S ${rd(c.diUnit, 2)}`,                              color: '#c0392b' },
-              { label: `IVA imp. (${c.ivaImp}%)`,   val: `U$S ${rd(c.ivaUnit, 2)}`,                             color: '#e07070' },
-              { label: `T.E. (${c.te}%)`,            val: `U$S ${rd(c.teUnit, 3)}`,                              color: '#e09070' },
+              { label: 'FOB',                       val: `U$S ${rd(c.fob, 3)}`,                                  color: '#2f6fb0' },
+              { label: 'Flete + seguro',             val: `U$S ${rd(c.fleteUnit + c.seguroUnit, 2)}`,             color: '#5b9bd5' },
+              { label: 'Despacho + flete int.',      val: `U$S ${rd(c.despachanteUnit + c.fleteInternoUnit, 2)}`, color: '#2f9e6a' },
+              { label: `Trader (${c.traderPct}%)`,   val: `U$S ${rd(c.traderUnit, 3)}`,                          color: '#d9a64a' },
+              { label: `D.I. (${c.di}%)`,            val: `U$S ${rd(c.diUnit, 2)}`,                              color: '#c2603f' },
+              { label: `IVA imp. (${c.ivaImp}%)`,   val: `U$S ${rd(c.ivaUnit, 2)}`,                             color: '#cf7a5c' },
+              { label: `T.E. (${c.te}%)`,            val: `U$S ${rd(c.teUnit, 3)}`,                              color: '#dca07f' },
             ].map(({ label, val, color: rc }, i) => (
-              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 14px',
-                borderBottom: '1px solid var(--border)', borderLeft: `3px solid ${rc}` }}>
-                <span style={{ fontSize: 13, color: 'var(--text-2)' }}>{label}</span>
-                <span style={{ fontSize: 13, fontWeight: 600, fontFamily: "'Inter', system-ui, -apple-system, sans-serif", color: 'var(--text)' }}>{val}</span>
+              <div key={i} className="comparator-breakdown-row" style={{ display: 'flex', justifyContent: 'space-between', padding: '9px 14px',
+                borderBottom: '1px solid var(--border)', borderLeft: `3px solid ${rc}`, fontSize: '0.85rem' }}>
+                <span style={{ color: 'var(--text-2)' }}>{label}</span>
+                <span style={{ fontWeight: 600, fontFamily: "'Inter', system-ui, -apple-system, sans-serif", color: 'var(--text)' }}>{val}</span>
               </div>
             ))}
-            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px',
-              background: color, borderLeft: `3px solid ${color}` }}>
-              <span style={{ fontSize: 13, fontWeight: 700, color: '#fff', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Total por unidad</span>
-              <span style={{ fontSize: 15, fontWeight: 800, fontFamily: "'Inter', system-ui, -apple-system, sans-serif", color: '#fff' }}>U$S {rd(c.costoUSD, 2)}</span>
+            <div className="comparator-breakdown-footer" style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 14px',
+              background: color }}>
+              <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#fff', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Total por unidad</span>
+              <span style={{ fontSize: '0.9rem', fontWeight: 700, fontFamily: "'Inter', system-ui, -apple-system, sans-serif", color: '#fff' }}>U$S {rd(c.costoUSD, 2)}</span>
             </div>
           </div>
         </>
       ) : (
-        <div style={{ background: 'var(--bg-3)', border: '1px dashed var(--border)', borderRadius: 12,
+        <div style={{ background: 'var(--surface)', border: '1px dashed var(--border-2)', borderRadius: 6,
           padding: '50px 24px', textAlign: 'center', color: 'var(--text-3)', fontSize: 14 }}>
           Seleccioná un producto
         </div>
@@ -166,7 +169,7 @@ export default function Comparator() {
               Calculá y guardá productos desde la calculadora para poder compararlos
             </div>
             <button onClick={() => setActiveSection('calc')}
-              style={{ padding: '10px 24px', borderRadius: 8, background: 'var(--accent)', color: '#fff',
+              style={{ padding: '10px 24px', borderRadius: 4, background: 'var(--accent)', color: '#fff',
                 border: 'none', fontFamily: 'var(--font)', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
               Ir a la calculadora →
             </button>
@@ -176,20 +179,21 @@ export default function Comparator() {
             {/* Winner banner */}
             {hasBoth && overallWinner !== null && (
               <div style={{ display: 'flex', alignItems: 'center', gap: 14,
-                background: `${SLOT_COLORS[overallWinner]}10`,
-                border: `1.5px solid ${SLOT_COLORS[overallWinner]}40`,
-                borderRadius: 12, padding: '14px 20px', marginBottom: 20 }}>
-                <span style={{ fontSize: 28 }}>🏆</span>
+                background: 'var(--accent-soft, rgba(14,90,107,0.08))',
+                border: '1px solid var(--border)',
+                borderRadius: 6, padding: '14px 18px', marginBottom: 18 }}>
+                <span style={{ width: 38, height: 38, borderRadius: 6, background: 'var(--surface)',
+                  display: 'grid', placeItems: 'center', fontSize: 20, flexShrink: 0 }}>🏆</span>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 12, fontWeight: 600, color: SLOT_COLORS[overallWinner],
+                  <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--accent)',
                     textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 3 }}>
                     Producto más económico
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
-                    <span style={{ fontSize: 18, fontWeight: 800, color: 'var(--text)' }}>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text)' }}>
                       {overallWinner === 0 ? prodA?.nombre : prodB?.nombre}
                     </span>
-                    <span style={{ fontSize: 14, color: 'var(--text-3)' }}>
+                    <span style={{ fontSize: '0.9rem', color: 'var(--text-3)' }}>
                       {ars(Math.abs(cA.costoARS - cB.costoARS))} menos por unidad
                     </span>
                   </div>
@@ -198,7 +202,7 @@ export default function Comparator() {
             )}
 
             {/* Slots lado a lado */}
-            <div className="comparator-slots-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, alignItems: 'start' }}>
+            <div className="comparator-slots-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18, alignItems: 'start' }}>
               <ProductCard slotIdx={0} product={prodA} onSelect={setProdA} savedProducts={savedProducts} c={cA} />
               <ProductCard slotIdx={1} product={prodB} onSelect={setProdB} savedProducts={savedProducts} c={cB} />
             </div>
@@ -210,83 +214,70 @@ export default function Comparator() {
                   <span className="card-title">Ganancia por canal de venta</span>
                   <span style={{ fontSize: 12, color: 'var(--text-3)' }}>por unidad vendida</span>
                 </div>
-                <div className="comparator-channel-list" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div className="comparator-channel-list" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                   {sharedCanales.map((ch, i) => {
                     const ganA = chanGanNeta(ch, cA.costoARS);
                     const ganB = chanGanNeta(ch, cB.costoARS);
                     const maxAbs = Math.max(Math.abs(ganA || 0), Math.abs(ganB || 0), 1);
-                    const color = CANAL_COLORS_LIST[i % CANAL_COLORS_LIST.length];
                     const aWins = ganA !== null && ganB !== null && ganA > ganB;
                     const bWins = ganA !== null && ganB !== null && ganB > ganA;
                     const tie   = ganA !== null && ganB !== null && ganA === ganB;
+                    const bothNeg = (ganA === null || ganA < 0) && (ganB === null || ganB < 0);
+                    const edgeColor = bothNeg ? 'var(--red)' : SLOT_COLORS[aWins ? 0 : 1];
 
                     return (
-                      <div key={i} style={{ background: 'var(--bg-3)', borderRadius: 10,
-                        border: '1px solid var(--border)', overflow: 'hidden' }}>
+                      <div key={i} className="comparator-channel-item" style={{ borderLeft: `3px solid ${edgeColor}`, paddingLeft: 14 }}>
                         {/* Canal header */}
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                          padding: '10px 16px', background: `${color}12`,
-                          borderBottom: '1px solid var(--border)', borderLeft: `4px solid ${color}` }}>
-                          <div>
-                            <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>{ch.nombre}</span>
-                            <span style={{ fontSize: 12, color: 'var(--text-3)', marginLeft: 10 }}>
-                              Precio {ars(ch.precio)} · Comisión {ch.comision}%
-                            </span>
-                          </div>
-                          {tie ? (
+                        <div className="comparator-channel-header" style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', marginBottom: 10 }}>
+                          <span style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text)' }}>{ch.nombre}</span>
+                          <span style={{ fontSize: '0.82rem', color: 'var(--text-3)' }}>
+                            Precio {ars(ch.precio)} · Comisión {ch.comision}%
+                          </span>
+                          {tie && (
                             <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-3)',
-                              padding: '3px 10px', borderRadius: 6, background: 'var(--bg-2)',
-                              border: '1px solid var(--border)' }}>Empate</span>
-                          ) : (
-                            <span style={{ fontSize: 11, fontWeight: 700, color: '#27ae60',
-                              padding: '3px 10px', borderRadius: 6,
-                              background: '#27ae6012', border: '1px solid #27ae6030' }}>
-                              🏆 {aWins ? (prodA?.nombre || 'Producto 1') : (prodB?.nombre || 'Producto 2')}
-                            </span>
+                              padding: '2px 8px', borderRadius: 4, background: 'var(--surface2)',
+                              border: '1px solid var(--border)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Empate</span>
                           )}
                         </div>
 
-                        {/* Bars */}
-                        <div className="comparator-channel-grid" style={{ padding: '14px 16px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-                          {[
-                            { prod: prodA, gan: ganA, color: SLOT_COLORS[0], wins: aWins, loses: bWins },
-                            { prod: prodB, gan: ganB, color: SLOT_COLORS[1], wins: bWins, loses: aWins },
-                          ].map(({ prod, gan, color: sc, wins, loses }, si) => {
-                            const isNeg = gan !== null && gan < 0;
-                            const pct   = Math.abs(gan || 0) / maxAbs * 100;
-                            const margin = gan !== null && ch.precio > 0 ? (gan / ch.precio * 100) : null;
-                            return (
-                              <div key={si}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                        {/* Per-product rows */}
+                        {[
+                          { prod: prodA, gan: ganA, color: SLOT_COLORS[0], wins: aWins },
+                          { prod: prodB, gan: ganB, color: SLOT_COLORS[1], wins: bWins },
+                        ].map(({ prod, gan, color: sc, wins }, si) => {
+                          const isNeg = gan !== null && gan < 0;
+                          const pct   = Math.abs(gan || 0) / maxAbs * 100;
+                          const margin = gan !== null && ch.precio > 0 ? (gan / ch.precio * 100) : null;
+                          return (
+                            <div key={si} className="comparator-channel-product" style={{ marginBottom: 8 }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                                <span style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: '0.85rem', color: 'var(--text-2)',
+                                  minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                   <span style={{ width: 9, height: 9, borderRadius: 2, background: sc, flexShrink: 0 }} />
-                                  <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-2)',
-                                    flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                    {prod?.nombre || `Producto ${si + 1}`}
-                                  </span>
-                                  {!tie && (wins ? <CompBadge better={true} /> : <CompBadge better={false} />)}
-                                </div>
-                                <div style={{ height: 8, background: 'var(--border)', borderRadius: 6,
-                                  overflow: 'hidden', marginBottom: 6 }}>
-                                  <div style={{ height: '100%', width: `${pct}%`,
-                                    background: isNeg ? '#c0392b' : sc, borderRadius: 6,
+                                  {prod?.nombre || `Producto ${si + 1}`}
+                                </span>
+                                {!tie && (wins ? <CompBadge better={true} /> : <CompBadge better={false} />)}
+                              </div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                <div className="comparator-channel-bar" style={{ flex: 1, height: 8,
+                                  background: 'var(--bg-4)', borderRadius: 999, overflow: 'hidden' }}>
+                                  <div className="comparator-channel-bar-fill" style={{ height: '100%', width: `${pct}%`,
+                                    background: isNeg ? 'var(--red)' : sc, borderRadius: 999,
                                     transition: 'width 0.4s ease' }} />
                                 </div>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                                  <span style={{ fontSize: 17, fontWeight: 700,
-                                    color: isNeg ? '#c0392b' : 'var(--text)',
-                                    fontFamily: "'Inter', system-ui, -apple-system, sans-serif" }}>
-                                    {gan !== null ? ars(gan) : '—'}
-                                  </span>
-                                  {margin !== null && (
-                                    <span style={{ fontSize: 13, color: isNeg ? '#c0392b' : 'var(--text-3)', fontWeight: 600 }}>
-                                      {rd(margin, 1)}%
-                                    </span>
-                                  )}
-                                </div>
+                                <span style={{ fontSize: '0.9rem', fontWeight: 700, minWidth: 90, textAlign: 'right',
+                                  color: isNeg ? 'var(--red)' : 'var(--text)',
+                                  fontFamily: "'Inter', system-ui, -apple-system, sans-serif" }}>
+                                  {gan !== null ? ars(gan) : '—'}
+                                </span>
+                                <span style={{ fontSize: '0.8rem', fontWeight: 600, minWidth: 50, textAlign: 'right',
+                                  color: isNeg ? 'var(--red)' : 'var(--text-3)' }}>
+                                  {margin !== null ? `${rd(margin, 1)}%` : '—'}
+                                </span>
                               </div>
-                            );
-                          })}
-                        </div>
+                            </div>
+                          );
+                        })}
                       </div>
                     );
                   })}

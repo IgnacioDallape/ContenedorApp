@@ -1,0 +1,155 @@
+/* ───────────────────────────────────────────────────────────────────
+   Rediseño PalletBuilder — "ImportaPro Minimal / Petróleo"
+   Solo presentación. La lógica vive intacta en PalletBuilder.jsx.
+   Override de superficies cálidas → planas + acento petróleo.
+   ─────────────────────────────────────────────────────────────────── */
+
+/* --accent-soft no está definido en importapro-theme.css; lo proveemos
+   acá como wash petróleo muy claro (consistente con el design-system). */
+.pallet-builder-root {
+  --accent-soft: rgba(14, 90, 107, 0.10);
+}
+
+/* ── Inspector flotante: superficie blanca plana + borde fino ── */
+.pallet-builder-inspector {
+  background: var(--surface) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius-lg) !important;
+  box-shadow: var(--shadow-md) !important;
+  backdrop-filter: none !important;
+}
+
+/* Header del inspector: petróleo sólido + texto blanco */
+.pallet-builder-inspector > div:first-child {
+  background: var(--accent) !important;
+  color: #fff !important;
+  border-bottom: 1px solid var(--accent-light) !important;
+}
+
+/* Tarjetas internas (MEDIDAS / POSICIÓN) → gris frío plano */
+.pallet-builder-inspector .pb-insp-cell {
+  background: var(--bg-3) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius) !important;
+}
+
+/* Botones outline del inspector */
+.pallet-builder-inspector .pb-insp-btn {
+  border: 1px solid var(--border-2) !important;
+  background: var(--surface) !important;
+  color: var(--text) !important;
+  border-radius: var(--radius) !important;
+  cursor: pointer;
+}
+.pallet-builder-inspector .pb-insp-btn:hover {
+  background: var(--bg-3) !important;
+  border-color: var(--accent) !important;
+}
+.pallet-builder-inspector .pb-insp-btn[disabled] {
+  opacity: 0.45 !important;
+  cursor: not-allowed !important;
+}
+
+/* Botón primario del inspector (petróleo sólido) */
+.pallet-builder-inspector .pb-insp-btn-primary {
+  border: 1px solid var(--accent) !important;
+  background: var(--accent) !important;
+  color: #fff !important;
+  border-radius: var(--radius) !important;
+  cursor: pointer;
+  font-weight: 700;
+}
+.pallet-builder-inspector .pb-insp-btn-primary:hover {
+  background: var(--accent-light) !important;
+}
+
+/* Botón "Mover a reserva" (rojo semántico, plano) */
+.pallet-builder-inspector .pb-insp-btn-danger {
+  border: 1px solid rgba(180, 35, 24, 0.3) !important;
+  background: var(--red-dim) !important;
+  color: var(--red) !important;
+  border-radius: var(--radius) !important;
+  cursor: pointer;
+}
+.pallet-builder-inspector .pb-insp-btn-danger:hover {
+  background: rgba(180, 35, 24, 0.14) !important;
+}
+
+/* Caja de ayuda dentro del inspector */
+.pallet-builder-inspector .pb-insp-hint {
+  background: var(--bg-3) !important;
+  color: var(--text-2) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius) !important;
+}
+
+/* Cerrar (×) del header */
+.pallet-builder-inspector .pb-insp-close {
+  border: 1px solid rgba(255, 255, 255, 0.3) !important;
+  background: rgba(255, 255, 255, 0.14) !important;
+  color: #fff !important;
+}
+.pallet-builder-inspector .pb-insp-close:hover {
+  background: rgba(255, 255, 255, 0.24) !important;
+}
+
+/* ── Summary: botones de reorden → outline petróleo ── */
+.pallet-builder-summary .pb-reorder-btn {
+  border: 1px solid var(--border-2) !important;
+  background: var(--surface) !important;
+  color: var(--accent) !important;
+  border-radius: var(--radius) !important;
+}
+.pallet-builder-summary .pb-reorder-btn:hover {
+  background: var(--accent-dim) !important;
+  border-color: var(--accent) !important;
+}
+
+/* Tarjetas de stats del summary */
+.pallet-builder-summary .pb-stat-card {
+  background: var(--bg-3) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius) !important;
+}
+
+/* ── Reserva manual: borde punteado petróleo + fondo blanco ── */
+.pallet-builder-summary .pb-reserve-box {
+  border: 1px dashed var(--border-2) !important;
+  background: var(--surface) !important;
+  border-radius: var(--radius) !important;
+}
+.pallet-builder-summary .pb-reserve-reinsert {
+  border: 1px solid var(--border-2) !important;
+  background: var(--surface) !important;
+  color: var(--accent) !important;
+  border-radius: var(--radius) !important;
+}
+.pallet-builder-summary .pb-reserve-reinsert:hover {
+  background: var(--accent-dim) !important;
+  border-color: var(--accent) !important;
+}
+
+/* ── Eyebrow labels (UPPERCASE, tracking design-system) ── */
+.pallet-builder-root .pb-eyebrow {
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+  color: var(--text-3);
+}
+
+/* ── Toolbar: botones unificados (outline plano) ── */
+.pb-toolbar-btn {
+  border: 1px solid var(--border-2);
+  background: var(--surface);
+  color: var(--text);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+.pb-toolbar-btn:hover {
+  background: var(--bg-3);
+  border-color: var(--accent);
+}
+
+/* Picker de estado: items con radio chico */
+.pb-status-wrap .pb-status-menu { border-radius: var(--radius-lg); }
+.pb-status-wrap .pb-status-menu button { border-radius: var(--radius); }

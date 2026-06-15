@@ -3,6 +3,7 @@ import useImportaproStore from '../../stores/importaproStore.js';
 import useAppStore from '../../stores/appStore.js';
 import { ars } from '../../lib/formatters.js';
 import { SIMULATOR_CHANNELS, simulateChannelPrices } from '../../lib/pricing.js';
+import '../../../css/redesign/Simulator.css';
 
 function normalizeDraft(results, existingPlan) {
   const existingChannels = new Map((existingPlan?.channels || []).map(ch => [ch.nombre, ch]));
@@ -179,7 +180,7 @@ export default function Simulator() {
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                   {draftChannels.map(ch => (
-                    <div key={ch.nombre} style={{ padding: '12px 14px', borderRadius: 12, border: '1px solid var(--border)', background: 'linear-gradient(180deg, rgba(26,79,138,0.04), #fff)' }}>
+                    <div key={ch.nombre} className="sim-card-channel" style={{ padding: '12px 14px', borderRadius: 6, border: '1px solid var(--border)', background: '#fff' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', marginBottom: 10 }}>
                         <div>
                           <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>{ch.nombre}</div>
@@ -194,10 +195,11 @@ export default function Simulator() {
                       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) auto auto', gap: 10, alignItems: 'center' }}>
                         <input
                           type="number"
+                          className="sim-confirm-input"
                           value={ch.confirmado}
                           min="0"
                           onChange={e => updateDraftChannel(ch.nombre, { confirmado: parseFloat(e.target.value) || 0 })}
-                          style={{ minWidth: 0 }}
+                          style={{ minWidth: 80 }}
                         />
                         <span className={`badge badge-${ch.mgReal >= 30 ? 'green' : ch.mgReal >= 10 ? 'amber' : 'red'}`}>{ch.mgReal}% post-IIGG</span>
                         <span style={{ fontSize: 12, color: 'var(--text-3)', fontWeight: 600 }}>gan. {ars(ch.ganPost)}</span>
@@ -221,14 +223,14 @@ export default function Simulator() {
                 {results.map((ch, i) => {
                   const badge = ch.mgReal >= 30 ? 'green' : ch.mgReal >= 10 ? 'amber' : 'red';
                   return (
-                    <div key={i} style={{ padding: '14px', borderRadius: 14, border: '1px solid var(--border)', background: 'linear-gradient(180deg, rgba(26,79,138,0.03), #fff)' }}>
+                    <div key={i} className="sim-card-price" style={{ padding: '14px', borderRadius: 6, border: '1px solid var(--border)', background: '#fff' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, alignItems: 'start' }}>
                         <div>
                           <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>{ch.nombre}</div>
                           <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 3 }}>Comisión {ch.comision}%</div>
                         </div>
                         <div style={{ textAlign: 'right' }}>
-                          <div className="sim-price" style={{ fontSize: 24, fontWeight: 800, color: 'var(--accent)' }}>{ars(ch.precio)}</div>
+                          <div className="sim-price" style={{ fontSize: 22, fontWeight: 700, color: 'var(--accent)' }}>{ars(ch.precio)}</div>
                           <div style={{ fontSize: 11.5, marginTop: 4, display: 'flex', gap: 8, justifyContent: 'flex-end', alignItems: 'center' }}>
                             <span className={`badge badge-${badge}`}>{ch.mgReal}% post-IIGG</span>
                             <span style={{ color: 'var(--text-3)' }}>gan. {ars(ch.ganPost)}</span>

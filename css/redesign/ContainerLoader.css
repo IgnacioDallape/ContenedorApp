@@ -1,0 +1,133 @@
+/* ════════════════════════════════════════════════════════════════════
+   ContainerLoader — Rediseño "ImportaPro Minimal / Petróleo"
+   VERSIÓN SEGURA (cosmética): aplana/repinta a petróleo SIN ocultar la
+   sidebar ni romper el layout. El full-width 3D + dropdown "Añadir Cajas/
+   Pallet" de la maqueta es un cambio de UX más grande (mueve el form de
+   alta) y queda pendiente para hacerse con revisión. Acá: 0 riesgo funcional.
+   Scope: SIEMPRE bajo .cl-section para no tocar la nav global.
+   ════════════════════════════════════════════════════════════════════ */
+
+/* ── STATS STRIP → 3 tarjetas planas (Peso · Ocupación · Valor) ───────── */
+.cl-section .stats-strip {
+  background: transparent !important;
+  border: none !important;
+}
+/* La maqueta muestra solo 3 (Peso, Ocupación, Valor). Ocultamos volumen + unidades. */
+.cl-section .stats-strip .stat-item-volume,
+.cl-section .stats-strip .stat-item-units {
+  display: none !important;
+}
+/* Hay un SEGUNDO stats-strip que el JSX oculta con `display:none` inline;
+   lo mantenemos oculto (un override con !important lo estaba duplicando). */
+.cl-section .stats-strip[style*="display: none"],
+.cl-section .stats-strip[style*="display:none"] {
+  display: none !important;
+}
+.cl-section .stats-strip .stat-item {
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius) !important;
+  background: var(--surface) !important;
+  box-shadow: none !important;
+}
+.cl-section .stats-strip .stat-label {
+  font-size: 0.62rem !important;
+  font-weight: 600 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.06em !important;
+  color: var(--text-3) !important;
+}
+.cl-section .stats-strip .stat-chip {
+  background: transparent !important;
+  border: none !important;
+  color: var(--text-3) !important;
+}
+.cl-section .stats-strip .stat-chip.is-alert { color: var(--red) !important; }
+.cl-section .stats-strip .stat-value {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif !important;
+  font-weight: 600 !important;
+  color: var(--text) !important;
+}
+.cl-section .stats-strip .stat-item-weight.is-alert .stat-value { color: var(--red) !important; }
+/* la maqueta no muestra barras de progreso dentro de las cards */
+.cl-section .stats-strip .stat-progress,
+.cl-section .stats-strip .stat-progress-weight { display: none !important; }
+
+/* ── CONTAINER TYPE SELECTOR — fila compacta de toggles rectangulares ─── */
+.cl-section .cont-type-btn {
+  border-radius: var(--radius) !important;
+  border: 1px solid var(--border) !important;
+  background: var(--surface) !important;
+  color: var(--text) !important;
+  text-transform: none !important;
+  letter-spacing: 0 !important;
+}
+.cl-section .cont-type-btn:hover { border-color: var(--accent) !important; color: var(--accent) !important; }
+.cl-section .cont-type-btn.active {
+  border-color: var(--accent) !important;
+  background: var(--accent-dim) !important;
+  color: var(--accent) !important;
+}
+.cl-section .cont-type-btn small { color: var(--text-3) !important; }
+
+/* ── REORDER BUTTON — outline petróleo ───────────────────────────────── */
+.cl-section .reorder-btn {
+  border-radius: var(--radius) !important;
+  border: 1px solid var(--accent) !important;
+  background: transparent !important;
+  color: var(--accent) !important;
+}
+.cl-section .reorder-btn:hover { background: var(--accent-dim) !important; }
+
+/* ── WARNING BAR — rojo plano ────────────────────────────────────────── */
+.cl-section .warning-bar {
+  background: var(--red-dim) !important;
+  border: 1px solid var(--red) !important;
+  border-radius: var(--radius) !important;
+  color: var(--red) !important;
+}
+
+/* ── 3D CANVAS — marco plano frío ────────────────────────────────────── */
+.cl-section .canvas-wrap,
+.cl-section #canvasWrap {
+  background: #eef1f4 !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius-lg) !important;
+}
+
+/* ── INSPECTOR PANEL — blanco sólido + cabecera petróleo (sin warm/blur) ─ */
+.cl-section .cl-inspector-panel {
+  background: var(--surface) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius-lg) !important;
+  box-shadow: var(--shadow-md) !important;
+  backdrop-filter: none !important;
+}
+.cl-section .cl-inspector-panel > div:first-child {
+  background: var(--accent) !important;
+  color: #fff !important;
+}
+.cl-section .cl-inspector-panel [style*="rgba(255,255,255,0.5"] {
+  background: var(--bg-3) !important;
+  border-color: var(--border) !important;
+}
+.cl-section .cl-inspector-panel button[style*="rgba(141,121,102"] {
+  border-color: var(--border) !important;
+  color: var(--text) !important;
+}
+.cl-section .cl-inspector-panel button[style*="rgba(141,121,102"]:hover { background: var(--bg-3) !important; }
+
+/* ── TABLA DE DESGLOSE — plana, encabezados eyebrow ──────────────────── */
+.cl-section .layout > main.main thead th {
+  border-bottom: 2px solid var(--border) !important;
+  font-size: 0.68rem !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.05em !important;
+  color: var(--text-3) !important;
+  font-weight: 600 !important;
+  background: transparent !important;
+}
+.cl-section .layout > main.main tbody td {
+  border-bottom: 1px solid var(--border) !important;
+  color: var(--text-2) !important;
+}
+.cl-section .layout > main.main tbody tr:hover td { background: var(--bg-3) !important; }

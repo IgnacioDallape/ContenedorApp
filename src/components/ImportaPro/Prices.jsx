@@ -5,6 +5,7 @@ import useContainerStore from '../../stores/containerStore.js';
 import useAppStore from '../../stores/appStore.js';
 import { exportPurchaseOrderPDF } from '../../lib/exportPDF.js';
 import { ars } from '../../lib/formatters.js';
+import '../../../css/redesign/Prices.css';
 
 function formatDate(value) {
   if (!value) return 'Sin fecha';
@@ -183,17 +184,17 @@ export default function Prices() {
         </div>
 
         <div className="prices-stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14, marginBottom: 20 }}>
-          <div className="card" style={{ padding: '1rem 1.1rem', background: 'linear-gradient(180deg, rgba(26,79,138,0.05), #fff)' }}>
-            <div className="card-title">Productos listos</div>
-            <div style={{ fontFamily: 'var(--font-head)', fontSize: 34, color: 'var(--accent)', lineHeight: 1, marginTop: 8 }}>{publicationPlans.length}</div>
+          <div className="card prices-stat-card" style={{ padding: '1rem 1.1rem' }}>
+            <div className="prices-stat-label">Productos listos</div>
+            <div className="prices-stat-value" style={{ color: 'var(--accent)' }}>{publicationPlans.length}</div>
           </div>
-          <div className="card" style={{ padding: '1rem 1.1rem', background: 'linear-gradient(180deg, rgba(26,122,74,0.05), #fff)' }}>
-            <div className="card-title">Canales confirmados</div>
-            <div style={{ fontFamily: 'var(--font-head)', fontSize: 34, color: 'var(--green)', lineHeight: 1, marginTop: 8 }}>{totalChannels}</div>
+          <div className="card prices-stat-card is-green" style={{ padding: '1rem 1.1rem' }}>
+            <div className="prices-stat-label">Canales confirmados</div>
+            <div className="prices-stat-value" style={{ color: 'var(--green)' }}>{totalChannels}</div>
           </div>
-          <div className="card" style={{ padding: '1rem 1.1rem', background: 'linear-gradient(180deg, rgba(170,116,28,0.08), #fff)' }}>
-            <div className="card-title">Pedido armado</div>
-            <div style={{ fontFamily: 'var(--font-head)', fontSize: 34, color: 'var(--amber, #b57a19)', lineHeight: 1, marginTop: 8 }}>{totalOrderUnits}</div>
+          <div className="card prices-stat-card is-amber" style={{ padding: '1rem 1.1rem' }}>
+            <div className="prices-stat-label">Pedido armado</div>
+            <div className="prices-stat-value" style={{ color: 'var(--amber)' }}>{totalOrderUnits}</div>
             <div style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 8 }}>{orderItems.length} producto{orderItems.length === 1 ? '' : 's'} en carrito</div>
           </div>
         </div>
@@ -211,7 +212,7 @@ export default function Prices() {
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {orderItems.map(item => (
-                  <div key={item.productId} className="prices-order-card" style={{ border: '1px solid var(--border)', borderRadius: 12, padding: '12px 14px', background: 'linear-gradient(180deg, rgba(26,79,138,0.04), #fff)' }}>
+                  <div key={item.productId} className="prices-order-card" style={{ borderRadius: 6, padding: '12px 14px' }}>
                     <div className="prices-order-card-head" style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'start' }}>
                       <div>
                         <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>{item.productName}</div>
@@ -224,7 +225,7 @@ export default function Prices() {
                       </button>
                     </div>
                     <div className="prices-order-controls" style={{ display: 'grid', gridTemplateColumns: 'auto auto auto 1fr auto', gap: 8, alignItems: 'center', marginTop: 12 }}>
-                      <button className="btn-outline" onClick={() => changeOrderQty(item.productId, item.orderQty - 1)} style={{ width: 34, padding: '8px 0' }}>−</button>
+                      <button className="btn-outline prices-stepper-btn" onClick={() => changeOrderQty(item.productId, item.orderQty - 1)}>−</button>
                       <input
                         type="number"
                         min="0"
@@ -232,7 +233,7 @@ export default function Prices() {
                         onChange={e => changeOrderQty(item.productId, e.target.value)}
                         style={{ width: 76, textAlign: 'center' }}
                       />
-                      <button className="btn-outline" onClick={() => changeOrderQty(item.productId, item.orderQty + 1)} style={{ width: 34, padding: '8px 0' }}>+</button>
+                      <button className="btn-outline prices-stepper-btn" onClick={() => changeOrderQty(item.productId, item.orderQty + 1)}>+</button>
                       <div style={{ fontSize: 12, color: 'var(--text-3)' }}>
                         Costo unit. {ars(item.product?.costoARS || 0)}{item.product?.costoUSD ? ` · U$S ${Number(item.product.costoUSD).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : ''}
                       </div>
@@ -244,7 +245,7 @@ export default function Prices() {
             )}
           </div>
 
-          <div className="card" style={{ padding: '1rem 1.1rem', background: 'linear-gradient(180deg, rgba(141,121,102,0.05), #fff)' }}>
+          <div className="card prices-summary-card" style={{ padding: '1rem 1.1rem' }}>
             <div className="card-header" style={{ marginBottom: 6 }}>
               <span className="card-title">Cierre del pedido</span>
             </div>
@@ -288,7 +289,7 @@ export default function Prices() {
                   Cargar pedido al contenedor
                 </button>
               ) : (
-                <div style={{ fontSize: 11.5, color: 'var(--text-3)', lineHeight: 1.5, padding: '10px 12px', borderRadius: 10, background: 'rgba(141,121,102,0.05)', border: '1px solid var(--border)' }}>
+                <div style={{ fontSize: 11.5, color: 'var(--text-3)', lineHeight: 1.5, padding: '10px 12px', borderRadius: 6, background: 'var(--bg-3)', border: '1px solid var(--border)' }}>
                   En planes Pro y Pro Max aparece el botón para mandar esta selección directo al Container Loader usando las medidas reales de cada producto.
                 </div>
               )}
@@ -334,7 +335,7 @@ export default function Prices() {
 
                 {isExpanded && (
                 <div style={{ overflowX: 'auto', borderTop: '1px solid var(--border)' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                  <table className="prices-channel-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                     <thead>
                       <tr style={{ borderBottom: '1px solid var(--border)' }}>
                         {['Canal', 'Precio confirmado', 'Sugerido', 'Comisión', 'Ganancia/u', 'Margen post-IIGG'].map(h => (
@@ -361,7 +362,7 @@ export default function Prices() {
                 </div>
                 )}
 
-                <div className="prices-plan-footer" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto auto auto auto auto', gap: 10, alignItems: 'center', padding: '14px 16px', borderTop: '1px solid var(--border)', background: 'linear-gradient(180deg, rgba(26,79,138,0.03), rgba(26,79,138,0.01))' }}>
+                <div className="prices-plan-footer" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto auto auto auto auto', gap: 10, alignItems: 'center', padding: '14px 16px', borderTop: '1px solid var(--border)' }}>
                   <div className="prices-plan-footer-copy">
                     <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)' }}>Pedido definitivo</div>
                     <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 3 }}>
@@ -373,7 +374,7 @@ export default function Prices() {
                   <button className="btn-outline" onClick={() => togglePlanDetails(plan.productId)} style={{ minWidth: 136 }}>
                     {isExpanded ? 'Ocultar canales' : 'Ver canales'}
                   </button>
-                  <button className="btn-outline" onClick={() => changeOrderQty(plan.productId, plan.orderQty - 1)} style={{ width: 36, padding: '8px 0' }}>-</button>
+                  <button className="btn-outline prices-stepper-btn" onClick={() => changeOrderQty(plan.productId, plan.orderQty - 1)}>−</button>
                   <input
                     type="number"
                     min="0"
@@ -381,7 +382,7 @@ export default function Prices() {
                     onChange={e => changeOrderQty(plan.productId, e.target.value)}
                     style={{ width: 86, textAlign: 'center' }}
                   />
-                  <button className="btn-outline" onClick={() => changeOrderQty(plan.productId, plan.orderQty + 1)} style={{ width: 36, padding: '8px 0' }}>+</button>
+                  <button className="btn-outline prices-stepper-btn" onClick={() => changeOrderQty(plan.productId, plan.orderQty + 1)}>+</button>
                   <button
                     className={plan.orderQty > 0 ? 'btn-primary' : 'btn-outline'}
                     onClick={() => changeOrderQty(plan.productId, plan.orderQty > 0 ? plan.orderQty : 1)}
@@ -394,6 +395,7 @@ export default function Prices() {
             );
           })}
         </div>
+
       </section>
     </div>
   );

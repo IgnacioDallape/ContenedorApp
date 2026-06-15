@@ -1,0 +1,46 @@
+/* ────────────────────────────────────────────────────────────
+   Simulador de precio — rediseño "ImportaPro Minimal / Petróleo"
+   Overrides puntuales para igualar la maqueta del kit sin tocar
+   lógica. Solo presentación. Scope: #section-simulator.
+   ──────────────────────────────────────────────────────────── */
+
+/* Product picker pills: hairline 1px, radio 6px, avatar 28px
+   (maqueta usa border 1px var(--border-2) + radius 6px). */
+#section-simulator .prod-pill {
+  border-width: 1px !important;
+  border-radius: 6px !important;
+}
+#section-simulator .prod-pill-avatar {
+  width: 28px !important;
+  height: 28px !important;
+  border-radius: 5px !important;
+  font-size: 12px !important;
+}
+
+/* Tarjetas planas a 6px dentro del simulador (maqueta usa 6px). */
+#section-simulator .card {
+  border-radius: 6px !important;
+}
+
+/* Tarjetas de canales (confirmación) y de precios sugeridos:
+   superficie blanca pura, plana, esquina chica. El gradiente cálido
+   se sacó del inline; esto refuerza el flat + hairline neutro. */
+#section-simulator .sim-card-channel,
+#section-simulator .sim-card-price {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: none;
+}
+#section-simulator .sim-card-price {
+  transition: border-color 0.14s cubic-bezier(0.4, 0, 0.2, 1);
+}
+#section-simulator .sim-card-price:hover {
+  border-color: var(--border-2);
+}
+
+/* Input de precio confirmado: ancho mínimo para que no se desborde
+   en grillas angostas (minmax 0,1fr). */
+#section-simulator .sim-confirm-input {
+  min-width: 80px;
+}

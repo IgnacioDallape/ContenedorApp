@@ -8,6 +8,7 @@ import ThreeCanvas from './ThreeCanvas.jsx';
 import ThreeErrorBoundary from './ThreeErrorBoundary.jsx';
 import { _sb } from '../../lib/supabase.js';
 import { exportShipmentPDF } from '../../lib/exportPDF.js';
+import '../../../css/redesign/ContainerLoader.css';
 
 const STATUS_CONFIG = {
   preparacion:            { label: 'En preparación',              color: '#C0614A', bg: '#FDF0ED', icon: '🔴' },

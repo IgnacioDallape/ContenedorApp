@@ -1,0 +1,84 @@
+/* ════════════════════════════════════════════════════════════════════
+   Redesign — Comparator (ImportaPro "Minimal / Petróleo")
+   Solo presentación. La lógica (calcCostos, chanGanNeta, stores) vive
+   intacta en el componente. Cargado vía import en Comparator.jsx.
+   ════════════════════════════════════════════════════════════════════ */
+
+/* --accent-soft no está definido en importapro-theme.css; fallback local */
+.ip-section#section-comparator {
+  --accent-soft: rgba(14, 90, 107, 0.08);
+}
+
+/* ── Resumen comparativo: toggle mobile/desktop ──
+   Antes ambos bloques (mobile cards + tabla desktop) se renderizaban a la vez
+   porque no había CSS que ocultara ninguno. Acá definimos el switch real. */
+.comparator-summary-mobile { display: none; }
+.comparator-summary-wrapper { display: block; }
+
+@media (max-width: 680px) {
+  .comparator-summary-mobile {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .comparator-summary-wrapper { display: none; }
+}
+
+/* Cards apilados del resumen en mobile */
+.comparator-mobile-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius, 6px);
+  background: var(--surface);
+  padding: 12px 14px;
+}
+.comparator-mobile-label {
+  font-size: 0.62rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-3);
+  margin-bottom: 10px;
+}
+.comparator-mobile-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.comparator-mobile-cell {
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--surface2);
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.comparator-mobile-cell.is-winner {
+  border-color: var(--cmp-accent, var(--accent));
+  background: var(--accent-soft);
+}
+.comparator-mobile-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.comparator-mobile-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+.comparator-mobile-name {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.comparator-mobile-value {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text);
+  font-family: var(--font);
+}

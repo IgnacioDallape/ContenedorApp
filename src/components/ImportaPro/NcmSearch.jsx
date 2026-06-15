@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import useImportaproStore from '../../stores/importaproStore.js';
 import useAppStore from '../../stores/appStore.js';
 import { NCM_FRECUENTES } from '../../lib/constants.js';
+import '../../../css/redesign/NcmSearch.css';
 
 const CATEGORIAS = ['Todas', ...Array.from(new Set(NCM_FRECUENTES.map(n => n.cat).filter(Boolean))).sort()];
 

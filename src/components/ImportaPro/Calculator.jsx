@@ -5,6 +5,7 @@ import useContainerStore from '../../stores/containerStore.js';
 import { ars, rd } from '../../lib/formatters.js';
 import { PALLET_SIZES } from '../../lib/constants.js';
 import { exportCotizacionPDF } from '../../lib/exportPDF.js';
+import '../../../css/redesign/Calculator.css';
 
 export function calcCostos(inp) {
   const fob             = parseFloat(inp.fob)           || 0;
@@ -63,6 +64,8 @@ export default function Calculator() {
       fob = +(parseFloat(merged.fobCny || 0) * parseFloat(merged.cny || 0.138)).toFixed(3);
     } else if (merged.currencyMode === 'ars') {
       fob = +(parseFloat(merged.fobArs || 0) / parseFloat(merged.arsTC || 1450)).toFixed(3);
+    } else if (merged.currencyMode === 'eur') {
+      fob = +(parseFloat(merged.fobEur || 0) * parseFloat(merged.eurTC || 1.08)).toFixed(3);
     }
     setInputs({ ...patch, fob });
   }
@@ -228,7 +231,7 @@ export default function Calculator() {
               const stale = !tcUpdatedAt || (Date.now() - tcUpdatedAt > 3 * 24 * 60 * 60 * 1000);
               if (!stale) return null;
               return (
-                <div style={{ display:'flex', alignItems:'center', gap:8, background:'#7c5c3220', border:'1px solid #7c5c3240', borderRadius:8, padding:'8px 12px', marginBottom:12, fontSize:11 }}>
+                <div style={{ display:'flex', alignItems:'center', gap:8, background:'var(--amber-dim)', border:'1px solid rgba(181,71,8,0.25)', borderRadius:'var(--radius)', padding:'8px 12px', marginBottom:12, fontSize:11 }}>
                   <span>⏰</span>
                   <span style={{ color:'var(--text-2)' }}>TC: <strong>${inputs.globalTC?.toLocaleString('es-AR')}</strong> — {tcUpdatedAt ? 'hace más de 3 días' : 'nunca actualizado'}</span>
                   <span style={{ color:'var(--text-3)', marginLeft:4 }}>· Actualizalo en</span>
@@ -251,13 +254,16 @@ export default function Calculator() {
                 <div className="form-grid-2">
                   <div className="field full">
                     <label>Moneda del precio de compra</label>
-                    <div className="currency-toggle">
-                      {['cny','usd','ars'].map(m => (
+                    <div className="currency-toggle cur-4">
+                      {['ars','usd','cny','eur'].map(m => (
                         <button key={m} className={`ctog-btn${inputs.currencyMode===m?' active':''}`}
                           onClick={() => syncFob({ currencyMode: m })}>
-                          {m==='cny'?'Yuan (CNY)':m==='usd'?'Dólar (USD)':'Pesos (ARS)'}
+                          {m==='cny'?'¥ CNY':m==='usd'?'USD':m==='ars'?'ARS':'€ EUR'}
                         </button>
                       ))}
+                    </div>
+                    <div className="currency-hint">
+                      1 USD ≈ 7,25 ¥ · {Number(inputs.arsTC || 1450).toLocaleString('es-AR')} ARS · 0,93 € <strong>· tipo de cambio actual</strong>
                     </div>
                   </div>
                   <div className="field full">
@@ -277,6 +283,13 @@ export default function Calculator() {
                       <label>Precio de compra por producto <span className="unit">ARS / unidad de producto</span></label>
                       <input type="number" id="p-fob-ars" value={inputs.fobArs} step="100" min="0"
                         onChange={e => syncFob({ fobArs: parseFloat(e.target.value)||0 })} />
+                    </div>
+                  )}
+                  {inputs.currencyMode === 'eur' && (
+                    <div className="field">
+                      <label>Precio de compra por producto <span className="unit">EUR / unidad de producto</span></label>
+                      <input type="number" id="p-fob-eur" value={inputs.fobEur || 0} step="0.1" min="0"
+                        onChange={e => syncFob({ fobEur: parseFloat(e.target.value)||0 })} />
                     </div>
                   )}
                   <div className="field">
@@ -305,13 +318,20 @@ export default function Calculator() {
                         onChange={e => syncFob({ arsTC: parseFloat(e.target.value)||1450 })} />
                     </div>
                   )}
+                  {inputs.currencyMode === 'eur' && (
+                    <div className="field">
+                      <label>Cotización EUR → USD <span className="unit">ref. por defecto 1,08</span></label>
+                      <input type="number" id="p-eur-tc" value={inputs.eurTC ?? 1.08} step="0.01" min="0"
+                        onChange={e => syncFob({ eurTC: parseFloat(e.target.value)||1.08 })} />
+                    </div>
+                  )}
                 </div>
               </CalcSection>
 
               <div className="divider"/>
               <div className="section-label" style={{ display:'flex', alignItems:'center', gap:8 }}>
                 <span>📦 Datos logísticos</span>
-                <span style={{ fontSize:10, fontWeight:600, background:'var(--accent)', color:'#fff', padding:'2px 8px', borderRadius:10, letterSpacing:'0.05em' }}>Container Loader</span>
+                <span style={{ fontSize:10, fontWeight:600, background:'var(--accent)', color:'#fff', padding:'2px 8px', borderRadius:4, letterSpacing:'0.05em', textTransform:'uppercase' }}>Container Loader</span>
               </div>
               <div className="form-grid-2">
                 <div className="field">
@@ -536,10 +556,7 @@ export default function Calculator() {
                 <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
                   <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:6 }}>
                     <div style={{ fontSize:10, fontWeight:600, color:'var(--text-3)', letterSpacing:'0.06em', textTransform:'uppercase' }}>Derecho de importación</div>
-                    <button onClick={() => setActiveSection('ncm')}
-                      style={{ display:'flex', alignItems:'center', gap:4, padding:'3px 10px', borderRadius:20, border:'1px solid #c0392b50', background:'#c0392b12', color:'#c0392b', fontSize:10, fontWeight:600, cursor:'pointer', fontFamily:'var(--font)', transition:'all 0.15s' }}
-                      onMouseEnter={e => { e.currentTarget.style.background='#c0392b'; e.currentTarget.style.color='#fff'; }}
-                      onMouseLeave={e => { e.currentTarget.style.background='#c0392b12'; e.currentTarget.style.color='#c0392b'; }}>
+                    <button className="calc-ncm-badge" onClick={() => setActiveSection('ncm')} title="Buscar el NCM del producto">
                       🔍 NCM
                     </button>
                   </div>

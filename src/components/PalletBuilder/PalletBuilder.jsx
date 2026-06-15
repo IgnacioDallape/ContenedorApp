@@ -5,6 +5,7 @@ import useAppStore from '../../stores/appStore.js';
 import { PB_PALLET_TYPES, PB_COLORS } from '../../lib/constants.js';
 import { _sb } from '../../lib/supabase.js';
 import PalletThreeCanvas from './PalletThreeCanvas.jsx';
+import '../../../css/redesign/PalletBuilder.css';
 
 const PRODUCT_DEFAULTS = {
   name: '', L: '', W: '', H: '', qty: '', weight: '', mustBeBase: false, noRotate: false, imgUrl: null,
@@ -877,17 +878,17 @@ export default function PalletBuilder() {
 
         {/* Pallet config */}
         <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
-          <div style={{ fontSize: 10, fontFamily: "'Inter', system-ui, -apple-system, sans-serif", letterSpacing: 1, color: 'var(--text-3)', marginBottom: 8 }}>TIPO DE PALLET</div>
+          <div className="pb-eyebrow" style={{ fontSize: 10, color: 'var(--text-3)', marginBottom: 8 }}>Tipo de pallet</div>
           <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
             {Object.entries(PB_PALLET_TYPES).map(([key, val]) => (
               <button
                 key={key}
                 onClick={() => setPalletType(key)}
                 style={{
-                  flex: 1, padding: '7px 0', fontSize: 11, fontWeight: 600,
+                  flex: 1, padding: '8px 0', fontSize: 11, fontWeight: 600,
                   borderRadius: 'var(--radius)', cursor: 'pointer', transition: 'all 0.15s',
-                  border: palletType === key ? '2px solid var(--accent)' : '1px solid var(--border)',
-                  background: palletType === key ? 'var(--accent-dim, rgba(0,0,0,0.06))' : 'var(--bg-3)',
+                  border: palletType === key ? '1px solid var(--accent)' : '1px solid var(--border-2)',
+                  background: palletType === key ? 'var(--accent-dim)' : 'var(--surface)',
                   color: palletType === key ? 'var(--accent)' : 'var(--text-2)',
                 }}
               >
@@ -915,10 +916,11 @@ export default function PalletBuilder() {
         {/* Products list */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '10px 16px' }}>
           <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
-            <span style={{ fontSize: 10, fontFamily: "'Inter', system-ui, -apple-system, sans-serif", letterSpacing: 1, color: 'var(--text-3)' }}>PRODUCTOS ({products.length})</span>
+            <span className="pb-eyebrow" style={{ fontSize: 10, color: 'var(--text-3)' }}>Productos ({products.length})</span>
             <button
+              className="pb-toolbar-btn"
               onClick={openCatalogPicker}
-              style={{ marginLeft: 'auto', fontSize: 10, padding: '3px 8px', background: 'transparent', border: '1px solid var(--border)', borderRadius: 'var(--radius)', cursor: 'pointer', color: 'var(--text-2)' }}
+              style={{ marginLeft: 'auto', fontSize: 10, padding: '3px 8px', background: 'var(--surface)', border: '1px solid var(--border-2)', borderRadius: 'var(--radius)', cursor: 'pointer', color: 'var(--text-2)' }}
             >
               + Catálogo
             </button>
@@ -1031,8 +1033,8 @@ export default function PalletBuilder() {
         {/* Top bar: nombre del job, estado, link de seguimiento, guardar/cargar */}
         <div style={{ padding: '10px 16px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', flexShrink: 0, background: 'var(--bg-2)' }}>
           <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, flex: '1 1 220px' }}>
-            <div style={{ fontSize: 10, fontFamily: "'Inter', system-ui, -apple-system, sans-serif", letterSpacing: 1, color: 'var(--text-3)' }}>
-              {currentJobId ? 'PALLET GUARDADO' : 'PALLET SIN GUARDAR'}
+            <div className="pb-eyebrow" style={{ fontSize: 10, color: 'var(--text-3)' }}>
+              {currentJobId ? 'Pallet guardado' : 'Pallet sin guardar'}
             </div>
             <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {currentJobName || 'Nuevo pallet'}
@@ -1047,8 +1049,8 @@ export default function PalletBuilder() {
               title={currentJobStatusCfg.label}
               style={{
                 padding: '6px 12px', fontSize: 10, fontFamily: "'Inter', system-ui, -apple-system, sans-serif", letterSpacing: '0.4px',
-                borderRadius: 8, cursor: 'pointer',
-                border: `1.5px solid ${currentJobStatusCfg.color}55`,
+                borderRadius: 'var(--radius)', cursor: 'pointer',
+                border: `1px solid ${currentJobStatusCfg.color}55`,
                 background: currentJobStatusCfg.bg, color: currentJobStatusCfg.color,
                 display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap', fontWeight: 700,
               }}
@@ -1058,7 +1060,7 @@ export default function PalletBuilder() {
               <span style={{ opacity: 0.6 }}>▾</span>
             </button>
             {showStatusPicker && (
-              <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, zIndex: 50, background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 10, padding: 6, boxShadow: '0 8px 24px rgba(0,0,0,0.12)', display: 'grid', gap: 3, minWidth: 220 }}>
+              <div className="pb-status-menu" style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, zIndex: 50, background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: 6, boxShadow: 'var(--shadow-md)', display: 'grid', gap: 3, minWidth: 220 }}>
                 {STATUS_ORDER.map((key) => {
                   const cfg = STATUS_CONFIG[key];
                   return (
@@ -1067,8 +1069,8 @@ export default function PalletBuilder() {
                       onClick={() => updateJobStatus(key)}
                       style={{
                         background: currentJobStatus === key ? cfg.bg : 'transparent',
-                        border: `1.5px solid ${currentJobStatus === key ? cfg.color + '55' : 'transparent'}`,
-                        borderRadius: 7, padding: '6px 10px', cursor: 'pointer', textAlign: 'left',
+                        border: `1px solid ${currentJobStatus === key ? cfg.color + '55' : 'transparent'}`,
+                        borderRadius: 'var(--radius)', padding: '6px 10px', cursor: 'pointer', textAlign: 'left',
                         color: cfg.color, fontFamily: "'Inter', system-ui, -apple-system, sans-serif", fontSize: 10, fontWeight: 600,
                         display: 'flex', alignItems: 'center', gap: 7,
                       }}
@@ -1089,9 +1091,9 @@ export default function PalletBuilder() {
             title={currentJobTracking || 'Sin link de seguimiento'}
             style={{
               padding: '6px 12px', fontSize: 11, fontFamily: "'Inter', system-ui, -apple-system, sans-serif", letterSpacing: '0.3px',
-              borderRadius: 8, cursor: 'pointer',
-              border: `1.5px solid ${currentJobTracking ? 'var(--accent)' : 'var(--border)'}`,
-              background: currentJobTracking ? 'var(--accent-dim, rgba(0,0,0,0.06))' : 'transparent',
+              borderRadius: 'var(--radius)', cursor: 'pointer',
+              border: `1px solid ${currentJobTracking ? 'var(--accent)' : 'var(--border-2)'}`,
+              background: currentJobTracking ? 'var(--accent-dim)' : 'var(--surface)',
               color: currentJobTracking ? 'var(--accent)' : 'var(--text-3)',
               display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap', fontWeight: 600,
             }}
@@ -1100,13 +1102,13 @@ export default function PalletBuilder() {
           </button>
 
           {/* Toggle modo Auto / Manual */}
-          <div style={{ display: 'inline-flex', border: '1.5px solid var(--border)', borderRadius: 8, padding: 2, background: 'var(--bg-3)' }}>
+          <div style={{ display: 'inline-flex', border: '1px solid var(--border-2)', borderRadius: 'var(--radius)', padding: 2, background: 'var(--bg-3)' }}>
             <button
               type="button"
               onClick={() => setBuildMode('auto')}
               style={{
                 padding: '5px 12px', fontSize: 10, fontFamily: "'Inter', system-ui, -apple-system, sans-serif", letterSpacing: '0.4px',
-                borderRadius: 6, cursor: 'pointer', border: 'none', fontWeight: 700,
+                borderRadius: 4, cursor: 'pointer', border: 'none', fontWeight: 700,
                 background: buildMode === 'auto' ? 'var(--accent)' : 'transparent',
                 color: buildMode === 'auto' ? '#fff' : 'var(--text-3)',
               }}
@@ -1117,7 +1119,7 @@ export default function PalletBuilder() {
               onClick={() => setBuildMode('manual')}
               style={{
                 padding: '5px 12px', fontSize: 10, fontFamily: "'Inter', system-ui, -apple-system, sans-serif", letterSpacing: '0.4px',
-                borderRadius: 6, cursor: 'pointer', border: 'none', fontWeight: 700,
+                borderRadius: 4, cursor: 'pointer', border: 'none', fontWeight: 700,
                 background: buildMode === 'manual' ? 'var(--accent)' : 'transparent',
                 color: buildMode === 'manual' ? '#fff' : 'var(--text-3)',
               }}
@@ -1127,14 +1129,14 @@ export default function PalletBuilder() {
 
           <div style={{ display: 'flex', gap: 6, marginLeft: 'auto', flexWrap: 'wrap' }}>
             {currentJobId && (
-              <button type="button" onClick={newJob} style={{ padding: '6px 12px', fontSize: 11, borderRadius: 6, border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-2)', cursor: 'pointer', fontFamily: "'Inter', system-ui, -apple-system, sans-serif" }}>
+              <button type="button" className="pb-toolbar-btn" onClick={newJob} style={{ padding: '6px 12px', fontSize: 11, borderRadius: 'var(--radius)', border: '1px solid var(--border-2)', background: 'var(--surface)', color: 'var(--text-2)', cursor: 'pointer', fontFamily: "'Inter', system-ui, -apple-system, sans-serif" }}>
                 + Nuevo
               </button>
             )}
-            <button type="button" onClick={handleLoadList} style={{ padding: '6px 12px', fontSize: 11, borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg-3)', color: 'var(--text)', cursor: 'pointer', fontFamily: "'Inter', system-ui, -apple-system, sans-serif", fontWeight: 600 }}>
+            <button type="button" className="pb-toolbar-btn" onClick={handleLoadList} style={{ padding: '6px 12px', fontSize: 11, borderRadius: 'var(--radius)', border: '1px solid var(--border-2)', background: 'var(--surface)', color: 'var(--text)', cursor: 'pointer', fontFamily: "'Inter', system-ui, -apple-system, sans-serif", fontWeight: 600 }}>
               📂 Cargar
             </button>
-            <button type="button" onClick={openSaveModal} disabled={!products.length} style={{ padding: '6px 14px', fontSize: 11, borderRadius: 6, border: '1.5px solid var(--accent)', background: 'var(--accent)', color: '#fff', cursor: products.length ? 'pointer' : 'default', fontFamily: "'Inter', system-ui, -apple-system, sans-serif", fontWeight: 700, opacity: products.length ? 1 : 0.5 }}>
+            <button type="button" onClick={openSaveModal} disabled={!products.length} style={{ padding: '6px 14px', fontSize: 11, borderRadius: 'var(--radius)', border: '1px solid var(--accent)', background: 'var(--accent)', color: '#fff', cursor: products.length ? 'pointer' : 'default', fontFamily: "'Inter', system-ui, -apple-system, sans-serif", fontWeight: 700, opacity: products.length ? 1 : 0.5 }}>
               💾 Guardar
             </button>
             <button
@@ -1142,16 +1144,17 @@ export default function PalletBuilder() {
               onClick={handleSharePallet}
               disabled={!results.length || isSharing}
               title="Genera un link público de solo-lectura"
-              style={{ padding: '6px 12px', fontSize: 11, borderRadius: 6, border: `1.5px solid ${currentJobIsPublic ? '#3A8C52' : 'var(--border)'}`, background: currentJobIsPublic ? '#EDF7F1' : 'var(--bg-3)', color: currentJobIsPublic ? '#3A8C52' : 'var(--text)', cursor: (results.length && !isSharing) ? 'pointer' : 'default', fontFamily: "'Inter', system-ui, -apple-system, sans-serif", fontWeight: 700, opacity: results.length ? 1 : 0.5 }}
+              style={{ padding: '6px 12px', fontSize: 11, borderRadius: 'var(--radius)', border: `1px solid ${currentJobIsPublic ? 'var(--green)' : 'var(--border-2)'}`, background: currentJobIsPublic ? 'var(--green-dim)' : 'var(--surface)', color: currentJobIsPublic ? 'var(--green)' : 'var(--text)', cursor: (results.length && !isSharing) ? 'pointer' : 'default', fontFamily: "'Inter', system-ui, -apple-system, sans-serif", fontWeight: 700, opacity: results.length ? 1 : 0.5 }}
             >
               {isSharing ? '🔗 ...' : (currentJobIsPublic ? '🔗 Link activo' : '🔗 Compartir')}
             </button>
             <button
               type="button"
+              className="pb-toolbar-btn"
               onClick={handleExportPDF}
               disabled={!results.length || isExportingPDF}
               title="Genera un PDF con fotos, productos, precios y guía de carga"
-              style={{ padding: '6px 12px', fontSize: 11, borderRadius: 6, border: '1.5px solid var(--border)', background: 'var(--bg-3)', color: 'var(--text)', cursor: (results.length && !isExportingPDF) ? 'pointer' : 'default', fontFamily: "'Inter', system-ui, -apple-system, sans-serif", fontWeight: 700, opacity: results.length ? 1 : 0.5 }}
+              style={{ padding: '6px 12px', fontSize: 11, borderRadius: 'var(--radius)', border: '1px solid var(--border-2)', background: 'var(--surface)', color: 'var(--text)', cursor: (results.length && !isExportingPDF) ? 'pointer' : 'default', fontFamily: "'Inter', system-ui, -apple-system, sans-serif", fontWeight: 700, opacity: results.length ? 1 : 0.5 }}
             >
               {isExportingPDF ? '📄 ...' : '📄 PDF'}
             </button>
@@ -1195,10 +1198,10 @@ export default function PalletBuilder() {
                     key={i}
                     onClick={() => setActiveResult(i)}
                     style={{
-                      padding: '6px 14px', fontSize: 11, borderRadius: 6, cursor: 'pointer', transition: 'all 0.15s',
+                      padding: '6px 14px', fontSize: 11, borderRadius: 'var(--radius)', cursor: 'pointer', transition: 'all 0.15s',
                       fontFamily: "'Inter', system-ui, -apple-system, sans-serif", letterSpacing: '0.5px',
-                      border: `1.5px solid ${i === activeResult ? 'var(--accent)' : 'var(--border)'}`,
-                      background: i === activeResult ? 'var(--accent-dim, rgba(0,0,0,0.06))' : 'transparent',
+                      border: `1px solid ${i === activeResult ? 'var(--accent)' : 'var(--border-2)'}`,
+                      background: i === activeResult ? 'var(--accent-dim)' : 'var(--surface)',
                       color: i === activeResult ? 'var(--accent)' : 'var(--text-3)',
                       fontWeight: i === activeResult ? 700 : 400,
                     }}
@@ -1209,14 +1212,14 @@ export default function PalletBuilder() {
                 <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
                   <button
                     onClick={() => activeRes && addPalletToContainer(activeRes)}
-                    style={{ padding: '6px 14px', fontSize: 11, fontFamily: "'Inter', system-ui, -apple-system, sans-serif", letterSpacing: '0.5px', borderRadius: 6, cursor: 'pointer', border: '1.5px solid var(--accent)', background: 'var(--accent)', color: '#fff', fontWeight: 700 }}
+                    style={{ padding: '6px 14px', fontSize: 11, fontFamily: "'Inter', system-ui, -apple-system, sans-serif", letterSpacing: '0.5px', borderRadius: 'var(--radius)', cursor: 'pointer', border: '1px solid var(--accent)', background: 'var(--accent)', color: '#fff', fontWeight: 700 }}
                   >
                     + Este pallet
                   </button>
                   {results.length > 1 && (
                     <button
                       onClick={addAllPalletsToContainer}
-                      style={{ padding: '6px 14px', fontSize: 11, fontFamily: "'Inter', system-ui, -apple-system, sans-serif", letterSpacing: '0.5px', borderRadius: 6, cursor: 'pointer', border: '1.5px solid var(--accent)', background: 'transparent', color: 'var(--accent)', fontWeight: 700 }}
+                      style={{ padding: '6px 14px', fontSize: 11, fontFamily: "'Inter', system-ui, -apple-system, sans-serif", letterSpacing: '0.5px', borderRadius: 'var(--radius)', cursor: 'pointer', border: '1px solid var(--accent)', background: 'var(--surface)', color: 'var(--accent)', fontWeight: 700 }}
                     >
                       + Todos ({results.length})
                     </button>
@@ -1237,44 +1240,46 @@ export default function PalletBuilder() {
                     strictMode={buildMode === 'manual'}
                   />
                   {selectedBox && (
-                    <div className="pallet-builder-inspector" style={{ position: 'absolute', right: 22, top: 22, zIndex: 30, width: 'min(272px, calc(100% - 44px))', maxHeight: 'calc(100% - 44px)', background: 'linear-gradient(180deg, rgba(251,247,241,0.98), rgba(243,236,227,0.98))', border: '1px solid rgba(141,121,102,0.22)', borderRadius: 18, boxShadow: '0 20px 44px rgba(97,78,60,0.18)', fontFamily: "'Inter', system-ui, -apple-system, sans-serif", backdropFilter: 'blur(14px)', overflowX: 'hidden', overflowY: 'auto' }}>
-                      <div style={{ padding: '14px 14px 12px', background: 'linear-gradient(135deg, var(--c1), #a48f7d)', color: 'var(--c5)', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
+                    <div className="pallet-builder-inspector" style={{ position: 'absolute', right: 22, top: 22, zIndex: 30, width: 'min(272px, calc(100% - 44px))', maxHeight: 'calc(100% - 44px)', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-md)', fontFamily: "'Inter', system-ui, -apple-system, sans-serif", overflowX: 'hidden', overflowY: 'auto' }}>
+                      <div style={{ padding: '14px 14px 12px', background: 'var(--accent)', color: '#fff', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
-                          <div style={{ width: 34, height: 34, borderRadius: 10, background: 'rgba(248,241,233,0.16)', display: 'grid', placeItems: 'center', fontSize: 16, flexShrink: 0 }}>📦</div>
+                          <div style={{ width: 34, height: 34, borderRadius: 8, background: 'rgba(255,255,255,0.16)', display: 'grid', placeItems: 'center', fontSize: 16, flexShrink: 0 }}>📦</div>
                           <div style={{ minWidth: 0 }}>
                             <div style={{ fontSize: 12, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{selectedBox.name}</div>
-                            <div style={{ fontSize: 9, color: 'rgba(248,241,233,0.78)', letterSpacing: 0.8 }}>UNIDAD {selectedBox.uid.split('::').pop()}</div>
+                            <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.78)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>Unidad {selectedBox.uid.split('::').pop()}</div>
                           </div>
                         </div>
-                        <button onClick={() => setSelectedBoxUid(null)} style={{ width: 28, height: 28, borderRadius: 9, border: '1px solid rgba(248,241,233,0.18)', background: 'rgba(248,241,233,0.12)', color: 'var(--c5)', cursor: 'pointer', display: 'grid', placeItems: 'center', flexShrink: 0 }}>×</button>
+                        <button className="pb-insp-close" onClick={() => setSelectedBoxUid(null)} style={{ width: 28, height: 28, borderRadius: 6, border: '1px solid rgba(255,255,255,0.3)', background: 'rgba(255,255,255,0.14)', color: '#fff', cursor: 'pointer', display: 'grid', placeItems: 'center', flexShrink: 0 }}>×</button>
                       </div>
 
-                      <div style={{ padding: '12px 14px 10px', borderBottom: '1px solid rgba(141,121,102,0.12)' }}>
+                      <div style={{ padding: '12px 14px 10px', borderBottom: '1px solid var(--border)' }}>
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                          <div style={{ padding: '9px 10px', borderRadius: 12, background: 'rgba(255,255,255,0.52)', border: '1px solid rgba(141,121,102,0.1)' }}>
-                            <div style={{ fontSize: 9, color: 'var(--muted)', letterSpacing: 1 }}>MEDIDAS</div>
+                          <div className="pb-insp-cell" style={{ padding: '9px 10px', borderRadius: 'var(--radius)', background: 'var(--bg-3)', border: '1px solid var(--border)' }}>
+                            <div className="pb-eyebrow" style={{ fontSize: 9, color: 'var(--text-3)' }}>Medidas</div>
                             <div style={{ fontSize: 11, color: 'var(--text)', marginTop: 4 }}>{selectedBox.dX}×{selectedBox.dZ}×{selectedBox.dY} cm</div>
                           </div>
-                          <div style={{ padding: '9px 10px', borderRadius: 12, background: 'rgba(255,255,255,0.52)', border: '1px solid rgba(141,121,102,0.1)' }}>
-                            <div style={{ fontSize: 9, color: 'var(--muted)', letterSpacing: 1 }}>POSICIÓN</div>
+                          <div className="pb-insp-cell" style={{ padding: '9px 10px', borderRadius: 'var(--radius)', background: 'var(--bg-3)', border: '1px solid var(--border)' }}>
+                            <div className="pb-eyebrow" style={{ fontSize: 9, color: 'var(--text-3)' }}>Posición</div>
                             <div style={{ fontSize: 11, color: 'var(--text)', marginTop: 4 }}>X {selectedBox.x} · Z {selectedBox.z} · Y {selectedBox.y}</div>
                           </div>
                         </div>
                       </div>
 
-                      <div style={{ padding: '12px 14px', borderBottom: '1px solid rgba(141,121,102,0.12)' }}>
-                        <div style={{ fontSize: 9, color: 'var(--muted)', letterSpacing: 1.4, marginBottom: 9 }}>ORIENTACIÓN Y POSICIÓN</div>
+                      <div style={{ padding: '12px 14px', borderBottom: '1px solid var(--border)' }}>
+                        <div className="pb-eyebrow" style={{ fontSize: 9, color: 'var(--text-3)', marginBottom: 9 }}>Orientación y posición</div>
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
                           <button
+                            className="pb-insp-btn"
                             onClick={rotateSelectedBox}
                             disabled={selectedBox.noRotate}
-                            style={{ padding: '10px 8px', borderRadius: 12, border: '1px solid rgba(141,121,102,0.14)', background: 'rgba(255,255,255,0.56)', color: 'var(--text)', cursor: selectedBox.noRotate ? 'not-allowed' : 'pointer', opacity: selectedBox.noRotate ? 0.38 : 1 }}
+                            style={{ padding: '10px 8px', borderRadius: 'var(--radius)', border: '1px solid var(--border-2)', background: 'var(--surface)', color: 'var(--text)', cursor: selectedBox.noRotate ? 'not-allowed' : 'pointer', opacity: selectedBox.noRotate ? 0.45 : 1 }}
                           >
                             Giro horizontal
                           </button>
                           <button
+                            className="pb-insp-btn"
                             onClick={restoreSelectedBoxOrientation}
-                            style={{ padding: '10px 8px', borderRadius: 12, border: '1px solid rgba(141,121,102,0.14)', background: 'transparent', color: 'var(--text2)', cursor: 'pointer' }}
+                            style={{ padding: '10px 8px', borderRadius: 'var(--radius)', border: '1px solid var(--border-2)', background: 'var(--surface)', color: 'var(--text-2)', cursor: 'pointer' }}
                           >
                             Restaurar
                           </button>
@@ -1282,11 +1287,12 @@ export default function PalletBuilder() {
                         {/* Para cajas rectangulares: botón explícito Parar/Acostar */}
                         {selectedBoxStandLay && !selectedBox.noRotate && (
                           <button
+                            className={selectedBoxStandLay.isStanding ? 'pb-insp-btn' : 'pb-insp-btn-primary'}
                             onClick={toggleStandLay}
                             style={{
-                              marginTop: 8, width: '100%', padding: '10px 8px', borderRadius: 12,
-                              border: '1.5px solid var(--accent)',
-                              background: selectedBoxStandLay.isStanding ? 'rgba(141,121,102,0.08)' : 'var(--accent)',
+                              marginTop: 8, width: '100%', padding: '10px 8px', borderRadius: 'var(--radius)',
+                              border: '1px solid var(--accent)',
+                              background: selectedBoxStandLay.isStanding ? 'var(--surface)' : 'var(--accent)',
                               color: selectedBoxStandLay.isStanding ? 'var(--accent)' : '#fff',
                               cursor: 'pointer', fontWeight: 700, fontSize: 12,
                               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
@@ -1296,7 +1302,7 @@ export default function PalletBuilder() {
                             {selectedBoxStandLay.isStanding ? '⬇ Acostar caja' : '⬆ Parar caja'}
                           </button>
                         )}
-                        <div style={{ marginTop: 10, padding: '8px 10px', borderRadius: 10, background: 'rgba(141,121,102,0.08)', color: 'var(--muted)', fontSize: 10, lineHeight: 1.45 }}>
+                        <div className="pb-insp-hint" style={{ marginTop: 10, padding: '8px 10px', borderRadius: 'var(--radius)', background: 'var(--bg-3)', border: '1px solid var(--border)', color: 'var(--text-2)', fontSize: 10, lineHeight: 1.45 }}>
                           Podés arrastrar la caja dentro del pallet. Se mueve individualmente; si querés mover la pila completa, mantené Shift mientras arrastrás.
                         </div>
                       </div>
@@ -1305,40 +1311,43 @@ export default function PalletBuilder() {
                         {buildMode === 'manual' && (
                           <>
                             <button
+                              className="pb-insp-btn-primary"
                               onClick={() => {
                                 const r = suggestRelocate(selectedBox.uid);
                                 if (!r?.ok) showToast('Motor no encontró mejor lugar', 'warn');
                                 else showToast('✓ Reubicado por el motor', 'success');
                               }}
-                              style={{ padding: '10px 8px', borderRadius: 12, border: '1.5px solid var(--accent)', background: 'var(--accent)', color: '#fff', cursor: 'pointer', fontWeight: 700 }}
+                              style={{ padding: '10px 8px', borderRadius: 'var(--radius)', border: '1px solid var(--accent)', background: 'var(--accent)', color: '#fff', cursor: 'pointer', fontWeight: 700 }}
                             >
                               🤖 Sugerir mejor lugar
                             </button>
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
                               <button
+                                className="pb-insp-btn"
                                 onClick={() => {
                                   const r = cyclePlacement(selectedBox.uid, -1);
                                   if (!r?.ok) showToast('Sin más alternativas', 'warn');
                                   else showToast(`◀ Opción ${r.index + 1}/${r.total}`, 'success');
                                 }}
-                                style={{ padding: '9px 6px', borderRadius: 10, border: '1px solid rgba(141,121,102,0.22)', background: 'rgba(255,255,255,0.6)', color: 'var(--text)', cursor: 'pointer', fontWeight: 600, fontSize: 11 }}
+                                style={{ padding: '9px 6px', borderRadius: 'var(--radius)', border: '1px solid var(--border-2)', background: 'var(--surface)', color: 'var(--text)', cursor: 'pointer', fontWeight: 600, fontSize: 11 }}
                               >
                                 ◀ Anterior
                               </button>
                               <button
+                                className="pb-insp-btn"
                                 onClick={() => {
                                   const r = cyclePlacement(selectedBox.uid, 1);
                                   if (!r?.ok) showToast('Sin alternativas disponibles', 'warn');
                                   else showToast(`🔄 Opción ${r.index + 1}/${r.total}`, 'success');
                                 }}
-                                style={{ padding: '9px 6px', borderRadius: 10, border: '1.5px solid var(--accent)', background: 'rgba(141,121,102,0.08)', color: 'var(--accent)', cursor: 'pointer', fontWeight: 700, fontSize: 11 }}
+                                style={{ padding: '9px 6px', borderRadius: 'var(--radius)', border: '1px solid var(--accent)', background: 'var(--accent-dim)', color: 'var(--accent)', cursor: 'pointer', fontWeight: 700, fontSize: 11 }}
                               >
                                 🔄 Otra posición
                               </button>
                             </div>
                           </>
                         )}
-                        <button onClick={() => removeBoxFromActiveResult(selectedBox.uid)} style={{ padding: '10px 8px', borderRadius: 12, border: '1px solid rgba(184,92,92,0.26)', background: 'rgba(184,92,92,0.06)', color: 'var(--danger)', cursor: 'pointer' }}>Mover a reserva</button>
+                        <button className="pb-insp-btn-danger" onClick={() => removeBoxFromActiveResult(selectedBox.uid)} style={{ padding: '10px 8px', borderRadius: 'var(--radius)', border: '1px solid rgba(180,35,24,0.3)', background: 'var(--red-dim)', color: 'var(--red)', cursor: 'pointer' }}>Mover a reserva</button>
                       </div>
                     </div>
                   )}
@@ -1355,26 +1364,27 @@ export default function PalletBuilder() {
                         { label: 'CAJAS', val: activeRes.boxes.length, sub: 'unidades' },
                         { label: 'PESO', val: `${activeRes.totalWeight.toFixed(1)} kg`, sub: 'estimado' },
                       ].map(s => (
-                        <div key={s.label} style={{ background: 'var(--bg-3)', borderRadius: 8, padding: '8px 10px', border: '1px solid var(--border)' }}>
-                          <div style={{ fontSize: 9, color: 'var(--text-3)', fontFamily: "'Inter', system-ui, -apple-system, sans-serif", letterSpacing: 1, marginBottom: 3 }}>{s.label}</div>
+                        <div key={s.label} className="pb-stat-card" style={{ background: 'var(--bg-3)', borderRadius: 'var(--radius)', padding: '8px 10px', border: '1px solid var(--border)' }}>
+                          <div className="pb-eyebrow" style={{ fontSize: 9, color: 'var(--text-3)', marginBottom: 3 }}>{s.label}</div>
                           <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>{s.val}</div>
                           <div style={{ fontSize: 10, color: 'var(--text-3)' }}>{s.sub}</div>
                         </div>
                       ))}
                     </div>
 
-                    <div style={{ fontSize: 10, fontFamily: "'Inter', system-ui, -apple-system, sans-serif", letterSpacing: 1, color: 'var(--text-3)', marginBottom: 6 }}>REORDENAR</div>
+                    <div className="pb-eyebrow" style={{ fontSize: 10, color: 'var(--text-3)', marginBottom: 6 }}>Reordenar</div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 14 }}>
                       {REORDER_OPTIONS.map(option => (
                         <button
                           key={option.id}
                           type="button"
+                          className="pb-reorder-btn"
                           onClick={() => reorderPallet(option.id, option.label)}
                           style={{
                             padding: '8px 8px',
-                            borderRadius: 8,
-                            border: '1.5px solid rgba(141,121,102,0.24)',
-                            background: 'rgba(255,255,255,0.58)',
+                            borderRadius: 'var(--radius)',
+                            border: '1px solid var(--border-2)',
+                            background: 'var(--surface)',
                             color: 'var(--accent)',
                             cursor: 'pointer',
                             fontSize: 11,
@@ -1388,7 +1398,7 @@ export default function PalletBuilder() {
                     </div>
 
                     {/* Per-product breakdown */}
-                    <div style={{ fontSize: 10, fontFamily: "'Inter', system-ui, -apple-system, sans-serif", letterSpacing: 1, color: 'var(--text-3)', marginBottom: 6 }}>DISTRIBUCIÓN</div>
+                    <div className="pb-eyebrow" style={{ fontSize: 10, color: 'var(--text-3)', marginBottom: 6 }}>Distribución</div>
                     {(() => {
                       const counts = {};
                       for (const b of activeRes.boxes) counts[b.name] = (counts[b.name] || 0) + 1;
@@ -1406,11 +1416,12 @@ export default function PalletBuilder() {
 
                     {!!activeRes.reserveBoxes?.length && (
                       <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid var(--border)' }}>
-                        <div style={{ fontSize: 10, fontFamily: "'Inter', system-ui, -apple-system, sans-serif", letterSpacing: 1, color: 'var(--text-3)', marginBottom: 8 }}>RESERVA MANUAL</div>
+                        <div className="pb-eyebrow" style={{ fontSize: 10, color: 'var(--text-3)', marginBottom: 8 }}>Reserva manual</div>
                         <div style={{ display: 'grid', gap: 8 }}>
                           {activeRes.reserveBoxes.map(box => (
                             <div
                               key={box.uid}
+                              className="pb-reserve-box"
                               draggable
                               onDragStart={e => {
                                 e.dataTransfer.effectAllowed = 'move';
@@ -1418,9 +1429,9 @@ export default function PalletBuilder() {
                               }}
                               style={{
                                 padding: '10px 10px 9px',
-                                borderRadius: 10,
-                                border: '1px dashed rgba(141,121,102,0.35)',
-                                background: 'rgba(255,255,255,0.58)',
+                                borderRadius: 'var(--radius)',
+                                border: '1px dashed var(--border-2)',
+                                background: 'var(--surface)',
                                 cursor: 'grab',
                               }}
                             >
@@ -1429,8 +1440,9 @@ export default function PalletBuilder() {
                                 <span style={{ flex: 1, fontSize: 12, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{box.name}</span>
                                 <button
                                   type="button"
+                                  className="pb-reserve-reinsert"
                                   onClick={() => restoreReserveBox(box.uid)}
-                                  style={{ padding: '6px 8px', borderRadius: 8, border: '1px solid rgba(141,121,102,0.18)', background: 'var(--bg-2)', color: 'var(--accent)', cursor: 'pointer', fontSize: 10, fontWeight: 700 }}
+                                  style={{ padding: '6px 8px', borderRadius: 'var(--radius)', border: '1px solid var(--border-2)', background: 'var(--surface)', color: 'var(--accent)', cursor: 'pointer', fontSize: 10, fontWeight: 700 }}
                                 >
                                   Reinsertar
                                 </button>
@@ -1458,8 +1470,8 @@ export default function PalletBuilder() {
                       });
                       if (!leftover.length) return null;
                       return (
-                        <div style={{ marginTop: 12, background: 'rgba(184,92,92,0.08)', border: '1.5px solid rgba(184,92,92,0.35)', borderRadius: 8, padding: '10px 12px' }}>
-                          <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--red)', letterSpacing: 1, marginBottom: 6 }}>NO ENTRARON</div>
+                        <div style={{ marginTop: 12, background: 'var(--red-dim)', border: '1px solid rgba(180,35,24,0.3)', borderRadius: 'var(--radius)', padding: '10px 12px' }}>
+                          <div className="pb-eyebrow" style={{ fontSize: 10, fontWeight: 700, color: 'var(--red)', marginBottom: 6 }}>No entraron</div>
                           {leftover.map(p => {
                             const placed = results.reduce((s, r) => s + r.boxes.filter(b => b.name === p.name).length, 0);
                             const remaining = p.qty - placed;
@@ -1508,7 +1520,7 @@ export default function PalletBuilder() {
         >
           <div
             className="pb-product-modal"
-            style={{ background: 'var(--bg-2)', borderRadius: 12, padding: 24, width: '100%', maxWidth: 400, boxShadow: '0 8px 32px rgba(0,0,0,0.18)' }}
+            style={{ background: 'var(--bg-2)', borderRadius: 'var(--radius-lg)', padding: 24, width: '100%', maxWidth: 400, border: '1px solid var(--border)', boxShadow: 'var(--shadow-md)' }}
             onClick={e => e.stopPropagation()}
           >
             <div style={{ display: 'flex', alignItems: 'center', marginBottom: 18 }}>
@@ -1620,7 +1632,7 @@ export default function PalletBuilder() {
             onClick={e => { if (e.target === e.currentTarget) setCatalogModal(false); }}
           >
             <div
-              style={{ background: 'var(--bg-2)', borderRadius: 12, padding: 20, width: '100%', maxWidth: 480, maxHeight: '80vh', display: 'flex', flexDirection: 'column', boxShadow: '0 8px 32px rgba(0,0,0,0.18)' }}
+              style={{ background: 'var(--bg-2)', borderRadius: 'var(--radius-lg)', padding: 20, width: '100%', maxWidth: 480, maxHeight: '80vh', display: 'flex', flexDirection: 'column', border: '1px solid var(--border)', boxShadow: 'var(--shadow-md)' }}
               onClick={e => e.stopPropagation()}
             >
               <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
@@ -1730,19 +1742,19 @@ export default function PalletBuilder() {
       {/* ── Save modal ── */}
       {showSave && (
         <div onClick={() => setShowSave(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 }}>
-          <div onClick={e => e.stopPropagation()} style={{ background: 'var(--bg-2)', borderRadius: 12, padding: 20, width: '100%', maxWidth: 440, border: '1px solid var(--border)' }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: 'var(--bg-2)', borderRadius: 'var(--radius-lg)', padding: 20, width: '100%', maxWidth: 440, border: '1px solid var(--border)', boxShadow: 'var(--shadow-md)' }}>
             <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 14 }}>Guardar pallet</div>
-            <label style={{ fontSize: 10, fontFamily: "'Inter', system-ui, -apple-system, sans-serif", letterSpacing: 1, color: 'var(--text-3)', display: 'block', marginBottom: 6 }}>NOMBRE</label>
+            <label className="pb-eyebrow" style={{ fontSize: 10, color: 'var(--text-3)', display: 'block', marginBottom: 6 }}>Nombre</label>
             <input
               type="text" autoFocus value={saveName}
               onChange={e => setSaveName(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter') confirmSave(); }}
               placeholder="Ej: Embarque cliente X"
-              style={{ width: '100%', padding: '10px 12px', fontSize: 13, border: '1px solid var(--border-2)', borderRadius: 6, background: 'var(--bg-3)', color: 'var(--text)', boxSizing: 'border-box' }}
+              style={{ width: '100%', padding: '10px 12px', fontSize: 13, border: '1px solid var(--border-2)', borderRadius: 4, background: 'var(--surface)', color: 'var(--text)', boxSizing: 'border-box' }}
             />
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 }}>
-              <button onClick={() => setShowSave(false)} style={{ padding: '8px 16px', fontSize: 12, border: '1px solid var(--border)', background: 'transparent', borderRadius: 6, cursor: 'pointer', color: 'var(--text-2)' }}>Cancelar</button>
-              <button onClick={confirmSave} disabled={!saveName.trim() || isSaving} style={{ padding: '8px 22px', fontSize: 12, border: 'none', background: 'var(--accent)', color: '#fff', borderRadius: 6, cursor: saveName.trim() && !isSaving ? 'pointer' : 'default', fontWeight: 700, opacity: saveName.trim() && !isSaving ? 1 : 0.5 }}>
+              <button onClick={() => setShowSave(false)} style={{ padding: '8px 16px', fontSize: 12, border: '1px solid var(--border-2)', background: 'var(--surface)', borderRadius: 'var(--radius)', cursor: 'pointer', color: 'var(--text-2)' }}>Cancelar</button>
+              <button onClick={confirmSave} disabled={!saveName.trim() || isSaving} style={{ padding: '8px 22px', fontSize: 12, border: '1px solid var(--accent)', background: 'var(--accent)', color: '#fff', borderRadius: 'var(--radius)', cursor: saveName.trim() && !isSaving ? 'pointer' : 'default', fontWeight: 700, opacity: saveName.trim() && !isSaving ? 1 : 0.5 }}>
                 {isSaving ? 'Guardando...' : 'Guardar →'}
               </button>
             </div>
@@ -1753,14 +1765,14 @@ export default function PalletBuilder() {
       {/* ── Overwrite confirm modal ── */}
       {showOverwrite && (
         <div onClick={() => setShowOverwrite(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 }}>
-          <div onClick={e => e.stopPropagation()} style={{ background: 'var(--bg-2)', borderRadius: 12, padding: 20, width: '100%', maxWidth: 440, border: '1px solid var(--border)' }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: 'var(--bg-2)', borderRadius: 'var(--radius-lg)', padding: 20, width: '100%', maxWidth: 440, border: '1px solid var(--border)', boxShadow: 'var(--shadow-md)' }}>
             <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 8 }}>Ya existe un pallet con ese nombre</div>
             <div style={{ fontSize: 12, color: 'var(--text-2)', marginBottom: 18 }}>
               "<b>{overwriteName}</b>" ya está guardado. ¿Lo sobrescribís con la versión actual?
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-              <button onClick={() => setShowOverwrite(false)} style={{ padding: '8px 16px', fontSize: 12, border: '1px solid var(--border)', background: 'transparent', borderRadius: 6, cursor: 'pointer', color: 'var(--text-2)' }}>Cancelar</button>
-              <button onClick={confirmOverwrite} disabled={isSaving} style={{ padding: '8px 22px', fontSize: 12, border: 'none', background: 'var(--accent)', color: '#fff', borderRadius: 6, cursor: !isSaving ? 'pointer' : 'default', fontWeight: 700, opacity: !isSaving ? 1 : 0.5 }}>
+              <button onClick={() => setShowOverwrite(false)} style={{ padding: '8px 16px', fontSize: 12, border: '1px solid var(--border-2)', background: 'var(--surface)', borderRadius: 'var(--radius)', cursor: 'pointer', color: 'var(--text-2)' }}>Cancelar</button>
+              <button onClick={confirmOverwrite} disabled={isSaving} style={{ padding: '8px 22px', fontSize: 12, border: '1px solid var(--accent)', background: 'var(--accent)', color: '#fff', borderRadius: 'var(--radius)', cursor: !isSaving ? 'pointer' : 'default', fontWeight: 700, opacity: !isSaving ? 1 : 0.5 }}>
                 {isSaving ? 'Guardando...' : 'Sobrescribir →'}
               </button>
             </div>
@@ -1771,7 +1783,7 @@ export default function PalletBuilder() {
       {/* ── Load modal ── */}
       {showLoad && (
         <div onClick={() => setShowLoad(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 }}>
-          <div onClick={e => e.stopPropagation()} style={{ background: 'var(--bg-2)', borderRadius: 12, padding: 20, width: '100%', maxWidth: 600, maxHeight: '80vh', border: '1px solid var(--border)', display: 'flex', flexDirection: 'column' }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: 'var(--bg-2)', borderRadius: 'var(--radius-lg)', padding: 20, width: '100%', maxWidth: 600, maxHeight: '80vh', border: '1px solid var(--border)', boxShadow: 'var(--shadow-md)', display: 'flex', flexDirection: 'column' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
               <div style={{ fontSize: 14, fontWeight: 700 }}>Pallets guardados</div>
               <button onClick={() => setShowLoad(false)} style={{ background: 'none', border: 'none', fontSize: 18, cursor: 'pointer', color: 'var(--text-3)', lineHeight: 1 }}>×</button>
@@ -1785,15 +1797,15 @@ export default function PalletBuilder() {
                 savedList.map(s => {
                   const cfg = STATUS_CONFIG[normalizeJobStatus(s.status)] || STATUS_CONFIG.preparacion;
                   return (
-                    <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', border: '1px solid var(--border)', borderRadius: 8, background: 'var(--bg-3)' }}>
+                    <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', border: '1px solid var(--border)', borderRadius: 'var(--radius)', background: 'var(--surface)' }}>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.name}</div>
                         <div style={{ fontSize: 10, color: 'var(--text-3)', fontFamily: "'Inter', system-ui, -apple-system, sans-serif" }}>
                           {new Date(s.created_at).toLocaleDateString()} · <span style={{ color: cfg.color }}>{cfg.icon} {cfg.label}</span>
                         </div>
                       </div>
-                      <button onClick={() => loadJob(s.id)} style={{ padding: '5px 14px', fontSize: 11, borderRadius: 6, border: 'none', background: 'var(--accent)', color: '#fff', cursor: 'pointer', fontWeight: 700, fontFamily: "'Inter', system-ui, -apple-system, sans-serif" }}>Cargar →</button>
-                      <button onClick={() => deleteJob(s.id)} title="Borrar" style={{ padding: '5px 10px', fontSize: 11, borderRadius: 6, border: '1px solid rgba(192,57,43,0.3)', background: 'transparent', color: '#c0392b', cursor: 'pointer', fontFamily: "'Inter', system-ui, -apple-system, sans-serif" }}>×</button>
+                      <button onClick={() => loadJob(s.id)} style={{ padding: '5px 14px', fontSize: 11, borderRadius: 'var(--radius)', border: '1px solid var(--accent)', background: 'var(--accent)', color: '#fff', cursor: 'pointer', fontWeight: 700, fontFamily: "'Inter', system-ui, -apple-system, sans-serif" }}>Cargar →</button>
+                      <button onClick={() => deleteJob(s.id)} title="Borrar" style={{ padding: '5px 10px', fontSize: 11, borderRadius: 'var(--radius)', border: '1px solid rgba(180,35,24,0.3)', background: 'var(--surface)', color: 'var(--red)', cursor: 'pointer', fontFamily: "'Inter', system-ui, -apple-system, sans-serif" }}>×</button>
                     </div>
                   );
                 })
@@ -1806,14 +1818,14 @@ export default function PalletBuilder() {
       {/* ── Tracking link editor ── */}
       {showTrackingEditor && (
         <div onClick={() => setShowTrackingEditor(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 }}>
-          <div onClick={e => e.stopPropagation()} style={{ background: 'var(--bg-2)', borderRadius: 12, padding: 20, width: '100%', maxWidth: 480, border: '1px solid var(--border)' }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: 'var(--bg-2)', borderRadius: 'var(--radius-lg)', padding: 20, width: '100%', maxWidth: 480, border: '1px solid var(--border)', boxShadow: 'var(--shadow-md)' }}>
             <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>Link de seguimiento</div>
             <div style={{ fontSize: 11, color: 'var(--text-3)', marginBottom: 14 }}>Pegá la URL externa (transportista, courier, etc.) para tener un acceso rápido.</div>
             <input
               type="url" autoFocus value={trackingDraft}
               onChange={e => setTrackingDraft(e.target.value)}
               placeholder="https://..."
-              style={{ width: '100%', padding: '10px 12px', fontSize: 12, border: '1px solid var(--border-2)', borderRadius: 6, background: 'var(--bg-3)', color: 'var(--text)', boxSizing: 'border-box', fontFamily: "'Inter', system-ui, -apple-system, sans-serif" }}
+              style={{ width: '100%', padding: '10px 12px', fontSize: 12, border: '1px solid var(--border-2)', borderRadius: 4, background: 'var(--surface)', color: 'var(--text)', boxSizing: 'border-box', fontFamily: "'Inter', system-ui, -apple-system, sans-serif" }}
             />
             {currentJobTracking && (
               <a href={currentJobTracking} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-block', marginTop: 10, fontSize: 11, color: 'var(--accent)', textDecoration: 'underline' }}>
@@ -1821,17 +1833,17 @@ export default function PalletBuilder() {
               </a>
             )}
             {currentJobId && (
-              <div style={{ marginTop: 14, padding: '10px 12px', background: 'var(--bg-3)', border: '1px solid var(--border)', borderRadius: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ marginTop: 14, padding: '10px 12px', background: 'var(--bg-3)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', display: 'flex', alignItems: 'center', gap: 8 }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 10, color: 'var(--text-3)', fontFamily: "'Inter', system-ui, -apple-system, sans-serif", letterSpacing: 1 }}>LINK PÚBLICO INTERNO</div>
+                  <div className="pb-eyebrow" style={{ fontSize: 10, color: 'var(--text-3)' }}>Link público interno</div>
                   <div style={{ fontSize: 11, color: 'var(--text-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{getPalletShareUrl(currentJobId)}</div>
                 </div>
-                <button onClick={copyShareLink} style={{ padding: '5px 12px', fontSize: 11, borderRadius: 6, border: '1px solid var(--border)', background: 'transparent', cursor: 'pointer', color: 'var(--text-2)' }}>Copiar</button>
+                <button onClick={copyShareLink} style={{ padding: '5px 12px', fontSize: 11, borderRadius: 'var(--radius)', border: '1px solid var(--border-2)', background: 'var(--surface)', cursor: 'pointer', color: 'var(--text-2)' }}>Copiar</button>
               </div>
             )}
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 }}>
-              <button onClick={() => setShowTrackingEditor(false)} style={{ padding: '8px 16px', fontSize: 12, border: '1px solid var(--border)', background: 'transparent', borderRadius: 6, cursor: 'pointer', color: 'var(--text-2)' }}>Cancelar</button>
-              <button onClick={saveTracking} style={{ padding: '8px 22px', fontSize: 12, border: 'none', background: 'var(--accent)', color: '#fff', borderRadius: 6, cursor: 'pointer', fontWeight: 700 }}>Guardar</button>
+              <button onClick={() => setShowTrackingEditor(false)} style={{ padding: '8px 16px', fontSize: 12, border: '1px solid var(--border-2)', background: 'var(--surface)', borderRadius: 'var(--radius)', cursor: 'pointer', color: 'var(--text-2)' }}>Cancelar</button>
+              <button onClick={saveTracking} style={{ padding: '8px 22px', fontSize: 12, border: '1px solid var(--accent)', background: 'var(--accent)', color: '#fff', borderRadius: 'var(--radius)', cursor: 'pointer', fontWeight: 700 }}>Guardar</button>
             </div>
           </div>
         </div>

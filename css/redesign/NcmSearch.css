@@ -1,0 +1,212 @@
+/* ============================================================
+   NcmSearch — rediseño "ImportaPro Minimal / Petróleo"
+   Overrides flat sobre los estilos cálidos de css/styles.css.
+   Superficies blancas, bordes finos, radios 6-8px, chips/badges
+   rectangulares 4px, sombras sutiles. Sin gradientes ni ornaments.
+   Las vars (--accent, --border, --shadow, etc.) vienen del tema.
+   ============================================================ */
+
+/* Ornamento decorativo del header — fuera (minimal no tiene radiales) */
+.ncm-header::after {
+  display: none !important;
+}
+
+/* ---- Hero card: plana, blanca, hairline ---- */
+.ncm-hero-card {
+  background: var(--surface) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius-lg) !important; /* 8px */
+  box-shadow: var(--shadow) !important;
+}
+
+/* ---- Side card (Cómo usarlo): plana ---- */
+.ncm-side-card {
+  background: var(--surface) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius-lg) !important;
+  box-shadow: none !important;
+}
+
+/* ---- Stat cards (NCM cargados / rubros): planas, 6px, sin inset ---- */
+.ncm-stat-card {
+  background: var(--surface) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius) !important; /* 6px */
+  box-shadow: none !important;
+}
+
+.ncm-stat-card-soft {
+  background: var(--bg-3) !important;
+  border: 1px solid var(--border) !important;
+}
+
+/* ---- Caja de búsqueda: blanca, 6px ---- */
+.ncm-search-box {
+  background: var(--surface) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius) !important;
+}
+
+/* ---- Fila del input: plana, blanca, 6px ---- */
+.ncm-search-row {
+  background: var(--surface) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius) !important;
+}
+
+/* ---- Ícono de búsqueda: cuadrado petróleo-soft 4px, sigue alto del input ---- */
+.ncm-search-icon {
+  width: 40px !important;
+  height: auto !important;
+  align-self: stretch !important;
+  border-radius: 4px !important;
+  background: var(--accent-dim) !important;
+  border: 1px solid var(--border) !important;
+  color: var(--accent) !important;
+  font-size: 18px !important;
+}
+
+.ncm-search-input {
+  border-radius: 4px !important;
+  background: var(--surface) !important;
+}
+
+/* ---- Aviso (warning): plano ámbar tenue, 6px ---- */
+.ncm-warning {
+  background: var(--amber-dim) !important;
+  border: 1px solid var(--amber) !important;
+  border-radius: var(--radius) !important;
+  color: var(--amber) !important;
+}
+
+.ncm-warning strong {
+  color: var(--amber) !important;
+}
+
+/* ---- Tips (Cómo usarlo): planos, blancos, 6px ---- */
+.ncm-tip {
+  background: var(--surface) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius) !important;
+}
+
+/* índice de tip: cuadrado petróleo 4px (rectangular minimal) */
+.ncm-tip-index {
+  border-radius: 4px !important;
+  background: var(--accent) !important;
+  color: #fff !important;
+}
+
+/* ---- Panel de filtros (biblioteca): blanco plano, 6px ---- */
+.ncm-filter-panel {
+  background: var(--surface) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius) !important;
+}
+
+.ncm-filter-input {
+  border-radius: 4px !important;
+  background: var(--surface) !important;
+}
+
+/* ---- Chips de categoría: rectangulares 4px, blanco, sin sombra ---- */
+.ncm-chip {
+  border-radius: 4px !important;
+  background: var(--surface) !important;
+  border: 1px solid var(--border) !important;
+  color: var(--text-2) !important;
+  box-shadow: none !important;
+  transition: background 0.14s cubic-bezier(.4, 0, .2, 1),
+              border-color 0.14s cubic-bezier(.4, 0, .2, 1),
+              color 0.14s cubic-bezier(.4, 0, .2, 1) !important;
+}
+
+.ncm-chip:hover {
+  background: var(--bg-3) !important;
+  border-color: var(--accent) !important;
+  color: var(--accent) !important;
+}
+
+.ncm-chip.active {
+  background: var(--accent) !important;
+  border-color: var(--accent) !important;
+  color: #fff !important;
+  box-shadow: none !important;
+}
+
+/* ---- Pill de conteo de resultados: rectangular 4px ---- */
+.ncm-results-count {
+  border-radius: 4px !important;
+  background: var(--bg-3) !important;
+  border: 1px solid var(--border) !important;
+  color: var(--text-2) !important;
+}
+
+/* ---- Result cards: blancas, planas, 6px ---- */
+.ncm-result-card {
+  background: var(--surface) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius) !important;
+  box-shadow: none !important;
+  transition: border-color 0.14s cubic-bezier(.4, 0, .2, 1),
+              box-shadow 0.14s cubic-bezier(.4, 0, .2, 1) !important;
+}
+
+.ncm-result-card:hover {
+  transform: none !important;
+  border-color: var(--accent) !important;
+  box-shadow: var(--shadow) !important;
+}
+
+/* variante "ai" — sin gradiente, plana */
+.ncm-result-card-ai {
+  background: var(--surface) !important;
+}
+
+/* code en petróleo (se mantiene el acento) */
+.ncm-result-code {
+  color: var(--accent) !important;
+}
+
+/* categoría: chip rectangular gris 4px */
+.ncm-result-cat {
+  background: var(--bg-3) !important;
+  border-radius: 4px !important;
+  color: var(--text-2) !important;
+}
+
+/* ---- Botón "Aplicar": outline petróleo, plano, 4px ---- */
+.ncm-apply-btn {
+  background: var(--surface) !important;
+  border: 1px solid var(--accent) !important;
+  border-radius: 4px !important;
+  color: var(--accent) !important;
+  transition: background 0.14s cubic-bezier(.4, 0, .2, 1),
+              border-color 0.14s cubic-bezier(.4, 0, .2, 1) !important;
+}
+
+.ncm-apply-btn:hover {
+  background: var(--bg-3) !important;
+  border-color: var(--accent) !important;
+}
+
+/* ---- Empty state: dashed neutro, 6px, blanco ---- */
+.ncm-empty-state {
+  background: var(--surface) !important;
+  border: 1px dashed var(--border) !important;
+  border-radius: var(--radius) !important;
+}
+
+/* ---- Estado de error (si aparece): plano rojo tenue, 6px ---- */
+.ncm-error {
+  background: var(--red-dim) !important;
+  border: 1px solid var(--red) !important;
+  border-radius: var(--radius) !important;
+  color: var(--red) !important;
+}
+
+/* ---- Badges DI: rectangulares 4px (no pills) ---- */
+#section-ncm .badge,
+.ncm-result-actions .badge {
+  border-radius: 4px !important;
+}
