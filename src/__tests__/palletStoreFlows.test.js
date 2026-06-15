@@ -130,13 +130,13 @@ describe('setProducts + build()', () => {
     S().results.forEach((r, i) =>
       assertPalletInvariants(r.boxes, pt.L, pt.W, S().maxHeight, `multi-pallet[${i}]`)
     );
-  }, 30000);
+  }, 60000);
 
   it('cada result tiene idx reindexado consecutivo desde 0', () => {
     S().setProducts([mkProduct({ id: 'BIG', qty: 40, dims: { L: 60, W: 50, H: 60 } })]);
     S().build();
     S().results.forEach((r, i) => expect(r.idx).toBe(i));
-  }, 30000);
+  }, 60000);
 
   it('build() resetea activeResult a 0 y deselecciona', () => {
     S().setProducts([mkProduct({ id: 'A', qty: 4 })]);

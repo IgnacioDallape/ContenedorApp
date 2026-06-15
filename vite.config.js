@@ -46,10 +46,12 @@ export default defineConfig({
     globals: true,
     setupFiles: ['./src/__tests__/setup.js'],
     css: false,
-    // Suite con motores de packing pesados (+ fuzz): bajo paralelismo algunos
-    // tests rozan el default de 5s. 15s da margen sin enmascarar cuelgues reales.
-    // (Los tests de fuzz igual fijan su propio timeout de 60s.)
-    testTimeout: 15000,
+    // Suite con motores de packing pesados (+ fuzz). El motor de pallet es
+    // time-budgeted: con las 21 suites en paralelo, la contención de CPU dispara
+    // el wall-clock de algún build multi-pallet a 30s+ (en aislamiento corre rápido).
+    // 60s da margen real bajo carga sin enmascarar cuelgues genuinos (un cuelgue
+    // de verdad no termina nunca). Los tests de fuzz igual fijan su propio timeout.
+    testTimeout: 60000,
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html'],

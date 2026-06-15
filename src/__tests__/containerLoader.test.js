@@ -365,4 +365,36 @@ describe('runPacking — molinete de pallets (tight, sin espacio entre pallets)'
     const fill = covered / ((maxX - minX) * (maxZ - minZ));
     expect(fill).toBeGreaterThan(0.9);
   });
+
+  it('pallets DISTINTOS con mismo footprint (caso Pallet Builder) entran al molinete', () => {
+    // El Pallet Builder manda "Pallet 1..4" como productos DISTINTOS (ids distintos,
+    // qty 1 c/u) pero mismo footprint 120×100. Deben acomodarse en molinete igual
+    // que un único producto qty 4, no como pared/grilla uniforme.
+    setContainerDimensions(1200, 235, 239, (1200 * 235 * 239) / 1e6);
+    invalidatePackingCache();
+    const mk = (id, H) => ({
+      id, name: id, type: 'pallet', dims: { L: 120, W: 100, H }, qty: 1, weight: 210,
+      color: '#a07', packedItems: [{ x: 0, y: 0, z: 0, dX: 40, dY: 40, dZ: 40, sourceDims: { L: 40, W: 40, H: 40 } }],
+      palletBase: { L: 120, W: 100 },
+    });
+    // Cuatro pallets distintos, incluso con alturas diferentes.
+    const r = runPacking([mk('Pallet 1', 214), mk('Pallet 2', 180), mk('Pallet 3', 150), mk('Pallet 4', 214)]).packed;
+    expect(r.length).toBe(4);
+    // Molinete real → DOS orientaciones presentes (no una pared de una sola).
+    const oris = new Set(r.map(b => `${b.dX}x${b.dZ}`));
+    expect(oris.size).toBe(2);
+    // Cada pallet conserva SU propia altura (no la del primero del grupo).
+    const alturas = new Set(r.map(b => b.dY));
+    expect(alturas.has(180)).toBe(true);
+    expect(alturas.has(150)).toBe(true);
+    // Sin solapamiento (en footprint).
+    for (let i = 0; i < r.length; i++) {
+      for (let j = i + 1; j < r.length; j++) {
+        const a = r[i], c = r[j];
+        const ox = Math.min(a.x + a.dX, c.x + c.dX) - Math.max(a.x, c.x);
+        const oz = Math.min(a.z + a.dZ, c.z + c.dZ) - Math.max(a.z, c.z);
+        expect(ox > 0.5 && oz > 0.5).toBe(false);
+      }
+    }
+  });
 });

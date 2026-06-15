@@ -552,11 +552,17 @@ function runPacking(products) {
   // a lo largo del contenedor sin dejar espacio entre pallets. (Los semis usan el
   // layout de-punta centro-afuera, más abajo.)
 
+  // Agrupar pallets por FOOTPRINT (L×W), no por id de producto. Así varios pallets
+  // DISTINTOS con la misma base (caso típico del Pallet Builder: "Pallet 1..4", todos
+  // 120×100) se acomodan juntos en el mismo patrón (molinete / de-punta centro-afuera)
+  // en vez de caer al BFD como una pared. La altura se maneja por-unidad más abajo,
+  // porque dos pallets del mismo footprint pueden tener distinto alto.
   const palletGroupsMap = {};
   for (const u of freeUnits) {
     if (u.type !== 'pallet' || u.lockedOri || u.priorityZone) continue;
-    if (!palletGroupsMap[u.id]) palletGroupsMap[u.id] = [];
-    palletGroupsMap[u.id].push(u);
+    const key = `${Math.round(u.dims.L)}x${Math.round(u.dims.W)}`;
+    if (!palletGroupsMap[key]) palletGroupsMap[key] = [];
+    palletGroupsMap[key].push(u);
   }
 
   const handledByPattern = new Set();
@@ -595,8 +601,11 @@ function runPacking(products) {
       for (const cp of allSlots) {
         if (idx >= group.length) break;
         const u = group[idx];
-        const h = hmGetMax(hm, cp.px, cp.pz, cp.ori.dX, cp.ori.dZ);
-        const placement = tryPlaceAt(u, cp.px, cp.pz, cp.ori, h, 'pattern');
+        // Altura por-unidad: el grupo comparte footprint (W×L) pero cada pallet puede
+        // tener distinto alto, así que armo la orientación con su propio dims.H.
+        const uOri = { dX: cp.ori.dX, dZ: cp.ori.dZ, dY: u.dims.H };
+        const h = hmGetMax(hm, cp.px, cp.pz, uOri.dX, uOri.dZ);
+        const placement = tryPlaceAt(u, cp.px, cp.pz, uOri, h, 'pattern');
         if (!placement) {
           consumeUnsafePlacementWarning(u, 'pattern');
           idx++;
@@ -612,36 +621,43 @@ function runPacking(products) {
     }
   }
 
-  for (const [pid, group] of Object.entries(palletGroupsMap)) {
+  let palletCursorX = 0; // footprints distintos se tilean uno tras otro a lo largo de X
+  for (const [, group] of Object.entries(palletGroupsMap)) {
     if (isSemiLayout) continue; // ya manejado arriba
     if (group.length < 2) continue;
     const s = group[0];
-    const A = { dX: s.dims.L, dZ: s.dims.W, dY: s.dims.H };
-    const B = { dX: s.dims.W, dZ: s.dims.L, dY: s.dims.H };
-    // Only use interlocking for non-square pallets where both orientations fit
-    if (A.dX === B.dX || A.dX > CONT_L + FIT_EPS || A.dZ > CONT_W + FIT_EPS || B.dX > CONT_L + FIT_EPS || B.dZ > CONT_W + FIT_EPS) continue;
-    // Check that 2 pallets in depth fit strictly within container width
-    if (A.dZ + B.dZ > CONT_W + FIT_EPS) continue;
+    const L = s.dims.L;
+    const W = s.dims.W;
+    // A = de-costado (L a lo largo de X), B = de-punta (W a lo largo de X). Sólo el
+    // footprint (dX,dZ) sale del grupo; la altura (dY) se arma por-unidad al colocar.
+    const A = { dX: L, dZ: W };
+    const B = { dX: W, dZ: L };
+    // Sólo molinete para pallets no-cuadrados donde ambas orientaciones entran y dos
+    // en profundidad caben en el ancho del contenedor.
+    if (
+      A.dX === B.dX ||
+      A.dX > CONT_L + FIT_EPS || A.dZ > CONT_W + FIT_EPS ||
+      B.dX > CONT_L + FIT_EPS || B.dZ > CONT_W + FIT_EPS ||
+      A.dZ + B.dZ > CONT_W + FIT_EPS
+    )
+      continue;
 
     // Patrón MOLINETE: bloques de 4 pallets que rotan 90° y SE TOCAN. Cada bloque
     // ocupa (L+W)×(L+W) y deja sólo un huequito cuadrado (L-W)×(L-W) en el centro.
-    // Disposición de cada bloque (origen en px, A=de-costado dX=L, B=de-punta dX=W):
     //   P4 de-punta(B) arriba-izq   P3 de-costado(A) arriba-der
     //   P1 de-costado(A) abajo-izq   P2 de-punta(B) abajo-der
     // Se tilean a lo largo de X sin espacio entre bloques (P2/P3 llegan a px+L+W,
     // el siguiente bloque arranca justo ahí).
     const placements = [];
-    const L = s.dims.L;
-    const W = s.dims.W;
     const blockSpan = L + W;
-    let px = 0;
+    let px = palletCursorX;
 
     // Bloques completos de 4 (el molinete real)
     while (placements.length + 4 <= group.length && px + blockSpan <= CONT_L + FIT_EPS) {
-      placements.push({ px, pz: 0, ori: A }); // P1 abajo-izq  (de-costado)
-      placements.push({ px: px + L, pz: 0, ori: B }); // P2 abajo-der  (de-punta)
-      placements.push({ px: px + W, pz: L, ori: A }); // P3 arriba-der (de-costado)
-      placements.push({ px, pz: W, ori: B }); // P4 arriba-izq (de-punta)
+      placements.push({ px, pz: 0, dX: A.dX, dZ: A.dZ }); // P1 abajo-izq  (de-costado)
+      placements.push({ px: px + L, pz: 0, dX: B.dX, dZ: B.dZ }); // P2 abajo-der  (de-punta)
+      placements.push({ px: px + W, pz: L, dX: A.dX, dZ: A.dZ }); // P3 arriba-der (de-costado)
+      placements.push({ px, pz: W, dX: B.dX, dZ: B.dZ }); // P4 arriba-izq (de-punta)
       px += blockSpan;
     }
 
@@ -649,25 +665,26 @@ function runPacking(products) {
     // de-costado (2 en profundidad) si entra, si no de-punta (más angosta).
     let rem = group.length - placements.length;
     while (rem > 0) {
-      const ori =
-        px + A.dX <= CONT_L + FIT_EPS ? A : px + B.dX <= CONT_L + FIT_EPS ? B : null;
-      if (!ori) break;
+      const o = px + A.dX <= CONT_L + FIT_EPS ? A : px + B.dX <= CONT_L + FIT_EPS ? B : null;
+      if (!o) break;
       let pz = 0;
-      while (rem > 0 && pz + ori.dZ <= CONT_W + FIT_EPS) {
-        placements.push({ px, pz, ori });
-        pz += ori.dZ;
+      while (rem > 0 && pz + o.dZ <= CONT_W + FIT_EPS) {
+        placements.push({ px, pz, dX: o.dX, dZ: o.dZ });
+        pz += o.dZ;
         rem--;
       }
-      px += ori.dX;
+      px += o.dX;
     }
+    palletCursorX = px; // el próximo grupo de footprint arranca donde terminó éste
 
-    // Place units at these positions
+    // Colocar cada unidad con SU propia altura (mismo footprint, distinto alto posible)
     let idx = 0;
     for (const cp of placements) {
       if (idx >= group.length) break;
       const u = group[idx];
-      const h = hmGetMax(hm, cp.px, cp.pz, cp.ori.dX, cp.ori.dZ);
-      const placement = tryPlaceAt(u, cp.px, cp.pz, cp.ori, h, 'pattern');
+      const ori = { dX: cp.dX, dZ: cp.dZ, dY: u.dims.H };
+      const h = hmGetMax(hm, cp.px, cp.pz, ori.dX, ori.dZ);
+      const placement = tryPlaceAt(u, cp.px, cp.pz, ori, h, 'pattern');
       if (!placement) {
         consumeUnsafePlacementWarning(u, 'pattern');
         idx++;
