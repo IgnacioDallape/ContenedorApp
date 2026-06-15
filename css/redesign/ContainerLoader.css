@@ -71,6 +71,11 @@
 
 /* ── REORDER BUTTON — outline petróleo ───────────────────────────────── */
 .cl-section .reorder-btn {
+  width: auto !important;
+  max-width: max-content !important;
+  padding: 8px 14px !important;
+  font-size: 0.85rem !important;
+  margin: 0 1.7rem 12px !important;
   border-radius: var(--radius) !important;
   border: 1px solid var(--accent) !important;
   background: transparent !important;
