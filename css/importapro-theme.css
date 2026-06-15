@@ -1,0 +1,196 @@
+/* ════════════════════════════════════════════════════════════════════
+   ImportaPro — TEMA "Minimal / Petróleo"  ·  DROP-IN para la app real
+   --------------------------------------------------------------------
+   Pegá este archivo en tu repo (p.ej. css/importapro-theme.css) y
+   cargalo DESPUÉS de css/styles.css:
+
+       <link rel="stylesheet" href="/css/styles.css">
+       <link rel="stylesheet" href="/css/importapro-theme.css">   <!-- nuevo -->
+
+   o, en Vite, importalo después en main.jsx:
+       import '../css/styles.css';
+       import '../css/importapro-theme.css';
+
+   Remapea las variables y las clases hardcodeadas de tu styles.css
+   (paleta ImportaPro + paleta Container Loader --c1..--c5) al nuevo
+   sistema: neutro frío + un acento azul petróleo, plano, esquinas
+   chicas, badges rectangulares. No toca el motor 3D ni la lógica.
+   ════════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* ── Superficies (neutro frío) ── */
+  --bg:        #f6f7f9;
+  --bg-2:      #ffffff;
+  --bg-3:      #f1f3f5;
+  --bg-4:      #e7eaee;
+  --surface:   #ffffff;
+  --surface2:  #f7f8fa;
+
+  /* ── Bordes (hairline cool) ── */
+  --border:    rgba(16,24,40,0.08);
+  --border-2:  rgba(16,24,40,0.14);
+  --border2:   rgba(16,24,40,0.14);
+
+  /* ── Texto (slate) ── */
+  --text:    #101828;
+  --text-2:  #475467;
+  --text-3:  #98a2b3;
+  --muted:   #b4bcc8;
+
+  /* ── Acento: AZUL PETRÓLEO ── */
+  --accent:        #0e5a6b;
+  --accent-light:  #0a4756;
+  --accent-dim:    rgba(14,90,107,0.08);
+  --accent2:       #0a4756;
+
+  /* ── Paleta Container Loader (--c1..--c5) remapeada ── */
+  --c1: #0e5a6b;   /* antes taupe — ahora petróleo */
+  --c2: #98a2b3;
+  --c3: #cbd3da;
+  --c4: #e7eaee;
+  --c5: #ffffff;
+
+  /* ── Semánticos ── */
+  --green:   #067647;  --green-dim: rgba(6,118,71,0.09);
+  --amber:   #b54708;  --amber-dim: rgba(181,71,8,0.09);
+  --red:     #b42318;  --red-dim:   rgba(180,35,24,0.08);
+  --danger:  #b42318;
+  --success: #067647;
+
+  /* ── Radios (chicos, formales) ── */
+  --radius:    6px;
+  --radius-lg: 8px;
+
+  /* ── Sombras (sutiles, frías) ── */
+  --shadow:    0 1px 3px rgba(16,24,40,0.06), 0 1px 2px rgba(16,24,40,0.04);
+  --shadow-md: 0 8px 24px rgba(16,24,40,0.10), 0 2px 6px rgba(16,24,40,0.05);
+}
+
+/* ── Canvas: fondo plano (reemplaza el wash cálido) ── */
+body {
+  background: var(--bg) !important;
+  color: var(--text);
+}
+.main,
+#section-products {
+  background: var(--bg) !important;
+}
+
+/* ── Sidebar: sólido, sin blur cálido ── */
+.sidebar {
+  background: #ffffff !important;
+  border-right: 1px solid var(--border) !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+}
+.nav-item { border-radius: 6px !important; }
+.nav-item.active {
+  background: var(--accent-dim) !important;
+  color: var(--accent) !important;
+  box-shadow: none !important;
+}
+.nav-item.active .nav-icon { background: rgba(14,90,107,0.12) !important; }
+
+/* ── Cards: blancas, planas, esquina chica ── */
+.card,
+.product-card,
+.cat-card,
+.modal,
+.cap-modal {
+  background: #ffffff !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 8px !important;
+  box-shadow: var(--shadow) !important;
+}
+.card::before,
+.product-card::before,
+.product-card::after { display: none !important; }
+.result-card { border-left: 3px solid var(--accent) !important; }
+
+/* ── Botones primarios: petróleo sólido (reemplaza el gradiente cálido) ── */
+.btn-primary,
+.login-btn {
+  background: var(--accent) !important;
+  color: #fff !important;
+  border-radius: 6px !important;
+  box-shadow: 0 1px 2px rgba(16,24,40,0.10) !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+}
+.btn-primary:hover,
+.login-btn:hover {
+  background: var(--accent-light) !important;
+  transform: none !important;
+}
+.btn-outline,
+.btn-secondary {
+  background: #fff !important;
+  border: 1px solid var(--border-2) !important;
+  color: var(--text-2) !important;
+  border-radius: 6px !important;
+  text-transform: none !important;
+}
+.btn-outline:hover,
+.btn-secondary:hover {
+  background: var(--bg-3) !important;
+  color: var(--text) !important;
+  border-color: var(--border-2) !important;
+}
+
+/* ── Inputs: blancos, hairline, foco petróleo ── */
+input[type="text"], input[type="number"], input[type="email"],
+input[type="password"], input[type="url"], select, textarea {
+  background: #ffffff !important;
+  border: 1px solid var(--border-2) !important;
+  border-radius: 6px !important;
+  color: var(--text) !important;
+  box-shadow: none !important;
+}
+input:focus, select:focus, textarea:focus {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 3px rgba(14,90,107,0.16) !important;
+}
+
+/* ── Badges: rectangulares (formal) ── */
+.badge {
+  border-radius: 4px !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.04em !important;
+  font-weight: 600 !important;
+  background-image: none !important;
+}
+.badge-green { background: var(--green-dim) !important; color: var(--green) !important; border-color: rgba(6,118,71,0.25) !important; }
+.badge-amber { background: var(--amber-dim) !important; color: var(--amber) !important; border-color: rgba(181,71,8,0.25) !important; }
+.badge-red   { background: var(--red-dim)   !important; color: var(--red)   !important; border-color: rgba(180,35,24,0.25) !important; }
+.badge-blue  { background: var(--accent-dim)!important; color: var(--accent)!important; border-color: rgba(14,90,107,0.25) !important; }
+
+/* ── Header (Container Loader) — toma --c1 = petróleo ── */
+header { box-shadow: 0 1px 2px rgba(16,24,40,0.08) !important; }
+.nav-btn.active { background: #fff !important; color: var(--accent) !important; }
+
+/* ── Acentos numéricos / valores grandes ── */
+.big-value,
+.stat-value,
+.ncm-main-code,
+.sim-price,
+.td-price { color: var(--accent) !important; }
+
+/* ── Login: panel de marca petróleo sólido ── */
+.login-container { border-radius: 12px !important; box-shadow: var(--shadow-md) !important; }
+.login-panel {
+  background: linear-gradient(160deg, #0e5a6b 0%, #0a4756 55%, #08323d 100%) !important;
+}
+
+/* ── Barras de progreso / ocupación ── */
+.pct-fill,
+.progress-fill { background: var(--accent) !important; }
+
+/* ── Pills de tipo / toggles ── */
+.cont-type-btn.active,
+.type-tab.active-box,
+.type-tab.active-pallet { border-color: var(--accent) !important; color: var(--accent) !important; background: var(--accent-dim) !important; }
+.ctog-btn.active { color: var(--accent) !important; }
+
+/* ── Toast / chips varios ── */
+.toast { border-radius: 6px !important; }
+.trader-note { background: var(--accent-dim) !important; color: var(--accent) !important; border-color: rgba(14,90,107,0.2) !important; }
