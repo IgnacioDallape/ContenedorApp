@@ -197,6 +197,25 @@
   border-radius: var(--radius) !important;
 }
 #section-container .cl-topbtn:disabled { opacity: 0.5 !important; cursor: not-allowed !important; }
+
+/* ── ZONAS más DISCRETAS (feature intacta, solo menos protagonismo) ───── */
+.cl-section .cl-zone-controls {
+  background: rgba(255, 255, 255, 0.88) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius) !important;
+  padding: 4px 7px !important;
+  gap: 4px !important;
+  box-shadow: var(--shadow) !important;
+  backdrop-filter: none !important;
+}
+.cl-section .cl-zone-controls > span { font-size: 8px !important; color: var(--text-3) !important; }
+.cl-section .cl-zone-controls button { padding: 2px 7px !important; font-size: 10px !important; }
+/* indicador "ZONAS ACTIVAS" → petróleo neutro */
+.cl-section .cl-zone-indicator span {
+  background: var(--accent-dim) !important;
+  border-color: var(--accent) !important;
+  color: var(--accent) !important;
+}
 .cl-section .cl-add-overlay { position: fixed; inset: 0; z-index: 40; }
 .cl-section .cl-add-menu {
   position: absolute;
