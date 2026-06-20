@@ -31,17 +31,17 @@
     "format:check": "prettier --check \"**/*.{js,jsx,css,json,md}\""
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.49.4",
-    "i18next": "^23.16.8",
+    "@supabase/supabase-js": "^2.108.2",
+    "i18next": "^26.3.1",
     "i18next-browser-languagedetector": "^8.2.1",
     "jspdf": "^4.2.1",
-    "jspdf-autotable": "^5.0.7",
+    "jspdf-autotable": "^5.0.8",
     "qrcode": "^1.5.4",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "react-i18next": "^15.7.4",
-    "three": "^0.175.0",
-    "zustand": "^5.0.3"
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "react-i18next": "^17.0.8",
+    "three": "^0.184.0",
+    "zustand": "^5.0.14"
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",
